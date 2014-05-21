@@ -1,0 +1,182 @@
+/*
+ * Copyright (C) 2014 Oleg Dolgarev <o.dolgarev@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+
+.lightbox {
+    width: 100vw;
+    height: 100vh;
+
+    display: none;
+    -webkit-flex-direction: column;
+    -webkit-justify-content: center;
+    -webkit-align-items: center;
+
+    position: fixed;
+    z-index: 999;
+    top: 0;
+    left: 0;
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.lightbox_show {
+    display: -webkit-flex;
+}
+
+.lightbox > .content {
+    width: 90vw;
+    height: 90vh;
+
+    display: -webkit-flex;
+    -webkit-flex-direction: column;
+    -webkit-justify-content: center;
+    -webkit-align-items: center;
+
+    border-radius: 8px;
+    padding: 1ex 2ex 2ex 2ex;
+    color: #000;
+}
+
+.bg_red {
+    background-color: #f85050;
+}
+
+.bg_white {
+    background-color: #fff;
+}
+
+.lightbox span[data-action="close"] {
+    cursor: pointer;
+}
+
+.content > hr {
+    border-top: 1px solid #000;
+    width: 100%;
+}
+
+.content_panel, .content_panel_close, .content_panel_info {
+    width: 100%;
+    display: -webkit-flex;
+    -weblit-align-items: flex-start;
+}
+
+.content_panel_close {
+    -webkit-justify-content: flex-end;
+    -webkit-flex-grow: 1;
+}
+
+.content_panel_info {
+    margin-top: 1ex;
+    -webkit-justify-content: space-between;
+    -webkit-align-items: baseline;
+}
+
+.content_panel_info div:first-child {
+    margin-left: 2ex;
+    font-weight: bold;
+    -webkit-flex-grow: 1;
+    display: inline-block;
+}
+
+.content_panel_info div:last-child {
+    display: inline-block;
+}
+
+.content_panel_info div:last-child > button {
+    margin-right: 1ex;
+}
+
+.content > .feedback {
+    display: -webkit-flex;
+    -webkit-justify-content: center;
+}
+
+.feedback > a {
+    color: #000;
+    font-size: 48px;
+    text-decoration: none;
+}
+
+/*
+[http://cssdeck.com/labs/css3-webkit-vertical-scrollbars/]
+*/
+.content > .scroll_keys {
+    width: 80%;
+    height: 20%;
+    overflow-y: auto;
+}
+
+.scroll_keys::-webkit-scrollbar-track {
+    border-radius: 8px;
+    background-color: #f85050;
+}
+
+.scroll_keys::-webkit-scrollbar {
+    width: 10px;
+    background-color: #f85050;
+}
+
+.scroll_keys::-webkit-scrollbar-thumb {
+    border-radius: 8px;
+    -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+    background-color: #000;
+}
+
+/*
+[http://www.csstablegenerator.com/]
+*/
+.scroll_keys > table {
+    border-collapse: collapse;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.scroll_keys > table td {
+    vertical-align: middle;
+    padding-bottom: 4px;
+}
+
+.scroll_keys > table td:first-child {
+    text-align: right;
+    width: 20%;
+}
+
+.scroll_keys > table td:nth-child(2) {
+    text-align: left;
+    width: 20%;
+}
+
+.scroll_keys > table td:last-child {
+    text-align: left;
+    width: 60%;
+}
+
+.bttn, .bttn_alt, .bttn_ctrl {
+    padding: 2px 4px;
+    background-color: #fff;
+    color: #000;
+    border: 2px solid #000;
+    border-radius: 4px;
+
+    font-size: 85%;
+    font-family: "Lucida Console", Monaco, monospace;
+}
+
+.bttn_alt, .bttn_ctrl {
+    background-color: #bbb;
+}

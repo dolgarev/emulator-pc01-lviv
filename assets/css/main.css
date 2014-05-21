@@ -1,0 +1,202 @@
+/*
+ * Copyright (C) 2014 Oleg Dolgarev <o.dolgarev@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+
+body {
+    background-color: whitesmoke;
+}
+
+.main_container {
+    height: 100vh;
+    width: 100vw;
+
+    display: -webkit-flex;
+    -webkit-flex-direction: column;
+    -webkit-justify-content: flex-start;
+    -webkit-align-items: center;
+}
+
+.main_container > .row_0 {
+    display: -webkit-flex;
+    -webkit-align-self: stretch;
+    -webkit-flex-direction: row;
+    -webkit-justify-content: space-around;
+}
+
+.main_container > .row_2 {
+    display: -webkit-flex;
+    padding-top: 2%;
+    -webkit-align-self: center;
+    -webkit-flex-direction: row;
+    -webkit-justify-content: space-around;
+}
+
+#canvas_container > canvas {
+    border: 2px solid #080808;
+    border-radius: 2px;
+    box-shadow: 4px 4px 8px gray;
+    pointer-events: none;
+}
+
+.dropping {
+    background-color: lightyellow;
+}
+
+.pause {
+    -webkit-filter: opacity(75%);
+}
+
+.notify {
+    display: -webkit-flex;
+    -webkit-justify-content: space-between;
+
+    background-color: #f85050;
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
+    padding: 4px;
+    width: 80%;
+
+    visibility: hidden;
+    z-index: 1000;
+}
+
+.notify_show {
+    visibility: visible;
+}
+
+.notify > span:first-child {
+    color: #000;
+    text-align: center;
+    width: 95%;
+}
+
+.notify > span:last-child {
+    cursor: pointer;
+}
+
+/* [http://css3button.net/] */
+.css3button {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 14px;
+    color: #ffffff;
+    text-decoration: none;
+
+    margin: 0 8px 0 8px;
+    padding: 8px 20px;
+    background: -webkit-gradient(
+            linear, left top, left bottom,
+            from(#0551eb),
+            to(#1552eb));
+    border-radius: 4px;
+    border: 2px solid #000000;
+    box-shadow:
+            0px 1px 3px rgba(000, 000, 000, 0.1),
+            inset 0px 0px 2px rgba(255, 255, 255, 1);
+    text-shadow:
+            0px -1px 0px rgba(000, 000, 000, 0.4),
+            0px 1px 0px rgba(255, 255, 255, 0.3);
+}
+
+.css3button:hover {
+    background: #0031eb;
+    cursor: pointer;
+}
+
+.css3button:active {
+    position: relative;
+    top: 1px;
+}
+
+.css3button:focus {
+    outline: none;
+}
+
+/* [http://proto.io/freebies/onoff/] */
+.onoffswitch {
+    position: relative;
+    width: 130px;
+    -webkit-user-select: none;
+}
+
+.onoffswitch-checkbox {
+    display: none;
+}
+
+.onoffswitch-label {
+    display: block;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid #000;
+    border-radius: 4px;
+}
+
+.onoffswitch-inner {
+    display: block;
+    width: 200%;
+    margin-left: -100%;
+    transition: margin 0.3s ease-in 0s;
+}
+
+.onoffswitch-inner:before, .onoffswitch-inner:after {
+    float: left;
+    width: 50%;
+    height: 32px;
+    padding: 0;
+    line-height: 32px;
+    font-size: 14px;
+    color: white;
+    font-family: Arial, Helvetica, sans-serif;
+    box-sizing: border-box;
+}
+
+.onoffswitch-inner:before {
+    content: "GDRIVE ON";
+    padding-left: 10px;
+    background-color: #0551eb;
+    color: #FFFFFF;
+}
+
+.onoffswitch-inner:after {
+    content: "GDRIVE OFF";
+    padding-right: 10px;
+    background-color: #EEEEEE;
+    color: #999999;
+    text-align: right;
+}
+
+.onoffswitch-switch {
+    display: block;
+    width: 18px;
+    margin: 6px;
+    background: #FFFFFF;
+    border: 2px solid #000;
+    border-radius: 4px;
+
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 96px;
+    transition: all 0.3s ease-in 0s;
+}
+
+.onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-inner {
+    margin-left: 0;
+}
+
+.onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-switch {
+    right: 0px;
+}

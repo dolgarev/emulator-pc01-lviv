@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<!--
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+-->
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <title></title>
+
+        <!-- 960 Grid System -->
+        <link rel="stylesheet" type="text/css" media="all" href="./assets/960gs/css/reset.css" />
+        <link rel="stylesheet" type="text/css" media="all" href="./assets/960gs/css/text.css" />
+
+        <!-- Emulator -->
+        <link rel="stylesheet" type="text/css" media="all" href="./assets/fontello/css/fontello.css" />
+        <link rel="stylesheet" type="text/css" media="all" href="./assets/css/lightbox.css" />
+        <link rel="stylesheet" type="text/css" media="all" href="./assets/css/main.css" />
+
+        <!-- Emulator -->
+        <script src="./js/emulator.js"></script>
+        <script src="./js/computer.js"></script>
+        <script src="./js/profile.js"></script>
+        <script src="./js/config.js"></script>
+        <script src="./js/i8080.js"></script>
+        <script src="./js/io.js"></script>
+        <script src="./js/memory.js"></script>
+        <script src="./js/screen.js"></script>
+        <script src="./js/viewport.js"></script>
+        <script src="./js/rom.js"></script>
+        <script src="./js/setting.js"></script>
+        <script src="./js/keyboard.js"></script>
+        <script src="./js/beeper.js"></script>
+        <script src="./js/dump.js"></script>
+        <script src="./js/watcher.js"></script>
+        <script src="./js/tape.js"></script>
+        <script src="./js/dnd.js"></script>
+        <script src="./js/notify.js"></script>
+        <script src="./js/main.js"></script>
+    </head>
+
+    <body id="body_container">
+
+        <div class="main_container">
+            <div class="row_0">
+                <p id="notify" class="notify"><span></span><span class="icon-cancel-circle"></span></p>
+            </div>
+            <div class="row_1">
+                <div id="canvas_container"></div>
+            </div>
+            <div class="row_2">
+                <button class="css3button" id="load_button">LOAD</button>
+                <button class="css3button" id="help_button" data-target="help">HELP</button>
+            </div>
+        </div>
+
+        <div class="lightbox" id="help">
+            <div class="content bg_red">
+                <div class="content_panel_close"><span class="icon-cancel-circle" data-action="close"></span></div>
+                <img src="./lviv-128.png" alt="application logo">
+                <h2>Emulator PC-01 Lviv</h2>
+                <br/>
+                <p>This is PC-01 Lviv emulator written in JavaScript and HTML5.</p>
+                <br/>
+                <h5>Keyboard Shortcuts</h5>
+                <div class="scroll_keys">
+                    <table>
+                        <tr>
+                            <td><span class="bttn_ctrl">CTRL</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">P</span></td>
+                            <td>Pause</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_ctrl">CTRL</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">R</span></td>
+                            <td>Reset</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_ctrl">CTRL</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">G</span></td>
+                            <td>Turn on/off grayscale mode</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_ctrl">CTRL</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">S</span></td>
+                            <td>Take a screenshot</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_alt">ALT</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">0</span></td>
+                            <td>&lt;F0&gt;</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_alt">ALT</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">1</span></td>
+                            <td>&lt;F1&gt;</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_alt">ALT</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">2</span></td>
+                            <td>&lt;F2&gt;</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_alt">ALT</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">3</span></td>
+                            <td>&lt;F3&gt;</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_alt">ALT</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">4</span></td>
+                            <td>&lt;F4&gt;</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_alt">ALT</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">5</span></td>
+                            <td>&lt;F5&gt;</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_alt">ALT</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">6</span></td>
+                            <td>&lt;ДИН&gt;</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_alt">ALT</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">7</span></td>
+                            <td>&lt;CD&gt;</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_alt">ALT</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">8</span></td>
+                            <td>&lt;ПЧ&gt;</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_alt">ALT</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">9</span></td>
+                            <td>&lt;П/Д&gt;</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_alt">ALT</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">-</span></td>
+                            <td>_</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_alt">ALT</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">+</span></td>
+                            <td>&lt;ГТ&gt;</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_alt">ALT</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">C</span></td>
+                            <td>&lt;СТР&gt;</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_alt">ALT</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">G</span></td>
+                            <td>&lt;G&gt;</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_alt">ALT</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">B</span></td>
+                            <td>&lt;B&gt;</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_alt">ALT</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">R</span></td>
+                            <td>&lt;R&gt;</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_alt">ALT</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">L</span></td>
+                            <td>&lt;ЛАТ&gt;</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_alt">ALT</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">U</span></td>
+                            <td>&lt;РУС&gt;</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_alt">ALT</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">H</span></td>
+                            <td>&lt;ДИА&gt;</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_alt">ALT</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">SHIFT</span></td>
+                            <td>&lt;ВР&gt;</td>
+                        </tr>
+                        <tr>
+                            <td><span class="bttn_alt">ALT</span>&nbsp+&nbsp;</td>
+                            <td><span class="bttn">ENTER</span></td>
+                            <td>&lt;ПС&gt;</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td><span class="bttn">ESC</span></td>
+                            <td>&lt;СУ&gt;</td>
+                        </tr>
+                    </table>
+                </div>
+                <br/>
+                <h5>Feedback</h5>
+                <div class="feedback">
+                    <a href="http://ua.linkedin.com/in/dolgarev/" target="_blank"><span class="icon-linkedin-rect"></span></a>
+                    <a href="https://github.com/dolgarev/emulator-pc01-lviv" target="_blank"><span class="icon-github-1"></span></a>
+                    <a href="https://vk.com/pc01_lvov" target="_blank"><span class="icon-vkontakte-rect"></span></a>
+                </div>
+                <br/>
+                <p>&copy; 2014 Oleg Dolgaryov</p>
+            </div>
+        </div>
+
+    </body>
+</html>
