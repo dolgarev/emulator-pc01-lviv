@@ -1,2 +1,3 @@
-This is PC-01 Lviv emulator written in JavaScript and HTML5.
+Emulator PC-01 Lviv
 ==
+This is PC-01 Lviv emulator written in JavaScript and HTML5.
