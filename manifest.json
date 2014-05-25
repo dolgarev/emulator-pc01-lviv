@@ -3,7 +3,7 @@
     "name" : "Emulator PC-01 Lviv",
     "short_name" : "Emulator",
     "description" : "Emulator PC-01 Lviv written in JavaScript and HTML5.",
-    "version" : "1.0.0",
+    "version" : "1.0.1",
     "author" : "Oleg Dolgaryov",
     "minimum_chrome_version" : "32",
     "offline_enabled" : true,
