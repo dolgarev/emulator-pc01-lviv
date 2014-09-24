@@ -15,6 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+
 function IO(config, beeper, keyboard) {
     if (!(config instanceof Config)) {
         throw new Error('IO: Invalid CONFIG object');
@@ -34,11 +35,12 @@ function IO(config, beeper, keyboard) {
     //port 0xF0
     //[http://lvovpc.cu.cc/article.shtml?id=6]
     this.EXTENDED_MODE_PORT = 0xF0;
-    this.VIDEO_RESOLUTION_BIT = 0x8;    //0 - 256*256, 1 - 512*256
-    this.SCREEN_BLANK_BIT = 0x10;       //1 - on, 0 - off
+    this.HIGH_RESOLUTION_BIT = 0x8;     //0 - 256*256, 1 - 512*256
+    this.BLANK_SCREEN_BIT = 0x10;       //1 - on, 0 - off
     this.INTERRUPT_BIT = 0x20;          //1 - on, 0 - off
 
-    //ports 0xE0-0xE4 использовались работы с контроллером ГМД
+    //порты 0xE0-0xE4 использовались работы с контроллером ГМД
+    //в Chameleon DOS и CP/M-80 версии Дмитрия Скачкова
 
     //port 0xC0
     //[http://lvovpc.cu.cc/article.shtml?id=2]
@@ -46,7 +48,7 @@ function IO(config, beeper, keyboard) {
     this.PRINTER_PORT = 0xC0;
 
     //port 0xC1 (b)
-    this.COLOR_PALETTE_PORT = 0xC1;
+    this.PALETTE_PORT = 0xC1;
     this.BEEPER_MODE_BIT = 0x80;        // 1 - вывод звука на бипер разрешен
 
     //port 0xC2 (c)
@@ -57,21 +59,8 @@ function IO(config, beeper, keyboard) {
     this.TAPE_READ_BIT = 0x10;
     this.PRINTER_AC_BUSY_BIT = 0x40;
 
-    this.ports = [];
+    this.ports = new Uint8Array(0x100);
     this.init();
-
-    if (config.io.allow_extended_features) {
-        this.ports[this.EXTENDED_MODE_PORT] = 0;
-        if (config.cpu.allow_interrupts) {
-            this.ports[EXTENDED_MODE_PORT] |= this.INTERRUPT_BIT;
-        }
-
-        switch (config.screen.resolution) {
-            case 512: case 'high':
-                this.ports[EXTENDED_MODE_PORT] |= this.VIDEO_RESOLUTION_BIT;
-                break;
-        }
-    }
 }
 
 IO.prototype.init = function() {
@@ -79,11 +68,13 @@ IO.prototype.init = function() {
 };
 
 IO.prototype.restart = function() {
-    for (var i = 0; i < 0x100; i++) {
-        this.ports[i] = 0x00;
+    for (var i = 0, L = this.ports.length; i < L; i++) {
+        this.ports[i] = 0;
     }
 
-    this.ports[this.COLOR_PALETTE_PORT] = 0x8F;
+    this.decoding_mask = this.config.io.allow_brief_decoding ? 0x13 : 0x33;
+    this.ignore_cntrl_bit = this.config.beeper.ignore_control_bit;
+    this.ports[this.PALETTE_PORT] = 0x8F;
     this.ports[this.MEDIA_PORT] = 0xFF;
 };
 
@@ -92,7 +83,7 @@ IO.prototype.input = function(port) {
 
     //В ПК-01 "Львов" реализована неполная дешифрация портов ввода-вывода
     //[http://lvovpc.ho.ua/forum/viewtopic.php?p=2219#p2219]
-    port = 0xC0 + (port & (this.config.io.allow_extended_features ? 0x33 : 0x13));
+    port = 0xC0 + (port & this.decoding_mask);
 
     if (port === 0xD1) {
         this.ports[port] = this.keyboard.get(this.ports[0xD0], 0xD0);
@@ -100,19 +91,27 @@ IO.prototype.input = function(port) {
     else if (port === 0xD2) {
         this.ports[port] = this.keyboard.get(this.ports[0xD2], 0xD2);
     }
+    else if ((port & 0x03) === 3) {
+      //Согласно документу i8255A/i8255A-5 datasheet мы имеем,
+      //что Control Word Register доступен только для записи:
+      //"The Control Word Register can Only be written into.
+      //No Read operation of the Control Word Register is allowed."
+      //[http://www.classiccmp.org/rtellason/chipdata/8255.pdf]
+      //Такие дела, котаны. Берегите себя, читайте мануалы.
+      return 0;
+    }
 
-    return this.ports[port] & 0xFF;
+    return this.ports[port];
 };
 
 IO.prototype.output = function(port, w8) {
     port &= 0xFF;
-    w8 &= 0xFF;
 
     //В ПК-01 "Львов" реализована неполная дешифрация портов ввода-вывода
     //[http://lvovpc.ho.ua/forum/viewtopic.php?p=2219#p2219]
-    port = 0xC0 + (port & (this.config.io.allow_extended_features ? 0x33 : 0x13));
+    port = 0xC0 + (port & this.decoding_mask);
 
-    if ((port === 0xC3 || port === 0xD3) && (w8 & 0x80) === 0) {
+    if ((port & 0x03) === 3 && (w8 & 0x80) === 0) {
         var mask = 0x01 << ((w8 & 0x0E) >> 1),
             target = port - 1;
 
@@ -125,7 +124,7 @@ IO.prototype.output = function(port, w8) {
     }
 
     if (port === this.MEDIA_PORT) {
-        if ((this.ports[this.COLOR_PALETTE_PORT] & this.BEEPER_MODE_BIT) || this.config.beeper.fix_control) {
+        if ((this.ports[this.PALETTE_PORT] & this.BEEPER_MODE_BIT) || this.ignore_cntrl_bit) {
             this.beeper.process(w8 & this.BEEPER_BIT);
         }
     }
@@ -140,8 +139,8 @@ IO.prototype.interrupt = function(iff) {
 IO.prototype.get_state = function() {
     var ports = [];
 
-    for (var i = 0; i < 0x100; i++) {
-        ports.push(this.input(i));
+    for (var i = 0, L = this.ports.length; i < L; i++) {
+        ports[i] = this.input(i);
     }
 
     return ports;

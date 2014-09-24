@@ -33,6 +33,7 @@ function Beeper(config) {
     this.SAMPLE_RATE = 44100;
     this.SAMPLE_CPU_CYCLES = Math.round(config.cpu.clock_speed / this.SAMPLE_RATE);
     this.SAMPLE_BUFFER_SIZE = Math.ceil(config.cpu.frame_cycles / this.SAMPLE_CPU_CYCLES) + 1;
+    this.VOLUME = 0.15;
 
     this.sound_buffer = [];
 
@@ -79,13 +80,14 @@ Beeper.prototype.play = function() {
             buffer = context.createBuffer(1, this.SAMPLE_BUFFER_SIZE, this.SAMPLE_RATE),
             data = buffer.getChannelData(0),
             sample_cpu_cycles = this.SAMPLE_CPU_CYCLES,
-            state = 0;
+            state = 0,
+            volume = this.VOLUME;
 
-        for (var i = 0, n = 0, l = sound_buffer.length; i < l; i++) {
-            for (var sample_counter = Math.round(sound_buffer[i] / sample_cpu_cycles); sample_counter > 0; --sample_counter) {
-                data[n++] = state ? 0.15 : 0;
+        for (var i = 0, n = 0, l = sound_buffer.length, v; i < l; i++) {
+            v = state && volume;
+            for (var sample_counter = Math.round(sound_buffer[i] / sample_cpu_cycles); sample_counter > 0; sample_counter--) {
+                data[n++] = v;
             }
-
             state = 1 - state;
         }
 

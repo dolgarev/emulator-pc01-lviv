@@ -37,18 +37,22 @@ function Screen(config, io, memory, viewport) {
     }
     this.init(viewport);
 
-    this.cache = [];
     this.cache_palette = void 0;
+    this.cache = new Uint8Array(0x4000);
+    this.reset_cache();
 
     this.allow_color_mode = config.screen.allow_color_mode;
     this.screenshot_type = config.screen.screenshot_type;
 }
 
 Screen.prototype.LUT = {
-    R : [0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x000000C0, 0x000000C0, 0x000000C0, 0x000000FF],
-    G : [0x00000000, 0x00000000, 0x0000C000, 0x0000C000, 0x00000000, 0x00000000, 0x0000C000, 0x0000FF00],
-    B : [0x00000000, 0x00C00000, 0x00000000, 0x00C00000, 0x00000000, 0x00C00000, 0x00000000, 0x00FF0000]
+    R : new Uint32Array([0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x000000C0, 0x000000C0, 0x000000C0, 0x000000FF]),
+    G : new Uint32Array([0x00000000, 0x00000000, 0x0000C000, 0x0000C000, 0x00000000, 0x00000000, 0x0000C000, 0x0000FF00]),
+    B : new Uint32Array([0x00000000, 0x00C00000, 0x00000000, 0x00C00000, 0x00000000, 0x00C00000, 0x00000000, 0x00FF0000])
 };
+
+Screen.prototype.cache_color = new Uint32Array(0x100);
+Screen.prototype.cache_rgb = [];
 
 Screen.prototype.init = function(viewport) {
     this.canvas = viewport.canvas;
@@ -67,7 +71,7 @@ Screen.prototype.init = function(viewport) {
     //[http://jsperf.com/canvas-pixel-manipulation/98]
     this.ps32 = new Uint32Array(this.image_data.data.buffer, 0, this.image_data.data.length >> 2);
 
-    for (var p = this.ps32, i = p.length - 1; i > 0; i--) {
+    for (var p = this.ps32, i = 0, L = p.length; i < L; i++) {
         p[i] = 0xFF000000;
     }
 
@@ -75,49 +79,75 @@ Screen.prototype.init = function(viewport) {
         this.cache_color[byte] = this.parse_color(byte);
     }
 
-    for (var palette = 0; palette < 0x80; palette++) {
-        this.cache_color_index[palette] = [
-            this.compute_color_index(0, palette),
-            this.compute_color_index(1, palette),
-            this.compute_color_index(2, palette),
-            this.compute_color_index(3, palette)
-        ];
+    for (var c0, c1, c2, c3, LUT = this.LUT, palette = 0; palette < 0x80; palette++) {
+        c0 = this.compute_color_index(0, palette);
+        c1 = this.compute_color_index(1, palette);
+        c2 = this.compute_color_index(2, palette);
+        c3 = this.compute_color_index(3, palette);
+
+        this.cache_rgb[palette] = new Uint32Array([
+            0xFF000000 | LUT.B[c0] | LUT.G[c0] | LUT.R[c0],
+            0xFF000000 | LUT.B[c1] | LUT.G[c1] | LUT.R[c1],
+            0xFF000000 | LUT.B[c2] | LUT.G[c2] | LUT.R[c2],
+            0xFF000000 | LUT.B[c3] | LUT.G[c3] | LUT.R[c3]
+        ]);
     }
 };
 
 Screen.prototype.restart = function() {
-    this.cache.length = 0;
     this.cache_palette = void 0;
+    this.reset_cache();
 };
 
-Screen.prototype.cache_color = [];
-Screen.prototype.cache_color_index = [];
+Screen.prototype.reset_cache = function() {
+    for (var i = 0, L = this.cache.length; i < L; i++) {
+        this.cache[i] = 0;
+    }
+    this.cache.is_valid = false;
+};
 
 Screen.prototype.parse_color = function(byte) {
     //Каждый байт из видеоОЗУ описывает цвета сразу для 4-х пикселов
-    return [
-        (byte & 0x80 ? 2 : 0) + (byte & 0x08 ? 1 : 0),
-        (byte & 0x40 ? 2 : 0) + (byte & 0x04 ? 1 : 0),
-        (byte & 0x20 ? 2 : 0) + (byte & 0x02 ? 1 : 0),
-        (byte & 0x10 ? 2 : 0) + (byte & 0x01 ? 1 : 0)
-    ];
+    result = 0;
+
+    if (byte & 0x80) {
+        result |= 0x02;
+    }
+    if (byte & 0x08) {
+        result |= 0x01;
+    }
+    if (byte & 0x40) {
+        result |= 0x08;
+    }
+    if (byte & 0x04) {
+        result |= 0x04;
+    }
+    if (byte & 0x20) {
+        result |= 0x20;
+    }
+    if (byte & 0x02) {
+        result |= 0x10;
+    }
+    if (byte & 0x10) {
+        result |= 0x80;
+    }
+    if (byte & 0x01) {
+        result |= 0x40;
+    }
+
+    return result;
 };
 
 Screen.prototype.compute_color_index = function(color, palette) {
-    var BLACK = 0,
-        BLUE = 1,
-        GREEN = 2,
-        RED = 4,
+    var BLACK = 0, BLUE = 1, GREEN = 2, RED = 4,
         result = BLACK;
 
     if (palette & 0x40) {
         result ^= BLUE;
     }
-
     if (palette & 0x20) {
         result ^= GREEN;
     }
-
     if (palette & 0x10) {
         result ^= RED;
     }
@@ -127,7 +157,6 @@ Screen.prototype.compute_color_index = function(color, palette) {
             if ((palette & 0x08) === 0) {
                 result ^= RED;
             }
-
             if ((palette & 0x04) === 0) {
                 result ^= BLUE;
             }
@@ -164,54 +193,54 @@ Screen.prototype.compute_color_index = function(color, palette) {
 Screen.prototype.draw = function() {
     var cache = this.cache,
         cache_color = this.cache_color,
-        cache_palette = this.cache_palette,
-        vram = this.vram_page,
-        palette = this.io.input(this.io.COLOR_PALETTE_PORT) & 0x7F,
-        cci = this.cache_color_index[palette],
-        ps32 = this.ps32,
+        palette = this.io.input(this.io.PALETTE_PORT) & 0x7F,
+        is_valid = cache.is_valid && this.cache_palette === palette,
         is_color = this.allow_color_mode,
-        LUT = this.LUT;
+        rgb = this.cache_rgb[palette],
+        ps32 = this.ps32,
+        vram = this.vram_page,
+        byte, cc, p, sum;
 
     for (var i = 0, pos = 0; i < 0x4000; i++) {
-        var byte = vram.mem[i];
+        byte = vram.mem[i];
 
-        if (cache_palette === palette && byte === cache[i]) {
+        if (is_valid && byte === cache[i]) {
             pos += 4;
         }
         else {
-            var pixels = cache_color[byte],
-                c0 = cci[pixels[0]],
-                c1 = cci[pixels[1]],
-                c2 = cci[pixels[2]],
-                c3 = cci[pixels[3]],
-                sum;
+            cc = cache_color[byte];
 
             if (is_color) {
-                ps32[pos++] = 0xFF000000 | LUT.B[c0] | LUT.G[c0] | LUT.R[c0];
-                ps32[pos++] = 0xFF000000 | LUT.B[c1] | LUT.G[c1] | LUT.R[c1];
-                ps32[pos++] = 0xFF000000 | LUT.B[c2] | LUT.G[c2] | LUT.R[c2];
-                ps32[pos++] = 0xFF000000 | LUT.B[c3] | LUT.G[c3] | LUT.R[c3];
+                ps32[pos++] = rgb[cc & 0x03];
+                ps32[pos++] = rgb[cc >> 2 & 0x03];
+                ps32[pos++] = rgb[cc >> 4 & 0x03];
+                ps32[pos++] = rgb[cc >> 6 & 0x03];
             }
             else {
-                sum = (LUT.B[c0] ? 0x1D : 0) + (LUT.G[c0] ? 0x96 : 0) + (LUT.R[c0] ? 0x4C : 0);
+                p = rgb[cc & 0x03];
+                sum = ((p & 0x00FF0000) && 0x1D) + ((p & 0x0000FF00) && 0x96) + ((p & 0x0000FF) && 0x4C);
                 ps32[pos++] = 0xFF000000 | (sum << 16) | (sum << 8) | sum;
 
-                sum = (LUT.B[c1] ? 0x1D : 0) + (LUT.G[c1] ? 0x96 : 0) + (LUT.R[c1] ? 0x4C : 0);
+                p = rgb[cc >> 2 & 0x03];
+                sum = ((p & 0x00FF0000) && 0x1D) + ((p & 0x0000FF00) && 0x96) + ((p & 0x0000FF) && 0x4C);
                 ps32[pos++] = 0xFF000000 | (sum << 16) | (sum << 8) | sum;
 
-                sum = (LUT.B[c2] ? 0x1D : 0) + (LUT.G[c2] ? 0x96 : 0) + (LUT.R[c2] ? 0x4C : 0);
+                p = rgb[cc >> 4 & 0x03];
+                sum = ((p & 0x00FF0000) && 0x1D) + ((p & 0x0000FF00) && 0x96) + ((p & 0x0000FF) && 0x4C);
                 ps32[pos++] = 0xFF000000 | (sum << 16) | (sum << 8) | sum;
 
-                sum = (LUT.B[c3] ? 0x1D : 0) + (LUT.G[c3] ? 0x96 : 0) + (LUT.R[c3] ? 0x4C : 0);
+                p = rgb[cc >> 6 & 0x03];
+                sum = ((p & 0x00FF0000) && 0x1D) + ((p & 0x0000FF00) && 0x96) + ((p & 0x0000FF) && 0x4C);
                 ps32[pos++] = 0xFF000000 | (sum << 16) | (sum << 8) | sum;
             }
 
             cache[i] = byte;
         }
     }
-    
+
+    cache.is_valid = true;
     this.cache_palette = palette;
-    this.context.putImageData(this.image_data, 0, 0);    
+    this.context.putImageData(this.image_data, 0, 0);
 };
 
 Screen.prototype.change_color_mode = function(state) {
@@ -225,8 +254,15 @@ Screen.prototype.change_color_mode = function(state) {
     }
 
     if (prev_state !== this.allow_color_mode) {
-        this.cache.length = 0;
+        this.reset_cache();
     }
+};
+
+Screen.prototype.change_palette = function(step) {
+    var io = this.io,
+        v = io.ports[io.PALETTE_PORT];
+
+    io.ports[io.PALETTE_PORT] = (v & 0x80) | (v + step & 0x7F);
 };
 
 Screen.prototype.shoot = function() {

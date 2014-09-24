@@ -32,23 +32,23 @@ function Memory(config, io) {
     switch (this.mem_map) {
         case 80: case 'standart': case 'default':
             this.pages = [
-                new MemoryPage({
+                new MemPage({
                     begin : 0x0000
                 }),
-                new MemoryPage({
+                new MemPage({
                     begin : 0x4000
                 }),
-                new MemoryPage({
+                new MemPage({
                     begin : 0x8000
                 }),
                 //rom
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000,
                     is_rom : true,
                     is_writable : false
                 }),
                 //vram
-                new MemoryPage({
+                new MemPage({
                     begin   : 0x4000,
                     is_vram : true
                 })
@@ -57,37 +57,37 @@ function Memory(config, io) {
 
         case 144:
             this.pages = [
-                new MemoryPage({
+                new MemPage({
                     begin : 0x0000
                 }),
-                new MemoryPage({
+                new MemPage({
                     begin : 0x4000
                 }),
-                new MemoryPage({
+                new MemPage({
                     begin : 0x8000
                 }),
                 //rom
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000,
                     is_rom : true,
                     is_writable : false
                 }),
                 //vram
-                new MemoryPage({
+                new MemPage({
                     begin : 0x4000,
                     is_vram : true
                 }),
                 //ext_mem_bank = 0
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000
                 }),
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000
                 }),
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000
                 }),
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000
                 })
             ];
@@ -95,76 +95,76 @@ function Memory(config, io) {
 
         case 256:
             this.pages = [
-                new MemoryPage({
+                new MemPage({
                     begin : 0x0000
                 }),
-                new MemoryPage({
+                new MemPage({
                     begin : 0x4000
                 }),
-                new MemoryPage({
+                new MemPage({
                     begin : 0x8000
                 }),
                 //rom
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000,
                     is_rom : true,
                     is_writable : false
                 }),
                 //vram
-                new MemoryPage({
+                new MemPage({
                     begin : 0x4000,
                     is_vram : true
                 }),
                 //ext_mem_bank = 0
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000
                 }),
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000
                 }),
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000
                 }),
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000
                 }),
                 //ext_mem_bank = 1
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000
                 }),
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000
                 }),
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000
                 }),
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000
                 }),
                 //ext_mem_bank = 2
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000
                 }),
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000
                 }),
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000
                 }),
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000
                 }),
                 //ext_mem_bank = 3
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000
                 }),
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000
                 }),
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000
                 }),
-                new MemoryPage({
+                new MemPage({
                     begin : 0xC000
                 })
             ];
@@ -192,6 +192,7 @@ Memory.prototype.init = function() {
     }
 
     this.vram_page = (this.get_vram_page().begin & 0xC000) >>> 14;
+    this.hide_0_bank = this.config.memory.hide_0_mem_bank;
 };
 
 Memory.prototype.restart = function() {
@@ -212,16 +213,31 @@ Memory.prototype.transfer = function(begin, end, data, offset, mem_page, method)
     offset = offset || 0;
     method = method || 'write';
 
-    var self = mem_page instanceof MemoryPage ? mem_page : this;
+    var self = mem_page instanceof MemPage ? mem_page : this;
+
+    if (begin > end) {
+        throw new RangeError('MEMORY: Invalid bounds');
+    }
 
     if (Array.isArray(data)) {
-        for (var addr = begin; addr <= end; addr++) {
-            self[method](addr, data[offset++]);
+        if (offset + ((end - begin) + 1) <= data.length) {
+            for (var addr = begin; addr <= end; addr++) {
+                self[method](addr, data[offset++]);
+            }
         }
+        else {
+            throw new RangeError('MEMORY: Offset is outside the bounds of the Array');
+        }
+
     }
     else if (data instanceof DataView) {
-        for (var addr = begin; addr <= end; addr++) {
-            self[method](addr, data.getUint8(offset++));
+        if (offset + ((end - begin) + 1) <= data.byteLength) {
+            for (var addr = begin; addr <= end; addr++) {
+                self[method](addr, data.getUint8(offset++));
+            }
+        }
+        else {
+            throw new RangeError('MEMORY: Offset is outside the bounds of the DataView');
         }
     }
     else {
@@ -237,10 +253,8 @@ Memory.prototype.get_mem_page_index = function(addr) {
         io = this.io;
 
     if (mem_page === 0 || mem_page === this.vram_page) {
-        var vram_status = (io.ports[io.MEDIA_PORT] & io.VRAM_STATUS_BIT) === 0;
-
-        if (vram_status) {
-            mem_page_index = (mem_page === this.vram_page) ? this.vram_page_index : (this.config.memory.fix_vram ? 0 : 2);
+        if ((io.ports[io.MEDIA_PORT] & io.VRAM_STATUS_BIT) === 0) {
+            mem_page_index = mem_page === this.vram_page ? this.vram_page_index : (this.hide_0_bank ? 2 : 0);
         }
     }
     else if (mem_page === 3) {
@@ -285,11 +299,11 @@ Memory.prototype.get_state = function(mem_map) {
 };
 
 
-function MemoryPage(config) {
+function MemPage(config) {
     this.begin = config.begin;
     this.is_readable = 'is_readable' in config ? config.is_readable : true;
     this.is_writable = 'is_writable' in config ? config.is_writable : true;
-    this.strict_mode = 'strict_mode' in config ? config.strict_mode : true;;
+    this.strict_mode = 'strict_mode' in config ? config.strict_mode : true;
 
     if ('is_rom' in config) {
         this.is_rom = config.is_rom;
@@ -301,58 +315,58 @@ function MemoryPage(config) {
         this.is_ram = true;
     }
 
-    this.mem = [];
+    this.mem = new Uint8Array(0x4000);
 
     this.init();
 }
 
-MemoryPage.prototype.init = function() {
+MemPage.prototype.init = function() {
     this.restart();
 };
 
-MemoryPage.prototype.restart = function() {
-    for (var i = 0; i < 0x4000; i++) {
-        this.mem[i] = 0x00;
+MemPage.prototype.restart = function() {
+    for (var i = 0, L = this.mem.length; i < L; i++) {
+        this.mem[i] = 0;
     }
 };
 
-MemoryPage.prototype.read = function(addr) {
+MemPage.prototype.read = function(addr) {
     if (!this.is_readable) {
         if (this.strict_mode) {
-            throw new Error('MEMORY: Read disabled at ' + addr);
+            throw new Error('MEMORY: Read disabled at 0x' + addr.toString(16));
         }
         else {
-            console.log('MEMORY: Read disabled at ' + addr);
+            console.log('MEMORY: Read disabled at 0x' + addr.toString(16));
         }
     }
 
     return this.mem[addr & 0x3FFF];
 };
 
-MemoryPage.prototype.write = function(addr, w8) {
+MemPage.prototype.write = function(addr, w8) {
     if (this.is_writable) {
         this.mem[addr & 0x3FFF] = w8;
     }
     else {
         if (this.strict_mode) {
-            throw new Error('MEMORY: Write disabled at ' + addr);
+            throw new Error('MEMORY: Write disabled at 0x' + addr.toString(16));
         }
         else {
-            console.log('MEMORY: Write disabled at ' + addr);
+            console.log('MEMORY: Write disabled at 0x' + addr.toString(16));
         }
     }
 };
 
-MemoryPage.prototype.burn = function(addr, w8) {
+MemPage.prototype.burn = function(addr, w8) {
     if (this.is_rom) {
-        this.mem[addr & 0x3FFF] = w8 & 0xFF;
+        this.mem[addr & 0x3FFF] = w8;
     }
     else {
         if (this.strict_mode) {
-            throw new Error('MEMORY: Burn disabled at ' + addr);
+            throw new Error('MEMORY: Burn disabled at 0x' + addr.toString(16));
         }
         else {
-            console.log('MEMORY: Burn disabled at ' + addr);
+            console.log('MEMORY: Burn disabled at 0x' + addr.toString(16));
         }
     }
 };

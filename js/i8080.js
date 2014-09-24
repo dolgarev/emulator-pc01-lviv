@@ -48,6 +48,10 @@ function I8080(config, memory, io) {
     }
     this.io = io;
 
+    // Registers: b, c, d, e, h, l, m, a
+    //            0  1  2  3  4  5  6  7
+    this.regs = new Uint8Array(8);
+
     this.traps = {};
     this.init();
 
@@ -57,7 +61,7 @@ function I8080(config, memory, io) {
 
     this.set_reg = function(r, w8) {
         if (r !== 6) {
-            this.regs[r] = w8 & 0xff;
+            this.regs[r] = w8;
         }
         else {
             this.memory_write_byte(this.hl(), w8);
@@ -72,14 +76,14 @@ function I8080(config, memory, io) {
     this.set_rp = function(r, w16) {
         if (r !== 6) {
             this.set_reg(r++, w16 >> 8);
-            this.set_reg(r, w16 & 0xff);
+            this.set_reg(r, w16);
         }
         else {
             this.sp = w16;
         }
     };
 
-    this.parity_table = [
+    this.parity_table = new Uint8Array([
         1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
         0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
         0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
@@ -95,11 +99,11 @@ function I8080(config, memory, io) {
         1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
         0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
         0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
-        1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
-    ];
+        1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1
+    ]);
 
-    this.half_carry_table = [0, 0, 1, 0, 1, 0, 1, 1];
-    this.sub_half_carry_table = [0, 1, 1, 1, 0, 0, 0, 1];
+    this.half_carry_table = new Uint8Array([0, 0, 1, 0, 1, 0, 1, 1]);
+    this.sub_half_carry_table = new Uint8Array([0, 1, 1, 1, 0, 0, 0, 1]);
 
     var F_CARRY = 0x01,
         F_UN1 = 0x02,
@@ -132,6 +136,7 @@ function I8080(config, memory, io) {
             f |= F_CARRY;
         else
             f &= ~F_CARRY;
+
         f |= F_UN1;    // UN1_FLAG is always 1.
         f &= ~F_UN3;   // UN3_FLAG is always 0.
         f &= ~F_UN5;   // UN5_FLAG is always 0.
@@ -246,15 +251,16 @@ function I8080(config, memory, io) {
     };
 
     this.add_im8 = function(v, carry) {
-        var a = this.a();
-        var w16 = a + v + carry;
-        var index = ((a & 0x88) >> 1) | ((v & 0x88) >> 2) | ((w16 & 0x88) >> 3);
+        var a = this.a(),
+            w16 = a + v + carry,
+            index = ((a & 0x88) >> 1) | ((v & 0x88) >> 2) | ((w16 & 0x88) >> 3);
+
         a = w16 & 0xff;
-        this.sf = (a & 0x80) != 0;
-        this.zf = (a == 0);
+        this.sf = (a & 0x80) !== 0;
+        this.zf = a === 0;
         this.hf = this.half_carry_table[index & 0x7];
         this.pf = this.parity_table[a];
-        this.cf = (w16 & 0x0100) != 0;
+        this.cf = (w16 & 0x0100) !== 0;
         this.set_a(a);
     };
 
@@ -263,15 +269,16 @@ function I8080(config, memory, io) {
     };
 
     this.sub_im8 = function(v, carry) {
-        var a = this.a();
-        var w16 = (a - v - carry) & 0xffff;
-        var index = ((a & 0x88) >> 1) | ((v & 0x88) >> 2) | ((w16 & 0x88) >> 3);
+        var a = this.a(),
+            w16 = (a - v - carry) & 0xffff,
+            index = ((a & 0x88) >> 1) | ((v & 0x88) >> 2) | ((w16 & 0x88) >> 3);
+
         a = w16 & 0xff;
-        this.sf = (a & 0x80) != 0;
-        this.zf = (a == 0);
+        this.sf = (a & 0x80) !== 0;
+        this.zf = a === 0;
         this.hf = !this.sub_half_carry_table[index & 0x7];
         this.pf = this.parity_table[a];
-        this.cf = (w16 & 0x0100) != 0;
+        this.cf = (w16 & 0x0100) !== 0;
         this.set_a(a);
     };
 
@@ -291,10 +298,10 @@ function I8080(config, memory, io) {
 
     this.ana_im8 = function(v) {
         var a = this.a();
-        this.hf = ((a | v) & 0x08) != 0;
+        this.hf = ((a | v) & 0x08) !== 0;
         a &= v;
-        this.sf = (a & 0x80) != 0;
-        this.zf = (a == 0);
+        this.sf = (a & 0x80) !== 0;
+        this.zf = a === 0;
         this.pf = this.parity_table[a];
         this.cf = 0;
         this.set_a(a);
@@ -364,7 +371,7 @@ function I8080(config, memory, io) {
     };
 
     this.execute = function(opcode) {
-        var a, r, w8, w16, direction, flags, src, dst,
+        var a, r, w8, w16, f_val, src, dst,
             cpu_cycles = -1;
 
         switch (opcode) {
@@ -425,7 +432,7 @@ function I8080(config, memory, io) {
             case 0x2C:            /* inr l */
             case 0x34:            /* inr m */
             case 0x3C:            /* inr a */
-                cpu_cycles = opcode != 0x34 ? 5 : 10;
+                cpu_cycles = opcode !== 0x34 ? 5 : 10;
                 this.inr(opcode >> 3);
                 break;
 
@@ -439,7 +446,7 @@ function I8080(config, memory, io) {
             case 0x2D:            /* dcr l */
             case 0x35:            /* dcr m */
             case 0x3D:            /* dcr a */
-                cpu_cycles = opcode != 0x35 ? 5 : 10;
+                cpu_cycles = opcode !== 0x35 ? 5 : 10;
                 this.dcr(opcode >> 3);
                 break;
 
@@ -453,7 +460,7 @@ function I8080(config, memory, io) {
             case 0x2E:            /* mvi l, data8 */
             case 0x36:            /* mvi m, data8 */
             case 0x3E:            /* mvi a, data8 */
-                cpu_cycles = opcode != 0x36 ? 7 : 10;
+                cpu_cycles = opcode !== 0x36 ? 7 : 10;
                 this.set_reg(opcode >> 3, this.next_pc_byte());
                 break;
 
@@ -649,7 +656,7 @@ function I8080(config, memory, io) {
             case 0x7F:            /* mov a, a */
                 src = opcode & 7;
                 dst = (opcode >> 3) & 7;
-                cpu_cycles = (src == 6 || dst == 6 ? 7 : 5);
+                cpu_cycles = (src === 6 || dst === 6 ? 7 : 5);
                 this.set_reg(dst, this.reg(src));
                 break;
 
@@ -681,7 +688,7 @@ function I8080(config, memory, io) {
             case 0x8E:            /* adc m */
             case 0x8F:            /* adc a */
                 r = opcode & 0x07;
-                cpu_cycles = (r != 6 ? 4 : 7);
+                cpu_cycles = (r !== 6 ? 4 : 7);
                 this.add(r, (opcode & 0x08 ? this.cf : 0));
                 break
 
@@ -707,8 +714,8 @@ function I8080(config, memory, io) {
             case 0x9E:            /* sbb m */
             case 0x9F:            /* sbb a */
                 r = opcode & 0x07;
-                cpu_cycles = (r != 6 ? 4 : 7);
-                this.sub(r, (opcode & 0x08 ? this.cf : 0));
+                cpu_cycles = (r !== 6 ? 4 : 7);
+                this.sub(r, opcode & 0x08 ? this.cf : 0);
                 break;
 
             case 0xA0:            /* ana b */
@@ -720,7 +727,7 @@ function I8080(config, memory, io) {
             case 0xA6:            /* ana m */
             case 0xA7:            /* ana a */
                 r = opcode & 0x07;
-                cpu_cycles = (r != 6 ? 4 : 7);
+                cpu_cycles = (r !== 6 ? 4 : 7);
                 this.ana(r);
                 break;
 
@@ -733,7 +740,7 @@ function I8080(config, memory, io) {
             case 0xAE:            /* xra m */
             case 0xAF:            /* xra a */
                 r = opcode & 0x07;
-                cpu_cycles = (r != 6 ? 4 : 7);
+                cpu_cycles = (r !== 6 ? 4 : 7);
                 this.xra(r);
                 break;
 
@@ -746,7 +753,7 @@ function I8080(config, memory, io) {
             case 0xB6:            /* ora m */
             case 0xB7:            /* ora a */
                 r = opcode & 0x07;
-                cpu_cycles = (r != 6 ? 4 : 7);
+                cpu_cycles = (r !== 6 ? 4 : 7);
                 this.ora(r);
                 break;
 
@@ -759,7 +766,7 @@ function I8080(config, memory, io) {
             case 0xBE:            /* cmp m */
             case 0xBF:            /* cmp a */
                 r = opcode & 0x07;
-                cpu_cycles = (r != 6 ? 4 : 7);
+                cpu_cycles = (r !== 6 ? 4 : 7);
                 this.cmp(r);
                 break;
 
@@ -775,13 +782,27 @@ function I8080(config, memory, io) {
             case 0xE8:            /* rpe */
             case 0xF0:            /* rp */
             case 0xF8:            /* rm */
-                flags = [this.zf, this.cf, this.pf, this.sf];
                 r = (opcode >> 4) & 0x03;
-                direction = (opcode & 0x08) != 0;
-                cpu_cycles = 5;
-                if (flags[r] == direction) {
+
+                if (r === 0) {
+                    f_val = this.zf;
+                }
+                else if (r === 1) {
+                    f_val = this.cf;
+                }
+                else if (r === 2) {
+                    f_val = this.pf;
+                }
+                else {
+                    f_val = this.sf;
+                }
+
+                if (!!f_val === !!(opcode & 0x08)) {
                     cpu_cycles = 11;
                     this.ret();
+                }
+                else {
+                    cpu_cycles = 5;
                 }
                 break;
 
@@ -794,7 +815,7 @@ function I8080(config, memory, io) {
                 r = (opcode & 0x30) >> 3;
                 cpu_cycles = 11;
                 w16 = this.pop();
-                if (r != 6) {
+                if (r !== 6) {
                     this.set_rp(r, w16);
                 } else {
                     this.set_a(w16 >> 8);
@@ -814,12 +835,24 @@ function I8080(config, memory, io) {
             case 0xEA:            /* jpe addr */
             case 0xF2:            /* jp addr */
             case 0xFA:            /* jm addr */
-                flags = [this.zf, this.cf, this.pf, this.sf];
-                r = (opcode >> 4) & 0x03;
-                direction = (opcode & 0x08) != 0;
                 cpu_cycles = 10;
                 w16 = this.next_pc_word();
-                this.pc = flags[r] == direction ? w16 : this.pc;
+                r = (opcode >> 4) & 0x03;
+
+                if (r === 0) {
+                    f_val = this.zf;
+                }
+                else if (r === 1) {
+                    f_val = this.cf;
+                }
+                else if (r === 2) {
+                    f_val = this.pf;
+                }
+                else {
+                    f_val = this.sf;
+                }
+
+                this.pc = (!!f_val === !!(opcode & 0x08)) ? w16 : this.pc;
                 break;
 
                 // jmp, 0xc3, 1100r011
@@ -841,14 +874,28 @@ function I8080(config, memory, io) {
             case 0xEC:            /* cpe addr */
             case 0xF4:            /* cp addr */
             case 0xFC:            /* cm addr */
-                flags = [this.zf, this.cf, this.pf, this.sf];
-                r = (opcode >> 4) & 0x03;
-                direction = (opcode & 0x08) != 0;
                 w16 = this.next_pc_word();
-                cpu_cycles = 11;
-                if (flags[r] == direction) {
+                r = (opcode >> 4) & 0x03;
+
+                if (r === 0) {
+                    f_val = this.zf;
+                }
+                else if (r === 1) {
+                    f_val = this.cf;
+                }
+                else if (r === 2) {
+                    f_val = this.pf;
+                }
+                else {
+                    f_val = this.sf;
+                }
+
+                if (!!f_val === !!(opcode & 0x08)) {
                     cpu_cycles = 17;
                     this.call(w16);
+                }
+                else {
+                    cpu_cycles = 11;
                 }
                 break;
 
@@ -860,7 +907,7 @@ function I8080(config, memory, io) {
             case 0xF5:            /* push psw */
                 r = (opcode & 0x30) >> 3;
                 cpu_cycles = 11;
-                w16 = r != 6 ? this.rp(r) : (this.a() << 8) | this.store_flags();
+                w16 = r !== 6 ? this.rp(r) : ((this.a() << 8) | this.store_flags());
                 this.push(w16);
                 break;
 
@@ -962,7 +1009,7 @@ function I8080(config, memory, io) {
             case 0xF3:            /* di */
             case 0xFB:            /* ei */
                 cpu_cycles = 4;
-                this.iff = (opcode & 0x08) != 0;
+                this.iff = (opcode & 0x08) !== 0;
                 this.io.interrupt(this.iff);
                 break;
 
@@ -1002,9 +1049,9 @@ I8080.prototype.restart = function() {
     this.zf = 0;
     this.cf = 0;
 
-    // Registers: b, c, d, e, h, l, m, a
-    //            0  1  2  3  4  5  6  7
-    this.regs = [0, 0, 0, 0, 0, 0, 0, 0];
+    for (var i = 0, L = this.regs.length; i < L; i++) {
+        this.regs[i] = 0;
+    }
 
     this.halt(false);
     this.idle(false);
@@ -1071,11 +1118,11 @@ I8080.prototype.set_state = function(regs) {
 };
 
 I8080.prototype.memory_read_byte = function(addr) {
-    return this.memory.read(addr) & 0xff;
+    return this.memory.read(addr);
 };
 
 I8080.prototype.memory_write_byte = function(addr, w8) {
-    this.memory.write(addr, w8 & 0xff);
+    this.memory.write(addr, w8);
 };
 
 I8080.prototype.memory_read_word = function(addr) {
@@ -1083,7 +1130,7 @@ I8080.prototype.memory_read_word = function(addr) {
 };
 
 I8080.prototype.memory_write_word = function(addr, w16) {
-    this.memory_write_byte(addr, w16 & 0xff);
+    this.memory_write_byte(addr, w16);
     this.memory_write_byte(addr + 1, w16 >> 8);
 };
 

@@ -30,7 +30,7 @@ function Config(emu_settings, profile) {
                     profile : 'pc01_lvov_80'
                 },
                 beeper : {
-                    fix_control : false,
+                    ignore_control_bit : false,
                     allow_sound : emu_settings.beeper.allow_sound,
                     allow_highpass_filter : emu_settings.beeper.allow_highpass_filter
                 },
@@ -39,11 +39,11 @@ function Config(emu_settings, profile) {
                     allow_interrupts : false
                 },
                 io : {
-                    allow_extended_features : false
+                    allow_brief_decoding: true
                 },
                 memory : {
                     map : 80,
-                    fix_vram : false
+                    hide_0_mem_bank : true
                 },
                 rom : {
                     image : 1990
@@ -67,7 +67,7 @@ function Config(emu_settings, profile) {
                     profile : 'pc01_lvov_80_fixed'
                 },
                 beeper : {
-                    fix_control : true,
+                    ignore_control_bit : true,
                     allow_sound : emu_settings.beeper.allow_sound,
                     allow_highpass_filter : emu_settings.beeper.allow_highpass_filter
                 },
@@ -76,11 +76,11 @@ function Config(emu_settings, profile) {
                     allow_interrupts : false
                 },
                 io : {
-                    allow_extended_features : false
+                    allow_brief_decoding: true
                 },
                 memory : {
                     map : 80,
-                    fix_vram : true
+                    hide_0_mem_bank : false
                 },
                 rom : {
                     image : 1990
@@ -108,9 +108,9 @@ function Config(emu_settings, profile) {
         settings.cpu.frame_cycles = emu_settings.cpu[settings.cpu.model].frame_cycles;
     }
 
-    settings.cpu.frame_runtime = Math.round(settings.cpu.frame_cycles * 1000 / settings.cpu.clock_speed);
+    settings.cpu.frame_duration = Math.round(settings.cpu.frame_cycles * 1000 / settings.cpu.clock_speed);
     if (emu_settings.computer.allow_turbo_mode) {
-        settings.cpu.frame_runtime >>= 2;
+        settings.cpu.frame_duration >>= 2;
     }
 
     if (!settings.memory.strict_mode) {
@@ -129,8 +129,8 @@ function Config(emu_settings, profile) {
         settings.screen.allow_color_mode = emu_settings.screen.allow_color_mode;
     }
 
-    if ('fix_control' in emu_settings.beeper) {
-        settings.beeper.fix_control = emu_settings.beeper.fix_control;
+    if ('ignore_control_bit' in emu_settings.beeper) {
+        settings.beeper.ignore_control_bit = emu_settings.beeper.ignore_control_bit;
     }
 
     if ('image' in emu_settings.rom) {

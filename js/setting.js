@@ -40,7 +40,7 @@ function Setting(profile) {
             },
             beeper : {
                 allow_sound : true,
-                allow_highpass_filter : true
+                allow_highpass_filter : false
             },
             cpu : {
                 i8080 : {
@@ -64,7 +64,7 @@ function Setting(profile) {
             },
             tape : {
                 is_connected : true,
-                file_extensions : /\.(lv(t|r|[0-9]{1,2})|sav)$/i
+                file_extensions : /\.(lv(t|r|[0-9]{1,2})|sav|e3)$/i
             },
             dnd : {
                 is_connected : true,
@@ -72,7 +72,7 @@ function Setting(profile) {
                     id : 'body_container',
                     node : void 0
                 },
-                file_extensions : /\.(lv(t|r|[0-9]{1,2})|sav)$/i
+                file_extensions : /\.(lv(t|r|[0-9]{1,2})|sav|e3)$/i
             }
         },
         settings = {};
@@ -83,7 +83,13 @@ function Setting(profile) {
                 profile : 'pc01_lvov_80',
                 allow_turbo_mode : true
             };
+            break;
 
+        case 'standart_fixed':
+            settings.computer = {
+                profile : 'pc01_lvov_80_fixed',
+                allow_turbo_mode : true
+            };
             break;
     }
 

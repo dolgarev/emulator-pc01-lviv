@@ -87,10 +87,9 @@ Profile.prototype.init = function() {
 Profile.prototype.run = function() {
     var self = this,
         beeper = this.beeper,
-        config = this.config,
-        frame_runtime = config.cpu.frame_runtime,
         cpu = this.cpu,
-        io = this.io,
+        f_duration = this.config.cpu.frame_duration,
+        f_cycles = this.config.cpu.frame_cycles,
         keyboard = this.keyboard,
         screen = this.screen,
         timers = this.timers;
@@ -120,20 +119,28 @@ Profile.prototype.run = function() {
                 case keyboard.IS_COLOR:
                     screen.change_color_mode();
                     break;
+
+                case keyboard.IS_INC_PALETTE:
+                    screen.change_palette(1);
+                    break;
+
+                case keyboard.IS_DEC_PALETTE:
+                    screen.change_palette(-1);
+                    break;
             }
             keyboard.reset_special_keys();
         }
 
-        var start_time = window.performance.now();
+        var t_start = window.performance.now();
 
         if (!self.is_paused) {
-            cpu.run(config.cpu.frame_cycles);
+            cpu.run(f_cycles);
         }
 
-        var end_time = window.performance.now();
+        var t_end = window.performance.now();
 
         if (!self.is_suspended) {
-            var delay = frame_runtime - ~~(end_time - start_time);
+            var delay = f_duration - ~~(t_end - t_start);
 
             timers.interrupt = window.setTimeout(interrupt_handler, delay > 0 ? delay : 0);
         }
@@ -275,6 +282,17 @@ Profile.prototype.load = function(data) {
             }
             break;
 
+        case 0x33:
+            //[http://updates.html5rocks.com/2012/06/How-to-convert-ArrayBuffer-to-and-from-String]
+            if (String.fromCharCode.apply(null, new Uint8Array(data.buffer, 0, 13)) === 'Emulator 3000') {
+                this.set_e3_snapshot(data);
+            }
+            else {
+                Notify().show('Invalid file structure.');
+                console.log('PROFILE: Invalid file structure');
+            }
+            break;
+
         case 0xD0:
             this.attach_file(data);
             this.load_dump(Dump.get('bload'));
@@ -334,8 +352,8 @@ Profile.prototype.set_snapshot = function(data) {
     //Фикс проблемы с палитрами. Из-за того, что по умолчанию порт 0xC1
     //доступен только на запись, вместо реального значения палитры
     //сохраняется 0xFF. Чтобы это обойти, выставляем дефолтную палитру.
-    if (this.io.input(this.io.COLOR_PALETTE_PORT) === 0xFF) {
-        this.io.output(this.io.COLOR_PALETTE_PORT, 0x8F);
+    if (this.io.input(this.io.PALETTE_PORT) === 0xFF) {
+        this.io.output(this.io.PALETTE_PORT, 0x8F);
     }
 
     this.cpu.restart();
@@ -350,6 +368,47 @@ Profile.prototype.set_snapshot = function(data) {
         F: data.getUint8(offset + 0x07),
         SP: data.getUint16(offset + 0x08, true),
         PC: data.getUint16(offset + 0x0A, true)
+    });
+};
+
+Profile.prototype.set_e3_snapshot = function(data) {
+    if (!(data instanceof DataView)) {
+        throw new Error('PROFILE: Param DATA is not DataView');
+    }
+
+    var offset = 0x240;
+
+    this.io.restart();
+    offset = this.memory.transfer(0x0000, 0xBFFF, data, offset);
+    offset = this.memory.transfer(0xC000, 0xFFFF, data, offset, this.memory.get_rom_page(), 'burn');
+    offset = this.memory.transfer(0x4000, 0x7FFF, data, offset += 0x29, this.memory.get_vram_page());
+
+    //PPI1
+    this.io.ports[0xC0] = data.getUint8(offset + 0x22);
+    this.io.ports[0xC1] = data.getUint8(offset + 0x26);
+    this.io.ports[0xC2] = data.getUint8(offset + 0x2A);
+    //В i8255A CWR доступен только для записи.
+    //this.io.ports[0xC3] = data.getUint8(offset + 0x34);
+
+    //PPI2
+    this.io.ports[0xD0] = data.getUint8(offset + 0x44);
+    this.io.ports[0xD1] = data.getUint8(offset + 0x48);
+    this.io.ports[0xD2] = data.getUint8(offset + 0x4C);
+    //В i8255A CWR доступен только для записи.
+    //this.io.ports[0xD3] = data.getUint8(offset + 0x56);
+
+    this.cpu.restart();
+    this.cpu.set_state({
+        A: data.getUint8(0x1BA),
+        F: data.getUint8(0x1BE),
+        B: data.getUint8(0x1C2),
+        C: data.getUint8(0x1C6),
+        D: data.getUint8(0x1CA),
+        E: data.getUint8(0x1CE),
+        H: data.getUint8(0x1D2),
+        L: data.getUint8(0x1D6),
+        SP: data.getUint16(0x1DB, true),
+        PC: data.getUint16(0x1E1, true)
     });
 };
 
@@ -379,6 +438,10 @@ Profile.prototype.load_dump = function(dump) {
             this.set_snapshot(dump.data);
             break;
 
+        case 'e3':
+            this.set_e3_snapshot(dump.data);
+            break;
+
         default:
             throw new Error('PROFILE: Unknown DUMP type');
     }
@@ -396,11 +459,16 @@ Profile.prototype.bload = function(data) {
         start = data.getUint16(0x14, true);
 
     if (type === 0xD0) {
-        this.memory.transfer(0xBE92, 0xBE97, data, 0x0A);
-        this.cpu.memory_write_word(0xBEA4, begin);
-        this.cpu.memory_write_word(0xBEA6, end);
-        this.cpu.memory_write_word(0xBEA9, start);
-        this.memory.transfer(begin, end, data, 0x16);
+        try {
+            this.memory.transfer(0xBE92, 0xBE97, data, 0x0A);
+            this.cpu.memory_write_word(0xBEA4, begin);
+            this.cpu.memory_write_word(0xBEA6, end);
+            this.cpu.memory_write_word(0xBEA9, start);
+            this.memory.transfer(begin, end, data, 0x16);
+        }
+        catch (e) {
+            return false;
+        }
 
         return true;
     }
@@ -419,9 +487,14 @@ Profile.prototype.cload = function(data) {
         end = begin + data.byteLength - 0x11;
 
     if (type === 0xD3) {
-        this.memory.transfer(0xBE92, 0xBE97, data, 0x0A);
-        this.cpu.memory_write_word(0x0245, end);
-        this.memory.transfer(begin, end, data, 0x10);
+        try {
+            this.memory.transfer(0xBE92, 0xBE97, data, 0x0A);
+            this.cpu.memory_write_word(0x0245, end);
+            this.memory.transfer(begin, end, data, 0x10);
+        }
+        catch (e) {
+            return false;
+        }
 
         return true;
     }
