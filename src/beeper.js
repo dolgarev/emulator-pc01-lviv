@@ -47,13 +47,13 @@ Beeper.get_audio_context = function () {
 
 Beeper.activate = function () {
   console.log('BEEPER: Attempting to activate AudioContext...');
-  if (!Beeper._audio_context) {
-    if ('AudioContext' in window || 'webkitAudioContext' in window) {
-      Beeper._audio_context = new (window.AudioContext || window.webkitAudioContext)();
-      console.log('BEEPER: AudioContext created. State:', Beeper._audio_context.state);
-    } else {
-      console.warn('BEEPER: AudioContext not supported');
-    }
+  if (AudioContext) {
+    Beeper._audio_context ??= new AudioContext();
+  }
+  if (Beeper._audio_context) {
+    console.log('BEEPER: AudioContext created. State:', Beeper._audio_context.state);
+  } else {
+    console.warn('BEEPER: AudioContext not supported');
   }
   return Beeper._audio_context;
 };
