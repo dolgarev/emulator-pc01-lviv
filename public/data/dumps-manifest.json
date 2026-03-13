@@ -1,0 +1,34 @@
+{
+  "bload": {
+    "name": "bload",
+    "description": "Образ памяти для команды BLOAD\"\",R",
+    "type": "sav",
+    "is_hidden": true,
+    "profile": "*",
+    "file": "dump-bload.bin"
+  },
+  "cload": {
+    "name": "cload",
+    "description": "Образ памяти для команды CLOAD\"\"",
+    "type": "sav",
+    "is_hidden": true,
+    "profile": "*",
+    "file": "dump-cload.bin"
+  },
+  "aerco1": {
+    "name": "Aerocobra",
+    "description": "",
+    "type": "sav",
+    "is_hidden": false,
+    "profile": "pc01_lvov_80",
+    "file": "dump-aerco1.bin"
+  },
+  "mtrack": {
+    "name": "Moon Tracker",
+    "description": "",
+    "type": "sav",
+    "is_hidden": false,
+    "profile": "pc01_lvov_80",
+    "file": "dump-mtrack.bin"
+  }
+}

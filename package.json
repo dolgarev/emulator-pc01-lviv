@@ -1,0 +1,34 @@
+{
+  "name": "emulator-pc01-lviv",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Emulator of the Soviet computer PC-01 Lviv, written in JavaScript and HTML5.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "extract-data": "node scripts/extract-binaries.js",
+    "lint": "eslint src",
+    "format": "prettier --write \"src/**/*.js\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dolgarev/emulator-pc01-lviv.git"
+  },
+  "author": "Oleg Dolgarev",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/dolgarev/emulator-pc01-lviv/issues"
+  },
+  "homepage": "https://github.com/dolgarev/emulator-pc01-lviv#readme",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.0.3",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "globals": "^17.4.0",
+    "prettier": "^3.8.1",
+    "vite": "^8.0.0"
+  }
+}
