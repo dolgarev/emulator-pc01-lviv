@@ -25,7 +25,7 @@ export function Computer(emu_settings) {
   }
   this.settings = emu_settings;
 
-  this.profile = void 0;
+  this.profile = undefined;
   this.profile_name = 'default';
 }
 
@@ -38,7 +38,10 @@ Computer.prototype.initAsync = async function () {
 };
 
 Computer.prototype.init = async function () {
-  this.profile = new Profile(this.settings, this.profile_name === '*' ? void 0 : this.profile_name);
+  this.profile = new Profile(
+    this.settings,
+    this.profile_name === '*' ? undefined : this.profile_name
+  );
   await this.profile.initAsync();
 };
 
@@ -86,9 +89,9 @@ Computer.prototype.stop = function () {
 };
 
 Computer.prototype.load_dump = async function (dump_name) {
-  var dump = await Dump.get(dump_name);
+  const dump = await Dump.get(dump_name);
 
-  await this.restart(dump['profile']);
+  await this.restart(dump.profile);
   this.profile.load_dump(dump);
 };
 
