@@ -50,15 +50,9 @@ Viewport.prototype.pause = function (state) {
   this.canvas.classList[state ? 'add' : 'remove']('pause');
 };
 
-Viewport.prototype.set_resolution = function (width, height, scale) {
-  scale = scale || 1;
-
-  var canvas = this.canvas,
-    style = canvas.style;
-
-  canvas.width = width;
-  canvas.height = height;
-
-  style.width = width * scale + 'px';
-  style.height = height * scale + 'px';
+Viewport.prototype.set_resolution = function (width, height, scale = 1) {
+  this.canvas.width = width;
+  this.canvas.height = height;
+  this.canvas.style.width = width * scale + 'px';
+  this.canvas.style.height = height * scale + 'px';
 };
