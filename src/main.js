@@ -36,10 +36,8 @@ document.addEventListener('DOMContentLoaded', async function () {
         console.log('MAIN: AudioContext already active. State:', context.state);
       }
     }
-    document.removeEventListener('click', audioActivator);
-    document.removeEventListener('keydown', audioActivator);
   };
 
-  document.addEventListener('click', audioActivator);
-  document.addEventListener('keydown', audioActivator);
+  document.addEventListener('click', audioActivator, { once: true });
+  document.addEventListener('keydown', audioActivator, { once: true });
 });
