@@ -60,10 +60,10 @@ Rom.prototype.set = async function (short_name) {
 
   this.prev_short_name = short_name;
 
-  var rom_image = this.images[short_name].data,
+  const rom_image = this.images[short_name].data,
     rom_page = this.rom_page;
 
-  for (var i = 0, l = rom_image.length; i < l; i++) {
+  for (let i = 0, l = rom_image.length; i < l; i++) {
     rom_page.burn(i, rom_image[i]);
   }
 };
@@ -73,7 +73,7 @@ Rom.prototype.get_description = function (short_name) {
     throw new Error('ROM: Selected invalid ROM image');
   }
 
-  var rom_image = this.images[short_name];
+  const rom_image = this.images[short_name];
 
   return {
     name: rom_image.full_name,

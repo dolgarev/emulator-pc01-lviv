@@ -71,9 +71,7 @@ IO.prototype.init = function () {
 };
 
 IO.prototype.restart = function () {
-  for (var i = 0, L = this.ports.length; i < L; i++) {
-    this.ports[i] = 0;
-  }
+  this.ports.fill(0);
 
   this.decoding_mask = this.config.io.allow_brief_decoding ? 0x13 : 0x33;
   this.ignore_cntrl_bit = this.config.beeper.ignore_control_bit;
@@ -113,7 +111,7 @@ IO.prototype.output = function (port, w8) {
   port = 0xc0 + (port & this.decoding_mask);
 
   if ((port & 0x03) === 3 && (w8 & 0x80) === 0) {
-    var mask = 0x01 << ((w8 & 0x0e) >> 1),
+    const mask = 0x01 << ((w8 & 0x0e) >> 1),
       target = port - 1;
 
     if (w8 & 0x01) {
@@ -137,9 +135,9 @@ IO.prototype.interrupt = function (iff) {
 };
 
 IO.prototype.get_state = function () {
-  var ports = [];
+  const ports = [];
 
-  for (var i = 0, L = this.ports.length; i < L; i++) {
+  for (let i = 0, L = this.ports.length; i < L; i++) {
     ports[i] = this.input(i);
   }
 

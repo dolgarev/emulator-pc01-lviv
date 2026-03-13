@@ -40,14 +40,14 @@ Keyboard.prototype.IS_INC_PALETTE = 0x80;
 Keyboard.prototype.init = function () {
   const self = this;
 
-  document.addEventListener('keydown', function (evt) {
+  document.addEventListener('keydown', (evt) => {
     self.press(evt.which, true, (evt.shiftKey << 2) | (evt.ctrlKey << 1) | evt.altKey);
 
     evt.preventDefault();
     evt.stopPropagation();
   });
 
-  document.addEventListener('keyup', function (evt) {
+  document.addEventListener('keyup', (evt) => {
     self.press(evt.which, false, (evt.shiftKey << 2) | (evt.ctrlKey << 1) | evt.altKey);
 
     evt.preventDefault();

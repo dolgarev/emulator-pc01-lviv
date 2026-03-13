@@ -16,7 +16,7 @@
  */
 
 export function Setting(profile) {
-  var default_settings = {
+  const default_settings = {
       viewport: {
         container: {
           id: 'canvas_container',
@@ -93,13 +93,13 @@ export function Setting(profile) {
       break;
   }
 
-  for (var key in default_settings) {
+  for (const key in default_settings) {
     if (!(key in settings)) {
       settings[key] = default_settings[key];
     }
   }
 
-  for (var prop in settings) {
+  for (const prop in settings) {
     Object.defineProperty(this, prop, {
       enumerable: true,
       value: settings[prop],

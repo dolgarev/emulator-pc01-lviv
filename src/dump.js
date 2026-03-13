@@ -19,7 +19,7 @@ export function Dump() {}
 
 Dump.get = async function (short_name) {
   if (!(short_name in Dump.storage)) {
-    throw new Error('DUMP: Dump "' + short_name + '" not exists');
+    throw new Error(`DUMP: Dump "${short_name}" not exists`);
   }
 
   const dump = new Dump(),
@@ -53,7 +53,7 @@ Dump.list = function () {
 
   Object.keys(storage)
     .sort()
-    .forEach(function (key) {
+    .forEach((key) => {
       if (!storage[key].is_hidden) {
         list[key] = storage[key].name;
       }

@@ -53,6 +53,6 @@ Viewport.prototype.pause = function (state) {
 Viewport.prototype.set_resolution = function (width, height, scale = 1) {
   this.canvas.width = width;
   this.canvas.height = height;
-  this.canvas.style.width = width * scale + 'px';
-  this.canvas.style.height = height * scale + 'px';
+  this.canvas.style.width = `${width * scale}px`;
+  this.canvas.style.height = `${height * scale}px`;
 };

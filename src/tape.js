@@ -31,12 +31,12 @@ Tape.prototype.terminate = function () {
 
 Tape.prototype.load = function () {
   return new Promise((resolve, reject) => {
-    var input = document.createElement('input');
+    const input = document.createElement('input');
     input.type = 'file';
     // Map regex to accepts roughly, or let user pick any and validate after
 
     input.onchange = (e) => {
-      var file = e.target.files[0];
+      const file = e.target.files[0];
       if (!file) {
         reject(new Error('No file selected'));
         return;
@@ -55,12 +55,12 @@ Tape.prototype.load = function () {
 
 Tape.prototype.read = function (file) {
   return new Promise((resolve, reject) => {
-    var reader = new FileReader();
+    const reader = new FileReader();
 
     reader.onerror = () => {
       console.log('TAPE: Read failed.');
       Tape.display_error(reader.error);
-      Notify.show('File "' + file.name + '" not loaded.');
+      Notify.show(`File "${file.name}" not loaded.`);
       reject(reader.error);
     };
 
@@ -73,13 +73,13 @@ Tape.prototype.read = function (file) {
 };
 
 Tape.prototype.store = function (data, options) {
-  var default_options = {
+  const default_options = {
     name: 'untitled',
     ext: 'sav',
     mime: 'application/octet-stream',
   };
 
-  for (var key in default_options) {
+  for (const key in default_options) {
     if (!Object.prototype.hasOwnProperty.call(options, key)) {
       options[key] = default_options[key];
     }
@@ -90,21 +90,21 @@ Tape.prototype.store = function (data, options) {
   }
 
   // Convert DataView/Buffer to Blob
-  var buffer = data.buffer ? data.buffer : data;
-  var blob = new Blob([buffer], { type: options.mime });
-  var filename = options.name + '.' + options.ext;
+  const buffer = data.buffer ? data.buffer : data;
+  const blob = new Blob([buffer], { type: options.mime });
+  const filename = `${options.name}.${options.ext}`;
 
   return this.save(blob, filename);
 };
 
-Tape.prototype.save = function (blob, filename) {
+Tape.prototype.save = function (blob, filename = 'download.sav') {
   return new Promise((resolve, reject) => {
     try {
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
       a.style.display = 'none';
       a.href = url;
-      a.download = filename || 'download.sav';
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
 

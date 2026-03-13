@@ -18,8 +18,8 @@
 import { Emulator } from './emulator.js';
 import { Beeper } from './beeper.js';
 
-document.addEventListener('DOMContentLoaded', async function () {
-  var emulator = new Emulator();
+document.addEventListener('DOMContentLoaded', async () => {
+  const emulator = new Emulator();
   await emulator.initAsync();
   emulator.run();
 

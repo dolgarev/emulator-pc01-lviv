@@ -100,7 +100,7 @@ export function I8080(config, memory, io) {
   this.half_carry_table = new Uint8Array([0, 0, 1, 0, 1, 0, 1, 1]);
   this.sub_half_carry_table = new Uint8Array([0, 1, 1, 1, 0, 0, 0, 1]);
 
-  var F_CARRY = 0x01,
+  const F_CARRY = 0x01,
     F_UN1 = 0x02,
     F_PARITY = 0x04,
     F_UN3 = 0x08,
@@ -110,7 +110,7 @@ export function I8080(config, memory, io) {
     F_NEG = 0x80;
 
   this.store_flags = function () {
-    var f = 0;
+    let f = 0;
     if (this.sf) f |= F_NEG;
     else f &= ~F_NEG;
     if (this.zf) f |= F_ZERO;
@@ -200,8 +200,9 @@ export function I8080(config, memory, io) {
   };
 
   this.get_optcode = function () {
+    let v;
     for (
-      var v = this.traps[this.pc] ? this.traps[this.pc]() : I8080.UNDEF_OPTCODE;
+      v = this.traps[this.pc] ? this.traps[this.pc]() : I8080.UNDEF_OPTCODE;
       v === I8080.UNDEF_OPTCODE;
       v = this.memory_read_byte(this.pc)
     );
@@ -210,7 +211,7 @@ export function I8080(config, memory, io) {
   };
 
   this.next_pc_byte = function () {
-    var v = this.memory_read_byte(this.pc);
+    const v = this.memory_read_byte(this.pc);
     this.pc = ++this.pc & 0xffff;
     return v;
   };
@@ -220,7 +221,7 @@ export function I8080(config, memory, io) {
   };
 
   this.inr = function (r) {
-    var v = (this.reg(r) + 1) & 0xff;
+    const v = (this.reg(r) + 1) & 0xff;
     this.set_reg(r, v);
     this.sf = (v & 0x80) !== 0;
     this.zf = v === 0;
@@ -229,7 +230,7 @@ export function I8080(config, memory, io) {
   };
 
   this.dcr = function (r) {
-    var v = (this.reg(r) - 1) & 0xff;
+    const v = (this.reg(r) - 1) & 0xff;
     this.set_reg(r, v);
     this.sf = (v & 0x80) !== 0;
     this.zf = v === 0;
@@ -238,8 +239,8 @@ export function I8080(config, memory, io) {
   };
 
   this.add_im8 = function (v, carry) {
-    var a = this.a(),
-      w16 = a + v + carry,
+    let a = this.a();
+    const w16 = a + v + carry,
       index = ((a & 0x88) >> 1) | ((v & 0x88) >> 2) | ((w16 & 0x88) >> 3);
 
     a = w16 & 0xff;
@@ -256,8 +257,8 @@ export function I8080(config, memory, io) {
   };
 
   this.sub_im8 = function (v, carry) {
-    var a = this.a(),
-      w16 = (a - v - carry) & 0xffff,
+    let a = this.a();
+    const w16 = (a - v - carry) & 0xffff,
       index = ((a & 0x88) >> 1) | ((v & 0x88) >> 2) | ((w16 & 0x88) >> 3);
 
     a = w16 & 0xff;
@@ -274,7 +275,7 @@ export function I8080(config, memory, io) {
   };
 
   this.cmp_im8 = function (v) {
-    var a = this.a(); // Store the accumulator before substraction.
+    const a = this.a(); // Store the accumulator before substraction.
     this.sub_im8(v, 0);
     this.set_a(a); // Ignore the accumulator value after substraction.
   };
@@ -284,7 +285,7 @@ export function I8080(config, memory, io) {
   };
 
   this.ana_im8 = function (v) {
-    var a = this.a();
+    let a = this.a();
     this.hf = ((a | v) & 0x08) !== 0;
     a &= v;
     this.sf = (a & 0x80) !== 0;
@@ -299,7 +300,7 @@ export function I8080(config, memory, io) {
   };
 
   this.xra_im8 = function (v) {
-    var a = this.a() ^ v;
+    const a = this.a() ^ v;
     this.sf = (a & 0x80) !== 0;
     this.zf = a === 0;
     this.hf = this.cf = 0;
@@ -312,7 +313,7 @@ export function I8080(config, memory, io) {
   };
 
   this.ora_im8 = function (v) {
-    var a = this.a() | v;
+    const a = this.a() | v;
     this.sf = (a & 0x80) !== 0;
     this.zf = a === 0;
     this.hf = this.cf = 0;
@@ -326,7 +327,7 @@ export function I8080(config, memory, io) {
 
   // r - 0 (bc), 2 (de), 4 (hl), 6 (sp)
   this.dad = function (r) {
-    var hl = this.hl() + this.rp(r);
+    const hl = this.hl() + this.rp(r);
     this.cf = (hl & 0x10000) !== 0;
     this.set_h(hl >> 8);
     this.set_l(hl & 0xff);
@@ -342,7 +343,7 @@ export function I8080(config, memory, io) {
   };
 
   this.pop = function () {
-    var v = this.memory_read_word(this.sp);
+    const v = this.memory_read_word(this.sp);
     this.sp = (this.sp + 2) & 0xffff;
     return v;
   };
@@ -358,11 +359,11 @@ export function I8080(config, memory, io) {
   };
 
   this.execute = function (opcode) {
-    var a, r, w8, w16, f_val, src, dst, cpu_cycles;
+    let a, r, w8, w16, f_val, src, dst, cpu_cycles;
 
     switch (opcode) {
       default:
-        throw new Error('I8080: Oops! Unhandled opcode ' + opcode.toString(16));
+        throw new Error(`I8080: Oops! Unhandled opcode ${opcode.toString(16)}`);
 
       // nop, 0x00, 00rrr000
       // r - 000(0) to 111(7)
@@ -517,10 +518,10 @@ export function I8080(config, memory, io) {
         this.memory_write_byte(w16 + 1, this.h());
         break;
 
-      case 0x27 /* daa */:
+      case 0x27 /* daa */: {
         cpu_cycles = 4;
-        var carry = this.cf,
-          add = 0;
+        let carry = this.cf;
+        let add = 0;
 
         a = this.a();
         if (this.hf || (a & 0x0f) > 9) {
@@ -534,6 +535,7 @@ export function I8080(config, memory, io) {
         this.pf = this.parity_table[this.a()];
         this.cf = carry;
         break;
+      }
 
       case 0x2a /* ldhl addr */:
         cpu_cycles = 16;
@@ -1024,9 +1026,7 @@ I8080.prototype.restart = function () {
   this.zf = 0;
   this.cf = 0;
 
-  for (var i = 0, L = this.regs.length; i < L; i++) {
-    this.regs[i] = 0;
-  }
+  this.regs.fill(0);
 
   this.halt(false);
   this.idle(false);
@@ -1120,14 +1120,15 @@ I8080.prototype.jump = function (addr) {
 I8080.prototype.run = function (frame_cycles) {
   I8080.start_frame = I8080.total_cpu_cycles;
 
-  for (var cycles = 0; cycles < frame_cycles; cycles += this.instruction());
+  let cycles = 0;
+  for (; cycles < frame_cycles; cycles += this.instruction());
 
   return cycles;
 };
 
 I8080.prototype.gosub = function (addr) {
-  var cycles = 0,
-    ret_pc = this.pc;
+  let cycles = 0;
+  const ret_pc = this.pc;
 
   this.call(addr & 0xffff);
 
@@ -1138,20 +1139,12 @@ I8080.prototype.gosub = function (addr) {
   return cycles;
 };
 
-I8080.prototype.halt = function (state) {
-  if (state === void 0) {
-    this.is_halted = !this.is_halted;
-  } else {
-    this.is_halted = state;
-  }
+I8080.prototype.halt = function (state = !this.is_halted) {
+  this.is_halted = state;
 };
 
-I8080.prototype.idle = function (state) {
-  if (state === void 0) {
-    this.is_idle = !this.is_idle;
-  } else {
-    this.is_idle = state;
-  }
+I8080.prototype.idle = function (state = !this.is_idle) {
+  this.is_idle = state;
 };
 
 I8080.prototype.set_traps = function (watcher) {
@@ -1159,7 +1152,7 @@ I8080.prototype.set_traps = function (watcher) {
     throw new Error('MEMORY: Invalid WATCHER object');
   }
 
-  for (var addr in watcher) {
+  for (const addr in watcher) {
     if (Object.prototype.hasOwnProperty.call(watcher, addr)) {
       this.traps[addr] = watcher[addr];
     }

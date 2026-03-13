@@ -25,6 +25,10 @@ export default [
       ],
       'no-console': 'off',
       'no-fallthrough': 'off',
+      'no-var': 'error',
+      'prefer-const': 'error',
+      'prefer-template': 'error',
+      'prefer-arrow-callback': 'warn',
     },
   },
   {

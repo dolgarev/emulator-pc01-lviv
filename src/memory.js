@@ -183,7 +183,7 @@ export function Memory(config, io) {
 
 Memory.prototype.init = function () {
   for (
-    var i = 0, pages = this.pages, l = pages.length, strict_mode = this.config.memory.strict_mode;
+    let i = 0, pages = this.pages, l = pages.length, strict_mode = this.config.memory.strict_mode;
     i < l;
     i++
   ) {
@@ -204,8 +204,8 @@ Memory.prototype.init = function () {
 };
 
 Memory.prototype.restart = function () {
-  for (var i = 0, l = this.pages.length; i < l; i++) {
-    this.pages[i].restart();
+  for (const page of this.pages) {
+    page.restart();
   }
 };
 
@@ -217,11 +217,8 @@ Memory.prototype.write = function (addr, w8) {
   this.pages[this.get_mem_page_index(addr)].write(addr, w8);
 };
 
-Memory.prototype.transfer = function (begin, end, data, offset, mem_page, method) {
-  offset = offset || 0;
-  method = method || 'write';
-
-  var self = mem_page instanceof MemPage ? mem_page : this;
+Memory.prototype.transfer = function (begin, end, data, offset = 0, mem_page, method = 'write') {
+  const self = mem_page instanceof MemPage ? mem_page : this;
 
   if (begin > end) {
     throw new RangeError('MEMORY: Invalid bounds');
@@ -229,7 +226,7 @@ Memory.prototype.transfer = function (begin, end, data, offset, mem_page, method
 
   if (Array.isArray(data)) {
     if (offset + (end - begin + 1) <= data.length) {
-      for (var addr = begin; addr <= end; addr++) {
+      for (let addr = begin; addr <= end; addr++) {
         self[method](addr, data[offset++]);
       }
     } else {
@@ -237,7 +234,7 @@ Memory.prototype.transfer = function (begin, end, data, offset, mem_page, method
     }
   } else if (data instanceof DataView) {
     if (offset + (end - begin + 1) <= data.byteLength) {
-      for (addr = begin; addr <= end; addr++) {
+      for (let addr = begin; addr <= end; addr++) {
         self[method](addr, data.getUint8(offset++));
       }
     } else {
@@ -251,9 +248,9 @@ Memory.prototype.transfer = function (begin, end, data, offset, mem_page, method
 };
 
 Memory.prototype.get_mem_page_index = function (addr) {
-  var mem_page = (addr & 0xc000) >>> 14,
-    mem_page_index = mem_page,
+  const mem_page = (addr & 0xc000) >>> 14,
     io = this.io;
+  let mem_page_index = mem_page;
 
   if (mem_page === 0 || mem_page === this.vram_page) {
     if ((io.ports[io.MEDIA_PORT] & io.VRAM_STATUS_BIT) === 0) {
@@ -261,7 +258,7 @@ Memory.prototype.get_mem_page_index = function (addr) {
         mem_page === this.vram_page ? this.vram_page_index : this.hide_0_bank ? 2 : 0;
     }
   } else if (mem_page === 3) {
-    var mem_map = this.mem_map;
+    const mem_map = this.mem_map;
 
     if ((mem_map === 144 || mem_map === 256) && io.EXTENDED_MODE_PORT & 0x04) {
       mem_page_index =
@@ -283,21 +280,22 @@ Memory.prototype.get_vram_page = function () {
 };
 
 Memory.prototype.get_state = function (mem_map) {
-  var mem = [];
+  const mem = [];
 
   switch (mem_map || 'default') {
     case 80:
     case 'standart':
-    case 'default':
-      for (var addr = 0x0000; addr <= 0xffff; addr++) {
+    case 'default': {
+      for (let addr = 0x0000; addr <= 0xffff; addr++) {
         mem.push(this.pages[(addr & 0xc000) >>> 14].read(addr));
       }
 
-      var vram_page = this.get_vram_page();
-      for (addr = 0x4000; addr <= 0x7fff; addr++) {
+      const vram_page = this.get_vram_page();
+      for (let addr = 0x4000; addr <= 0x7fff; addr++) {
         mem.push(vram_page.read(addr));
       }
       break;
+    }
 
     default:
       throw new Error('MEMORY: Unknow memory map');
@@ -330,17 +328,15 @@ MemPage.prototype.init = function () {
 };
 
 MemPage.prototype.restart = function () {
-  for (var i = 0, L = this.mem.length; i < L; i++) {
-    this.mem[i] = 0;
-  }
+  this.mem.fill(0);
 };
 
 MemPage.prototype.read = function (addr) {
   if (!this.is_readable) {
     if (this.strict_mode) {
-      throw new Error('MEMORY: Read disabled at 0x' + addr.toString(16));
+      throw new Error(`MEMORY: Read disabled at 0x${addr.toString(16)}`);
     } else {
-      console.log('MEMORY: Read disabled at 0x' + addr.toString(16));
+      console.log(`MEMORY: Read disabled at 0x${addr.toString(16)}`);
     }
   }
 
@@ -352,9 +348,9 @@ MemPage.prototype.write = function (addr, w8) {
     this.mem[addr & 0x3fff] = w8;
   } else {
     if (this.strict_mode) {
-      throw new Error('MEMORY: Write disabled at 0x' + addr.toString(16));
+      throw new Error(`MEMORY: Write disabled at 0x${addr.toString(16)}`);
     } else {
-      console.log('MEMORY: Write disabled at 0x' + addr.toString(16));
+      console.log(`MEMORY: Write disabled at 0x${addr.toString(16)}`);
     }
   }
 };
@@ -364,9 +360,9 @@ MemPage.prototype.burn = function (addr, w8) {
     this.mem[addr & 0x3fff] = w8;
   } else {
     if (this.strict_mode) {
-      throw new Error('MEMORY: Burn disabled at 0x' + addr.toString(16));
+      throw new Error(`MEMORY: Burn disabled at 0x${addr.toString(16)}`);
     } else {
-      console.log('MEMORY: Burn disabled at 0x' + addr.toString(16));
+      console.log(`MEMORY: Burn disabled at 0x${addr.toString(16)}`);
     }
   }
 };

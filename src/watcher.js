@@ -25,10 +25,10 @@ Watcher.get = function (profile, context) {
     throw new Error('WATCHER: Invalid PROFILE param');
   }
 
-  var watcher = new Watcher(),
+  const watcher = new Watcher(),
     entry = Watcher.profiles[profile];
 
-  for (var key in entry) {
+  for (const key in entry) {
     if (entry[key] instanceof Function) {
       Object.defineProperty(watcher, key, {
         enumerable: true,
@@ -44,7 +44,7 @@ Watcher.profiles = {
   default: {
     //Подмена для BLOAD
     0xdd94: function () {
-      var io_error = function () {
+      const io_error = function () {
           this.cpu.execute(0xe5);
           this.cpu.execute(0xd5);
           this.cpu.execute(0xc5);
@@ -67,13 +67,10 @@ Watcher.profiles = {
       if (this.exists_attached_file()) {
         install();
       } else if (this.tape instanceof Tape) {
-        this.tape.load().then(
-          function (file) {
-            this.attach_file(file);
-            install();
-          }.bind(this),
-          io_error
-        );
+        this.tape.load().then((file) => {
+          this.attach_file(file);
+          install();
+        }, io_error);
 
         return I8080.NOPE_OPTCODE;
       } else {
@@ -84,7 +81,7 @@ Watcher.profiles = {
     },
     //Подмена для CLOAD (1)
     0xe50b: function () {
-      var io_error = function () {
+      const io_error = function () {
           this.cpu.execute(0xe5);
           this.cpu.execute(0xd5);
           this.cpu.execute(0xc5);
@@ -107,13 +104,10 @@ Watcher.profiles = {
       if (this.exists_attached_file()) {
         install();
       } else if (this.tape instanceof Tape) {
-        this.tape.load().then(
-          function (file) {
-            this.attach_file(file);
-            install();
-          }.bind(this),
-          io_error
-        );
+        this.tape.load().then((file) => {
+          this.attach_file(file);
+          install();
+        }, io_error);
 
         return I8080.NOPE_OPTCODE;
       } else {

@@ -74,13 +74,10 @@ Profile.prototype.initAsync = async function () {
         if (!this.is_suspended) {
           this.suspend();
 
-          this.tape.load().then(
-            function (file) {
-              this.load(file);
-              this.resume();
-            }.bind(this),
-            this.resume.bind(this)
-          );
+          this.tape.load().then((file) => {
+            this.load(file);
+            this.resume();
+          }, this.resume.bind(this));
         }
       }.bind(this);
 
@@ -92,27 +89,21 @@ Profile.prototype.initAsync = async function () {
   }
 
   if (this.settings.dnd.is_connected) {
-    this.dnd = new DnD(
-      this.config,
-      function () {
-        if (!this.is_suspended) {
-          this.suspend();
+    this.dnd = new DnD(this.config, () => {
+      if (!this.is_suspended) {
+        this.suspend();
 
-          this.dnd.read().then(
-            function (file) {
-              this.load(file);
-              this.resume();
-            }.bind(this),
-            this.resume.bind(this)
-          );
-        }
-      }.bind(this)
-    );
+        this.dnd.read().then((file) => {
+          this.load(file);
+          this.resume();
+        }, this.resume.bind(this));
+      }
+    });
   }
 };
 
 Profile.prototype.run = function () {
-  var self = this,
+  const self = this,
     beeper = this.beeper,
     cpu = this.cpu,
     f_duration = this.config.cpu.frame_duration,
@@ -157,16 +148,16 @@ Profile.prototype.run = function () {
       keyboard.reset_special_keys();
     }
 
-    var t_start = window.performance.now();
+    const t_start = window.performance.now();
 
     if (!self.is_paused) {
       cpu.run(f_cycles);
     }
 
-    var t_end = window.performance.now();
+    const t_end = window.performance.now();
 
     if (!self.is_suspended) {
-      var delay = f_duration - ~~(t_end - t_start);
+      const delay = f_duration - ~~(t_end - t_start);
 
       timers.interrupt = window.setTimeout(interrupt_handler, delay > 0 ? delay : 0);
     }
@@ -183,12 +174,8 @@ Profile.prototype.run = function () {
   }
 };
 
-Profile.prototype.pause = function (state) {
-  if (state === void 0) {
-    this.is_paused = !this.is_paused;
-  } else {
-    this.is_paused = state;
-  }
+Profile.prototype.pause = function (state = !this.is_paused) {
+  this.is_paused = state;
 
   this.viewport.pause(this.is_paused);
 };
@@ -237,19 +224,19 @@ Profile.prototype.shoot = function () {
     //поэтому воспользуемся костылем из оф.багтрекера
     //[https://code.google.com/p/chromium/issues/detail?id=67587#c49]
 
-    var blob = (function (data) {
-      var parts = data.match(/data:([^;]*)(;base64)?,([0-9A-Za-z+/]+)/),
+    const blob = (function (data) {
+      const parts = data.match(/data:([^;]*)(;base64)?,([0-9A-Za-z+/]+)/),
         bin_str = atob(parts[3]),
         view = new Uint8ClampedArray(new ArrayBuffer(bin_str.length));
 
-      for (var i = 0, l = view.length; i < l; i++) {
+      for (let i = 0, l = view.length; i < l; i++) {
         view[i] = bin_str.charCodeAt(i);
       }
 
       return new Blob([view], { type: parts[1] });
     })(this.screen.shoot());
 
-    var F = this.resume.bind(this);
+    const F = this.resume.bind(this);
 
     this.suspend();
     this.tape.save(blob, 'screenshot.png').then(F, F);
@@ -286,7 +273,7 @@ Profile.prototype.terminate = function () {
 };
 
 Profile.prototype.get_description = function () {
-  var computer = this.config.computer;
+  const computer = this.config.computer;
 
   return {
     model: computer.model,
@@ -340,7 +327,7 @@ Profile.prototype.load = async function (data) {
 
 Profile.prototype.get_snapshot = function () {
   //Заголовок вида: LVOV/DUMP/2.0/H+\0
-  var data = [
+  const data = [
       0x4c, 0x56, 0x4f, 0x56, 0x2f, 0x44, 0x55, 0x4d, 0x50, 0x2f, 0x32, 0x2e, 0x30, 0x2f, 0x48,
       0x2b, 0x00,
     ].concat(this.memory.get_state(), this.io.get_state()),
@@ -367,14 +354,14 @@ Profile.prototype.set_snapshot = function (data) {
     throw new Error('PROFILE: Param DATA is not DataView');
   }
 
-  var offset = 0x11;
+  let offset = 0x11;
 
   this.io.restart();
   offset = this.memory.transfer(0x0000, 0xbfff, data, offset);
   offset = this.memory.transfer(0xc000, 0xffff, data, offset, this.memory.get_rom_page(), 'burn');
   offset = this.memory.transfer(0x4000, 0x7fff, data, offset, this.memory.get_vram_page());
 
-  for (var port = 0x00; port <= 0xff; port++) {
+  for (let port = 0x00; port <= 0xff; port++) {
     this.io.output(port, data.getUint8(offset++));
   }
 
@@ -405,7 +392,7 @@ Profile.prototype.set_e3_snapshot = function (data) {
     throw new Error('PROFILE: Param DATA is not DataView');
   }
 
-  var offset = 0x240;
+  let offset = 0x240;
 
   this.io.restart();
   offset = this.memory.transfer(0x0000, 0xbfff, data, offset);
@@ -481,7 +468,7 @@ Profile.prototype.bload = function (data) {
     throw new Error('PROFILE: Param DATA is not DataView');
   }
 
-  var type = data.getUint8(0x09),
+  const type = data.getUint8(0x09),
     offset = this.cpu.memory_read_word(0xbeab),
     begin = data.getUint16(0x10, true) + offset,
     end = data.getUint16(0x12, true) + offset,
@@ -509,7 +496,7 @@ Profile.prototype.cload = function (data) {
     throw new Error('PROFILE: Param DATA is not DataView');
   }
 
-  var type = data.getUint8(0x09),
+  const type = data.getUint8(0x09),
     begin = this.cpu.memory_read_word(0x0243),
     end = begin + data.byteLength - 0x11;
 

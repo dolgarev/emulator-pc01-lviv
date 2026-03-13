@@ -102,30 +102,28 @@ DnD.prototype.drop = function (evt) {
 };
 
 DnD.prototype.read = function () {
-  return new Promise(
-    function (resolve, reject) {
-      const file = this.files[0];
+  return new Promise((resolve, reject) => {
+    const file = this.files[0];
 
-      function error_handler() {
-        console.log('DnD: Read failed.');
-        Notify.show('File "' + file.name + '" not loaded.');
-        reject();
-      }
+    function error_handler() {
+      console.log('DnD: Read failed.');
+      Notify.show(`File "${file.name}" not loaded.`);
+      reject();
+    }
 
-      if (this.is_file(file)) {
-        const reader = new FileReader();
+    if (this.is_file(file)) {
+      const reader = new FileReader();
 
-        reader.onerror = error_handler;
-        reader.onload = function (evt) {
-          resolve(new DataView(evt.target.result));
-        };
+      reader.onerror = error_handler;
+      reader.onload = function (evt) {
+        resolve(new DataView(evt.target.result));
+      };
 
-        reader.readAsArrayBuffer(file);
-      } else {
-        error_handler();
-      }
-    }.bind(this)
-  );
+      reader.readAsArrayBuffer(file);
+    } else {
+      error_handler();
+    }
+  });
 };
 
 DnD.prototype.is_file = function (file) {

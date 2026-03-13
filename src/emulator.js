@@ -46,7 +46,7 @@ Emulator.prototype.init = function () {
         }
       });
 
-      bttn.node.addEventListener('click', function () {
+      bttn.node.addEventListener('click', () => {
         node.classList.add('lightbox_show');
       });
     })(this.settings.controls.help_button);
