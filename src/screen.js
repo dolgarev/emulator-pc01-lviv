@@ -72,7 +72,7 @@ Screen.prototype.init = function (viewport) {
     throw new Error('SCREEN: 2D context not supported');
   }
 
-  //this.context.mozImageSmoothingEnabled = true;
+  this.context.imageSmoothingEnabled = true;
   this.context.webkitImageSmoothingEnabled = true;
 
   this.image_data = this.context.createImageData(viewport.CANVAS_WIDTH, viewport.CANVAS_HEIGHT);

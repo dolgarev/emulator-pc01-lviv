@@ -321,7 +321,7 @@ Profile.prototype.load = async function (data) {
       break;
 
     default:
-      throw new Error('PROFILE: Unknown file type');
+      throw new Error('PROFILE: Unknownn file type');
   }
 };
 
@@ -445,7 +445,7 @@ Profile.prototype.load_dump = async function (dump) {
           break;
 
         default:
-          throw new Error('PROFILE: Unknown FILE type');
+          throw new Error('PROFILE: Unknownn FILE type');
       }
       this.attach_file(dump.data);
       break;
@@ -459,7 +459,7 @@ Profile.prototype.load_dump = async function (dump) {
       break;
 
     default:
-      throw new Error('PROFILE: Unknown DUMP type');
+      throw new Error('PROFILE: Unknownn DUMP type');
   }
 };
 

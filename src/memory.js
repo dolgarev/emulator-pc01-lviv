@@ -33,7 +33,7 @@ export function Memory(config, io) {
 
   switch (this.mem_map) {
     case 80:
-    case 'standart':
+    case 'standard':
     case 'default':
       this.pages = [
         new MemPage({
@@ -175,7 +175,7 @@ export function Memory(config, io) {
       break;
 
     default:
-      throw new Error('MEMORY: Unknow memory map');
+      throw new Error('MEMORY: Unknown memory map');
   }
 
   this.init();
@@ -284,7 +284,7 @@ Memory.prototype.get_state = function (mem_map) {
 
   switch (mem_map || 'default') {
     case 80:
-    case 'standart':
+    case 'standard':
     case 'default': {
       for (let addr = 0x0000; addr <= 0xffff; addr++) {
         mem.push(this.pages[(addr & 0xc000) >>> 14].read(addr));
@@ -298,7 +298,7 @@ Memory.prototype.get_state = function (mem_map) {
     }
 
     default:
-      throw new Error('MEMORY: Unknow memory map');
+      throw new Error('MEMORY: Unknown memory map');
   }
 
   return mem;

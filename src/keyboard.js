@@ -41,14 +41,14 @@ Keyboard.prototype.init = function () {
   const self = this;
 
   document.addEventListener('keydown', (evt) => {
-    self.press(evt.which, true, (evt.shiftKey << 2) | (evt.ctrlKey << 1) | evt.altKey);
+    self.press(evt.keyCode, true, (evt.shiftKey << 2) | (evt.ctrlKey << 1) | evt.altKey);
 
     evt.preventDefault();
     evt.stopPropagation();
   });
 
   document.addEventListener('keyup', (evt) => {
-    self.press(evt.which, false, (evt.shiftKey << 2) | (evt.ctrlKey << 1) | evt.altKey);
+    self.press(evt.keyCode, false, (evt.shiftKey << 2) | (evt.ctrlKey << 1) | evt.altKey);
 
     evt.preventDefault();
     evt.stopPropagation();

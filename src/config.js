@@ -25,7 +25,7 @@ export function Config(emu_settings, profile) {
   let settings;
   switch (profile || emu_settings.computer.profile) {
     case 'default':
-    case 'standart':
+    case 'standard':
     case 'pc01_lvov':
     case 'pc01_lvov_80':
       settings = {
@@ -103,7 +103,7 @@ export function Config(emu_settings, profile) {
       break;
 
     default:
-      throw new Error('Unknown model');
+      throw new Error('Unknownn model');
   }
 
   if (!settings.cpu.clock_speed) {

@@ -78,14 +78,14 @@ export function Setting(profile) {
 
   switch (profile || 'default') {
     case 'default':
-    case 'standart':
+    case 'standard':
       settings.computer = {
         profile: 'pc01_lvov_80',
         allow_turbo_mode: true,
       };
       break;
 
-    case 'standart_fixed':
+    case 'standard_fixed':
       settings.computer = {
         profile: 'pc01_lvov_80_fixed',
         allow_turbo_mode: true,
