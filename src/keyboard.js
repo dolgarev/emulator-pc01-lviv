@@ -38,7 +38,7 @@ Keyboard.prototype.IS_DEC_PALETTE = 0x40;
 Keyboard.prototype.IS_INC_PALETTE = 0x80;
 
 Keyboard.prototype.init = function () {
-  var self = this;
+  const self = this;
 
   document.addEventListener('keydown', function (evt) {
     self.press(evt.which, true, (evt.shiftKey << 2) | (evt.ctrlKey << 1) | evt.altKey);
@@ -59,9 +59,7 @@ Keyboard.prototype.init = function () {
 
 Keyboard.prototype.reset = function () {
   [0xd0, 0xd2].forEach(function (port) {
-    for (var i = 0, L = this.key_states[port].length; i < L; i++) {
-      this.key_states[port][i] = 0;
-    }
+    this.key_states[port].fill(0);
   }, this);
 
   this.reset_special_keys();
@@ -76,9 +74,9 @@ Keyboard.prototype.restart = function () {
 };
 
 Keyboard.prototype.press = function (key_code, is_pressed, modifier) {
-  var key =
-      this.main_map[modifier & Keyboard.IS_ALT ? this.alt_map[key_code] || key_code : key_code],
-    is_ctrl = modifier & Keyboard.IS_CTRL;
+  const key =
+    this.main_map[modifier & Keyboard.IS_ALT ? this.alt_map[key_code] || key_code : key_code];
+  const is_ctrl = modifier & Keyboard.IS_CTRL;
 
   if (key && !is_ctrl) {
     if (is_pressed) {
@@ -122,8 +120,8 @@ Keyboard.prototype.press = function (key_code, is_pressed, modifier) {
 };
 
 Keyboard.prototype.get = function (mask, port) {
-  var result = 0,
-    state = this.key_states[port];
+  let result = 0;
+  const state = this.key_states[port];
 
   mask = ~mask;
 
@@ -175,7 +173,7 @@ Keyboard.prototype.get = function (mask, port) {
 };
 
 Keyboard.prototype.main_map = (function () {
-  var keys = {
+  const keys = {
     8: { mask: 0x23ff }, // ЗБ
     9: { mask: 0x04ff }, // ТАБ
     13: { mask: 0x13ff }, // ВК
@@ -263,25 +261,21 @@ Keyboard.prototype.main_map = (function () {
     0x108: { mask: 0x34ff }, // _
   };
 
-  for (var code in keys) {
-    if (Object.prototype.hasOwnProperty.call(keys, code)) {
-      var key = keys[code],
-        mask = key.mask,
-        col_D0 = (mask & 0xf000) >> 12,
-        col_D2 = (mask & 0x00f0) >> 4;
+  for (const key of Object.values(keys)) {
+    const mask = key.mask;
+    const col_D0 = (mask & 0xf000) >> 12;
+    const col_D2 = (mask & 0x00f0) >> 4;
 
-      if ((col_D0 & 0x08) === 0) {
-        key.port = 0xd0;
-        key.column = col_D0;
-        key.row_mask = 1 << ((mask & 0x0f00) >> 8);
-      } else if ((col_D2 & 0x08) === 0) {
-        key.port = 0xd2;
-        key.column = col_D2;
-        key.row_mask = 1 << (mask & 0x000f);
-      }
+    if ((col_D0 & 0x08) === 0) {
+      key.port = 0xd0;
+      key.column = col_D0;
+      key.row_mask = 1 << ((mask & 0x0f00) >> 8);
+    } else if ((col_D2 & 0x08) === 0) {
+      key.port = 0xd2;
+      key.column = col_D2;
+      key.row_mask = 1 << (mask & 0x000f);
     }
   }
-
   return keys;
 })();
 

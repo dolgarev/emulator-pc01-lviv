@@ -15,67 +15,67 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-export function Notify(node, delay = 5000) {
-  if (Notify.instance instanceof Notify) {
-    return Notify.instance;
+export class Notify {
+  static instance = null;
+
+  static create(node, delay) {
+    return new Notify(node, delay);
   }
 
-  if (!(node instanceof HTMLElement)) {
-    throw new Error('NOTIFY: Invalid element');
+  static show(message) {
+    if (Notify.instance instanceof Notify) {
+      Notify.instance.show(message);
+    } else {
+      throw new Error('NOTIFY: Object is not initialized');
+    }
   }
-  this.node = node;
 
-  this.handlers = {
-    close: this.close.bind(this),
-  };
+  constructor(node, delay = 5000) {
+    if (Notify.instance instanceof Notify) {
+      return Notify.instance;
+    }
 
-  this.node.lastChild.addEventListener('click', this.handlers.close, false);
+    if (!(node instanceof HTMLElement)) {
+      throw new Error('NOTIFY: Invalid element');
+    }
 
-  this.delay = delay;
-  this.timer = undefined;
+    this.node = node;
+    this.delay = delay;
+    this.timer = undefined;
 
-  Object.defineProperty(Notify, 'instance', {
-    value: this,
-    configurable: true, // Allow reset during termination
-  });
-}
+    this.handlers = {
+      close: this.close.bind(this),
+    };
 
-Notify.create = function (node, delay) {
-  return new Notify(node, delay);
-};
+    this.node.lastChild.addEventListener('click', this.handlers.close, false);
 
-Notify.show = function (message) {
-  if (Notify.instance instanceof Notify) {
-    Notify().show(message);
-  } else {
-    throw new Error('NOTIFY: Object is not initialized');
+    Notify.instance = this;
   }
-};
 
-Notify.prototype.close = function () {
-  window.clearTimeout(this.timer);
-  this.hide();
-};
-
-Notify.prototype.show = function (message) {
-  if (this.node.classList.contains('notify_show')) {
+  close() {
     window.clearTimeout(this.timer);
-  } else {
-    this.node.classList.add('notify_show');
+    this.hide();
   }
 
-  this.node.firstChild.textContent = message;
+  show(message) {
+    if (this.node.classList.contains('notify_show')) {
+      window.clearTimeout(this.timer);
+    } else {
+      this.node.classList.add('notify_show');
+    }
 
-  this.timer = window.setTimeout(this.handlers.close, this.delay);
-};
+    this.node.firstChild.textContent = message;
+    this.timer = window.setTimeout(this.handlers.close, this.delay);
+  }
 
-Notify.prototype.hide = function () {
-  this.node.firstChild.textContent = '';
-  this.node.classList.remove('notify_show');
-};
+  hide() {
+    this.node.firstChild.textContent = '';
+    this.node.classList.remove('notify_show');
+  }
 
-Notify.prototype.terminate = function () {
-  this.close();
-  this.node.lastChild.removeEventListener('click', this.handlers.close);
-  delete Notify.instance;
-};
+  terminate() {
+    this.close();
+    this.node.lastChild.removeEventListener('click', this.handlers.close);
+    Notify.instance = null;
+  }
+}
