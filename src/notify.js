@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-export function Notify(node, delay) {
+export function Notify(node, delay = 5000) {
   if (Notify.instance instanceof Notify) {
     return Notify.instance;
   }
@@ -31,8 +31,8 @@ export function Notify(node, delay) {
 
   this.node.lastChild.addEventListener('click', this.handlers.close, false);
 
-  this.delay = delay || 5000;
-  this.timer = void 0;
+  this.delay = delay;
+  this.timer = undefined;
 
   Object.defineProperty(Notify, 'instance', {
     value: this,
