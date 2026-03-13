@@ -22,7 +22,7 @@ export function Config(emu_settings, profile) {
     throw new Error('CONFIG: Invalid emulator settings');
   }
 
-  var settings;
+  let settings;
   switch (profile || emu_settings.computer.profile) {
     case 'default':
     case 'standart':
@@ -103,7 +103,7 @@ export function Config(emu_settings, profile) {
       break;
 
     default:
-      throw new Error('Unknow model');
+      throw new Error('Unknown model');
   }
 
   if (!settings.cpu.clock_speed) {
@@ -145,7 +145,7 @@ export function Config(emu_settings, profile) {
     settings.rom.image = emu_settings.rom.image;
   }
 
-  for (var prop in settings) {
+  for (const prop in settings) {
     Object.defineProperty(this, prop, {
       enumerable: true,
       value: settings[prop],

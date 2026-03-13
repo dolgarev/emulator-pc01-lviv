@@ -38,10 +38,10 @@ Emulator.prototype.initAsync = async function () {
 Emulator.prototype.init = function () {
   if ('help_button' in this.settings.controls) {
     (function (bttn) {
-      var node = document.getElementById(bttn.node.dataset['target']);
+      const node = document.getElementById(bttn.node.dataset.target);
 
       node.addEventListener('click', function (evt) {
-        if (evt.target.dataset['action'] === 'close') {
+        if (evt.target.dataset.action === 'close') {
           this.classList.remove('lightbox_show');
         }
       });

@@ -54,7 +54,7 @@ DnD.prototype.init = function () {
 };
 
 DnD.prototype.reset = function () {
-  this.files = void 0;
+  this.files = undefined;
 };
 
 DnD.prototype.close = function () {
@@ -104,7 +104,7 @@ DnD.prototype.drop = function (evt) {
 DnD.prototype.read = function () {
   return new Promise(
     function (resolve, reject) {
-      var file = this.files[0];
+      const file = this.files[0];
 
       function error_handler() {
         console.log('DnD: Read failed.');
@@ -113,7 +113,7 @@ DnD.prototype.read = function () {
       }
 
       if (this.is_file(file)) {
-        var reader = new FileReader();
+        const reader = new FileReader();
 
         reader.onerror = error_handler;
         reader.onload = function (evt) {

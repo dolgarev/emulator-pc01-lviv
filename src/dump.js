@@ -22,22 +22,22 @@ Dump.get = async function (short_name) {
     throw new Error('DUMP: Dump "' + short_name + '" not exists');
   }
 
-  var dump = new Dump(),
+  const dump = new Dump(),
     entry = Dump.storage[short_name];
 
-  if (!entry['data']) {
+  if (!entry.data) {
     try {
       const response = await fetch(`/data/dump-${short_name}.bin`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const buffer = await response.arrayBuffer();
-      entry['data'] = new DataView(buffer);
+      entry.data = new DataView(buffer);
     } catch (e) {
       console.error('Failed to load Dump image:', e);
       throw new Error(`DUMP: Failed to load image ${short_name}`, { cause: e });
     }
   }
 
-  for (var key in entry) {
+  for (const key in entry) {
     Object.defineProperty(dump, key, {
       enumerable: true,
       value: entry[key],
@@ -48,7 +48,7 @@ Dump.get = async function (short_name) {
 };
 
 Dump.list = function () {
-  var storage = Dump.storage,
+  const storage = Dump.storage,
     list = {};
 
   Object.keys(storage)
