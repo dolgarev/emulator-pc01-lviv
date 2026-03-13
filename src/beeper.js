@@ -92,10 +92,10 @@ Object.defineProperty(Beeper.prototype, 'allow_sound', {
 });
 
 Beeper.prototype.play = function () {
-  var sound_buffer = this.sound_buffer;
+  const sound_buffer = this.sound_buffer;
 
   if (this.allow_sound) {
-    var context = Beeper.audio_context;
+    const context = Beeper.audio_context;
 
     if (Beeper._last_state !== context.state) {
       console.log('BEEPER: play() - AudioContext state:', context.state);
@@ -107,17 +107,18 @@ Beeper.prototype.play = function () {
       context.resume();
     }
 
-    var source = context.createBufferSource(),
-      buffer = context.createBuffer(1, this.SAMPLE_BUFFER_SIZE, this.SAMPLE_RATE),
-      data = buffer.getChannelData(0),
-      sample_cpu_cycles = this.SAMPLE_CPU_CYCLES,
-      state = 0,
-      volume = this.VOLUME;
+    const source = context.createBufferSource();
+    const buffer = context.createBuffer(1, this.SAMPLE_BUFFER_SIZE, this.SAMPLE_RATE);
+    const data = buffer.getChannelData(0);
+    const sample_cpu_cycles = this.SAMPLE_CPU_CYCLES;
+    const volume = this.VOLUME;
+    let state = 0;
 
-    for (var i = 0, n = 0, l = sound_buffer.length, v; i < l; i++) {
-      v = state && volume;
+    let n = 0;
+    for (const bufferValue of sound_buffer) {
+      const v = state && volume;
       for (
-        var sample_counter = Math.round(sound_buffer[i] / sample_cpu_cycles);
+        let sample_counter = Math.round(bufferValue / sample_cpu_cycles);
         sample_counter > 0;
         sample_counter--
       ) {
@@ -142,10 +143,10 @@ Beeper.prototype.play = function () {
 };
 
 Beeper.prototype.process = function (state) {
-  var frame_offset = I8080.total_cpu_cycles - I8080.start_frame,
-    inc_offset = frame_offset - this.prev_frame_offset,
-    sound_buffer = this.sound_buffer,
-    len = sound_buffer.length;
+  const frame_offset = I8080.total_cpu_cycles - I8080.start_frame;
+  const inc_offset = frame_offset - this.prev_frame_offset;
+  const sound_buffer = this.sound_buffer;
+  const len = sound_buffer.length;
 
   if (state === this.prev_beeper_state) {
     if (len) {
