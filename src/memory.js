@@ -31,12 +31,18 @@ export class Memory {
     this.io = io;
 
     this.mem_map = this.config.memory.map;
+    this.pages = this.createMemoryPages(this.mem_map);
 
-    switch (this.mem_map) {
+    this.init();
+  }
+
+  createMemoryPages(mem_map) {
+    let pages;
+    switch (mem_map) {
       case 80:
       case 'standard':
       case 'default':
-        this.pages = [
+        pages = [
           new MemPage({
             begin: 0x0000,
           }),
@@ -61,7 +67,7 @@ export class Memory {
         break;
 
       case 144:
-        this.pages = [
+        pages = [
           new MemPage({
             begin: 0x0000,
           }),
@@ -99,7 +105,7 @@ export class Memory {
         break;
 
       case 256:
-        this.pages = [
+        pages = [
           new MemPage({
             begin: 0x0000,
           }),
@@ -178,8 +184,7 @@ export class Memory {
       default:
         throw new Error('MEMORY: Unknown memory map');
     }
-
-    this.init();
+    return pages;
   }
 
   init() {
