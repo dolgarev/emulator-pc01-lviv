@@ -25,10 +25,12 @@ const BLUE = 1;
 const GREEN = 2;
 const RED = 4;
 
-// Веса для преобразования RGB в градации серого (эмуляция ч/б телевизора)
-const GRAYSCALE_RED_WEIGHT = 0x1d; // 29/255 ≈ 0.114 (стандарт BT.601: 0.299)
-const GRAYSCALE_GREEN_WEIGHT = 0x96; // 150/255 ≈ 0.588 (стандарт BT.601: 0.587)
-const GRAYSCALE_BLUE_WEIGHT = 0x4c; // 76/255 ≈ 0.298 (стандарт BT.601: 0.114)
+// Weights for RGB to grayscale conversion (emulating B/W TV)
+// NOTE: Boolean logic (&&) is used instead of multiplication - this is NOT a bug,
+// but an emulation feature that produces brighter images similar to real B/W TV
+const GRAYSCALE_RED_WEIGHT = 0x1d; // 29/255 ≈ 0.114 (BT.601 standard: 0.299)
+const GRAYSCALE_GREEN_WEIGHT = 0x96; // 150/255 ≈ 0.588 (BT.601 standard: 0.587)
+const GRAYSCALE_BLUE_WEIGHT = 0x4c; // 76/255 ≈ 0.298 (BT.601 standard: 0.114)
 
 export class Screen {
   constructor(config, io, memory, viewport) {
