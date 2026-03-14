@@ -60,6 +60,7 @@ export class Screen {
 
     this.allow_color_mode = config.screen.allow_color_mode;
     this.screenshot_type = config.screen.screenshot_type;
+    this.dirty = false;
   }
 
   static LUT = {
@@ -79,6 +80,7 @@ export class Screen {
 
   static cache_color = new Uint32Array(0x100);
   static cache_rgb = [];
+  static cache_grayscale = [];
 
   init(viewport) {
     this.canvas = viewport.canvas;
@@ -110,12 +112,25 @@ export class Screen {
       c2 = this.compute_color_index(2, palette);
       c3 = this.compute_color_index(3, palette);
 
-      Screen.cache_rgb[palette] = new Uint32Array([
+      const rgb = new Uint32Array([
         0xff000000 | LUT.B[c0] | LUT.G[c0] | LUT.R[c0],
         0xff000000 | LUT.B[c1] | LUT.G[c1] | LUT.R[c1],
         0xff000000 | LUT.B[c2] | LUT.G[c2] | LUT.R[c2],
         0xff000000 | LUT.B[c3] | LUT.G[c3] | LUT.R[c3],
       ]);
+      Screen.cache_rgb[palette] = rgb;
+
+      // Precompute grayscale values for this palette
+      const grayscale = new Uint32Array(4);
+      for (let i = 0; i < 4; i++) {
+        const p = rgb[i];
+        const sum =
+          ~~(p & 0x00ff0000 && GRAYSCALE_RED_WEIGHT) +
+          ~~(p & 0x0000ff00 && GRAYSCALE_GREEN_WEIGHT) +
+          ~~(p & 0x0000ff && GRAYSCALE_BLUE_WEIGHT);
+        grayscale[i] = 0xff000000 | (sum << 16) | (sum << 8) | sum;
+      }
+      Screen.cache_grayscale[palette] = grayscale;
     }
   }
 
@@ -127,6 +142,7 @@ export class Screen {
   reset_cache() {
     this.cache.fill(0);
     this.cache.is_valid = false;
+    this.dirty = true;
   }
 
   parse_color(byte) {
@@ -218,8 +234,10 @@ export class Screen {
     const is_valid = cache.is_valid && this.cache_palette === palette;
     const is_color = this.allow_color_mode;
     const rgb = Screen.cache_rgb[palette];
+    const grayscale = Screen.cache_grayscale[palette];
     const ps32 = this.ps32;
     const vram = this.vram_page;
+    let dirty = this.dirty;
 
     for (let i = 0, pos = 0; i < 0x4000; i++) {
       const byte = vram.mem[i];
@@ -235,42 +253,24 @@ export class Screen {
           ps32[pos++] = rgb[(cc >> 4) & 0x03];
           ps32[pos++] = rgb[(cc >> 6) & 0x03];
         } else {
-          let p = rgb[cc & 0x03];
-          let sum =
-            ~~(p & 0x00ff0000 && GRAYSCALE_RED_WEIGHT) +
-            ~~(p & 0x0000ff00 && GRAYSCALE_GREEN_WEIGHT) +
-            ~~(p & 0x0000ff && GRAYSCALE_BLUE_WEIGHT);
-          ps32[pos++] = 0xff000000 | (sum << 16) | (sum << 8) | sum;
-
-          p = rgb[(cc >> 2) & 0x03];
-          sum =
-            ~~(p & 0x00ff0000 && GRAYSCALE_RED_WEIGHT) +
-            ~~(p & 0x0000ff00 && GRAYSCALE_GREEN_WEIGHT) +
-            ~~(p & 0x0000ff && GRAYSCALE_BLUE_WEIGHT);
-          ps32[pos++] = 0xff000000 | (sum << 16) | (sum << 8) | sum;
-
-          p = rgb[(cc >> 4) & 0x03];
-          sum =
-            ~~(p & 0x00ff0000 && GRAYSCALE_RED_WEIGHT) +
-            ~~(p & 0x0000ff00 && GRAYSCALE_GREEN_WEIGHT) +
-            ~~(p & 0x0000ff && GRAYSCALE_BLUE_WEIGHT);
-          ps32[pos++] = 0xff000000 | (sum << 16) | (sum << 8) | sum;
-
-          p = rgb[(cc >> 6) & 0x03];
-          sum =
-            ~~(p & 0x00ff0000 && GRAYSCALE_RED_WEIGHT) +
-            ~~(p & 0x0000ff00 && GRAYSCALE_GREEN_WEIGHT) +
-            ~~(p & 0x0000ff && GRAYSCALE_BLUE_WEIGHT);
-          ps32[pos++] = 0xff000000 | (sum << 16) | (sum << 8) | sum;
+          ps32[pos++] = grayscale[cc & 0x03];
+          ps32[pos++] = grayscale[(cc >> 2) & 0x03];
+          ps32[pos++] = grayscale[(cc >> 4) & 0x03];
+          ps32[pos++] = grayscale[(cc >> 6) & 0x03];
         }
 
         cache[i] = byte;
+        dirty = true;
       }
     }
 
     cache.is_valid = true;
     this.cache_palette = palette;
-    this.context.putImageData(this.image_data, 0, 0);
+
+    if (dirty) {
+      this.context.putImageData(this.image_data, 0, 0);
+      this.dirty = false;
+    }
   }
 
   change_color_mode(state = !this.allow_color_mode) {
