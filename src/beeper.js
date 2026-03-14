@@ -37,31 +37,42 @@ export class Beeper {
     this.SAMPLE_BUFFER_SIZE = Math.ceil(config.cpu.frame_cycles / this.SAMPLE_CPU_CYCLES) + 1;
     this.VOLUME = 0.15;
 
-    this.sound_buffer = [];
+    // Use TypedArray for better performance
+    this.sound_buffer = new Float32Array(this.SAMPLE_BUFFER_SIZE * 2); // 2x reserve
+    this.buffer_index = 0;
+    this.sample_accumulator = 0;
 
     this.init();
   }
 
-  static get_audio_context() {
-    return Beeper._audio_context;
+  static getAudioContextClass() {
+    return (
+      window.AudioContext ||
+      window.webkitAudioContext ||
+      window.mozAudioContext ||
+      window.oAudioContext ||
+      window.msAudioContext ||
+      null
+    );
   }
 
   static activate() {
     console.log('BEEPER: Attempting to activate AudioContext...');
-    if (AudioContext) {
-      Beeper._audio_context ??= new AudioContext();
-    }
-    if (Beeper._audio_context) {
-      console.log('BEEPER: AudioContext created. State:', Beeper._audio_context.state);
-    } else {
-      console.warn('BEEPER: AudioContext not supported');
-    }
-    return Beeper._audio_context;
-  }
 
-  // For backward compatibility with existing code that might use Beeper.audio_context
-  static get audio_context() {
-    return Beeper.get_audio_context();
+    const AudioContextClass = Beeper.getAudioContextClass();
+    if (!AudioContextClass) {
+      console.warn('BEEPER: Web Audio API not supported');
+      return null;
+    }
+
+    try {
+      Beeper.ctx ??= new AudioContextClass();
+      console.log('BEEPER: AudioContext created. State:', Beeper.ctx.state);
+      return Beeper.ctx;
+    } catch (error) {
+      console.error('BEEPER: Failed to create AudioContext:', error);
+      return null;
+    }
   }
 
   init() {
@@ -69,8 +80,8 @@ export class Beeper {
 
     if (this.allow_sound) {
       if (this.config.beeper.allow_highpass_filter) {
-        this.filter = Beeper.audio_context.createBiquadFilter();
-        this.filter.type = this.filter.HIGHPASS;
+        this.filter = Beeper.ctx.createBiquadFilter();
+        this.filter.type = 'highpass';
         this.filter.frequency.value = 440;
         this.filter.Q.value = 0;
         this.filter.gain.value = 0;
@@ -79,83 +90,112 @@ export class Beeper {
   }
 
   restart() {
-    this.sound_buffer.length = 0;
+    this.buffer_index = 0;
+    this.sample_accumulator = 0;
     this.prev_frame_offset = 0;
     this.prev_beeper_state = 0;
   }
 
   get allow_sound() {
-    return this.config.beeper.allow_sound && !!Beeper.audio_context;
+    return this.config.beeper.allow_sound && !!Beeper.ctx;
   }
 
   play() {
-    const sound_buffer = this.sound_buffer;
+    if (!this.allow_sound || this.buffer_index === 0) return;
 
-    if (this.allow_sound) {
-      const context = Beeper.audio_context;
+    const ctx = Beeper.ctx;
+    if (!ctx) return;
 
-      if (Beeper._last_state !== context.state) {
-        console.log('BEEPER: play() - AudioContext state:', context.state);
-        Beeper._last_state = context.state;
-      }
+    // Auto-resume context with error handling
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch((err) => {
+        console.warn('BEEPER: Failed to resume AudioContext:', err);
+        return;
+      });
+    }
 
-      // Auto-resume if it got suspended again
-      if (context.state === 'suspended') {
-        context.resume();
-      }
+    if (ctx.state !== 'running') {
+      console.warn('BEEPER: AudioContext not running, state:', ctx.state);
+      return;
+    }
 
-      const source = context.createBufferSource();
-      const buffer = context.createBuffer(1, this.SAMPLE_BUFFER_SIZE, this.SAMPLE_RATE);
+    try {
+      const source = ctx.createBufferSource();
+      const buffer = ctx.createBuffer(1, this.SAMPLE_BUFFER_SIZE, this.SAMPLE_RATE);
       const data = buffer.getChannelData(0);
       const sample_cpu_cycles = this.SAMPLE_CPU_CYCLES;
       const volume = this.VOLUME;
-      let state = 0;
 
-      let n = 0;
-      for (const bufferValue of sound_buffer) {
-        const v = state && volume;
-        for (
-          let sample_counter = Math.round(bufferValue / sample_cpu_cycles);
-          sample_counter > 0;
-          sample_counter--
-        ) {
-          data[n++] = v;
-        }
-        state = 1 - state;
-      }
+      // Generate square wave with sample accumulation
+      this.generateSquareWave(data, sample_cpu_cycles, volume);
 
       if (this.filter) {
         source.connect(this.filter);
-        this.filter.connect(context.destination);
+        this.filter.connect(ctx.destination);
       } else {
-        source.connect(context.destination);
+        source.connect(ctx.destination);
       }
 
       source.buffer = buffer;
       source.start(0);
+    } catch (error) {
+      console.error('BEEPER: Failed to play sound:', error);
     }
 
+    // Reset buffer
+    this.buffer_index = 0;
     this.prev_frame_offset = 0;
-    sound_buffer.length = 0;
+    this.sample_accumulator = 0;
+  }
+
+  // Optimized square wave generation
+  generateSquareWave(data, sample_cpu_cycles, volume) {
+    let state = 0;
+    let n = 0;
+
+    for (let i = 0; i < this.buffer_index && n < data.length; i++) {
+      this.sample_accumulator += this.sound_buffer[i] / sample_cpu_cycles;
+      const samples = Math.floor(this.sample_accumulator);
+      this.sample_accumulator -= samples;
+
+      const value = state ? volume : 0;
+      for (let j = 0; j < samples && n < data.length; j++) {
+        data[n++] = value;
+      }
+      state = 1 - state;
+    }
   }
 
   process(state) {
     const frame_offset = I8080.total_cpu_cycles - I8080.start_frame;
     const inc_offset = frame_offset - this.prev_frame_offset;
-    const sound_buffer = this.sound_buffer;
-    const len = sound_buffer.length;
+
+    // Check for buffer overflow
+    if (this.buffer_index >= this.sound_buffer.length) {
+      this.flushPartialBuffer();
+    }
 
     if (state === this.prev_beeper_state) {
-      if (len) {
-        sound_buffer[len - 1] += inc_offset;
+      // Add to the last value
+      if (this.buffer_index > 0) {
+        this.sound_buffer[this.buffer_index - 1] += inc_offset;
       } else {
-        sound_buffer[len] = inc_offset;
+        this.sound_buffer[this.buffer_index++] = inc_offset;
       }
     } else {
-      sound_buffer[len] = inc_offset;
+      // New sound segment
+      this.sound_buffer[this.buffer_index++] = inc_offset;
       this.prev_beeper_state = state;
     }
 
     this.prev_frame_offset = frame_offset;
+  }
+
+  // Handle partial buffer overflow
+  flushPartialBuffer() {
+    console.warn('BEEPER: Buffer overflow, flushing partial buffer');
+    this.play(); // Play accumulated data
+    this.buffer_index = 0;
+    this.sample_accumulator = 0;
   }
 }
