@@ -15,13 +15,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { Setting } from './setting.js';
+import { Settings } from './settings.js';
 import { Notify } from './notify.js';
 import { Computer } from './computer.js';
 
 export class Emulator {
   constructor(profile) {
-    this.settings = new Setting(profile);
+    this.settings = new Settings(profile);
 
     Notify.create(this.settings.notify.node, this.settings.notify.delay);
 

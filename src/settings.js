@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-export class Setting {
+export class Settings {
   constructor(profile) {
     const default_settings = {
         viewport: {
@@ -116,13 +116,13 @@ export class Setting {
     this.viewport.container.node = document.getElementById(this.viewport.container.id);
 
     if (!(this.viewport.container.node instanceof HTMLDivElement)) {
-      throw new Error('SETTING: Element VIEWPORT not found');
+      throw new Error('SETTINGS: Element VIEWPORT not found');
     }
 
     this.dnd.container.node = document.getElementById(this.dnd.container.id);
 
     if (!(this.dnd.container.node instanceof HTMLElement)) {
-      throw new Error('SETTING: Element DND not found');
+      throw new Error('SETTINGS: Element DND not found');
     }
 
     if (this.controls.local_load_button) {
@@ -131,7 +131,7 @@ export class Setting {
       );
 
       if (!(this.controls.local_load_button.node instanceof HTMLButtonElement)) {
-        throw new Error('SETTING: Element LOCAL_LOAD_BUTTON not found');
+        throw new Error('SETTINGS: Element LOCAL_LOAD_BUTTON not found');
       }
     }
 
@@ -139,14 +139,14 @@ export class Setting {
       this.controls.help_button.node = document.getElementById(this.controls.help_button.id);
 
       if (!(this.controls.help_button.node instanceof HTMLButtonElement)) {
-        throw new Error('SETTING: Element HELP_BUTTON not found');
+        throw new Error('SETTINGS: Element HELP_BUTTON not found');
       }
     }
 
     this.notify.node = document.getElementById(this.notify.id);
 
     if (!(this.notify.node instanceof HTMLElement)) {
-      throw new Error('SETTING: Element NOTIFY not found');
+      throw new Error('SETTINGS: Element NOTIFY not found');
     }
   }
 }

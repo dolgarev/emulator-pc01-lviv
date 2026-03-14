@@ -15,11 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { Setting } from './setting.js';
+import { Settings } from './settings.js';
 
 export class Config {
   constructor(emu_settings, profile) {
-    if (!(emu_settings instanceof Setting)) {
+    if (!(emu_settings instanceof Settings)) {
       throw new Error('CONFIG: Invalid emulator settings');
     }
 

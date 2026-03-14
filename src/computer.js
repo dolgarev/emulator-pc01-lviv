@@ -15,13 +15,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { Setting } from './setting.js';
+import { Settings } from './settings.js';
 import { Profile } from './profile.js';
 import { Dump } from './dump.js';
 
 export class Computer {
   constructor(emu_settings) {
-    if (!(emu_settings instanceof Setting)) {
+    if (!(emu_settings instanceof Settings)) {
       throw new Error('COMPUTER: Invalid emulator settings');
     }
     this.settings = emu_settings;

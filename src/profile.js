@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { Setting } from './setting.js';
+import { Settings } from './settings.js';
 import { Config } from './config.js';
 import { Beeper } from './beeper.js';
 import { Keyboard } from './keyboard.js';
@@ -33,7 +33,7 @@ import { Notify } from './notify.js';
 
 export class Profile {
   constructor(emu_settings, profile) {
-    if (!(emu_settings instanceof Setting)) {
+    if (!(emu_settings instanceof Settings)) {
       throw new Error('PROFILE: Invalid emulator settings');
     }
     this.settings = emu_settings;

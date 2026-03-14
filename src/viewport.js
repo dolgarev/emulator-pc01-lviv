@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { Setting } from './setting.js';
+import { Settings } from './settings.js';
 
 // Aspect ratio constants for screen scaling
 // Original PC-01 had non-square pixels, modern displays need correct aspect ratio
@@ -28,7 +28,7 @@ const ASPECT_RATIO = ASPECT_RATIO_4_3;
 
 export class Viewport {
   constructor(emu_settings) {
-    if (!(emu_settings instanceof Setting)) {
+    if (!(emu_settings instanceof Settings)) {
       throw new Error('VIEWPORT: Invalid emulator settings');
     }
 
