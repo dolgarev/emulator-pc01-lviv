@@ -265,7 +265,7 @@ export default defineConfig({
 
 - [ ] `screen.js:111` — добавить `var` к `result`
 - [ ] `notify.js:69` — заменить `innerHTML` на `textContent`
-- [ ] `memory.js:263` — исправить `io.EXTENDED_MODE_PORT` на `io.ports[io.EXTENDED_MODE_PORT]`
+- [x] `memory.js:263` — исправить `io.EXTENDED_MODE_PORT` на `io.ports[io.EXTENDED_MODE_PORT]` (исправлено март 2026)
 - [ ] `screen.js:221` — исправить grayscale-формулу (заменить `&&` на правильные весовые коэффициенты)
 
 ### 3.2. Инфраструктура

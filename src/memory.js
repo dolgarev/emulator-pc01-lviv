@@ -261,11 +261,11 @@ export class Memory {
     } else if (mem_page === 3) {
       const mem_map = this.mem_map;
 
-      if ((mem_map === 144 || mem_map === 256) && io.EXTENDED_MODE_PORT & 0x04) {
+      if ((mem_map === 144 || mem_map === 256) && io.ports[io.EXTENDED_MODE_PORT] & 0x04) {
         mem_page_index =
           this.ext_page_index +
           ((mem_map === 144 ? 0 : io.ports[io.EXTENDED_MODE_PORT] >>> 6) << 2) +
-          ((io.EXTENDED_MODE_PORT & 0x07) - 4);
+          ((io.ports[io.EXTENDED_MODE_PORT] & 0x07) - 4);
       }
     }
 
