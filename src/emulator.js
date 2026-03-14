@@ -19,25 +19,23 @@ import { Setting } from './setting.js';
 import { Notify } from './notify.js';
 import { Computer } from './computer.js';
 
-export function Emulator(profile) {
-  Object.defineProperty(this, 'settings', {
-    enumerable: true,
-    value: new Setting(profile),
-  });
+export class Emulator {
+  constructor(profile) {
+    this.settings = new Setting(profile);
 
-  Notify.create(this.settings.notify.node, this.settings.notify.delay);
+    Notify.create(this.settings.notify.node, this.settings.notify.delay);
 
-  this.computer = new Computer(this.settings);
-}
+    this.computer = new Computer(this.settings);
+  }
 
-Emulator.prototype.initAsync = async function () {
-  this.init(); // UI setup
-  await this.computer.initAsync();
-};
+  async initAsync() {
+    this.init(); // UI setup
+    await this.computer.initAsync();
+  }
 
-Emulator.prototype.init = function () {
-  if ('help_button' in this.settings.controls) {
-    (function (bttn) {
+  init() {
+    if ('help_button' in this.settings.controls) {
+      const bttn = this.settings.controls.help_button;
       const node = document.getElementById(bttn.node.dataset.target);
 
       node.addEventListener('click', function (evt) {
@@ -49,14 +47,14 @@ Emulator.prototype.init = function () {
       bttn.node.addEventListener('click', () => {
         node.classList.add('lightbox_show');
       });
-    })(this.settings.controls.help_button);
+    }
   }
-};
 
-Emulator.prototype.load_dump = function (dump_name) {
-  this.computer.load_dump(dump_name);
-};
+  load_dump(dump_name) {
+    this.computer.load_dump(dump_name);
+  }
 
-Emulator.prototype.run = function () {
-  this.computer.run();
-};
+  run() {
+    this.computer.run();
+  }
+}

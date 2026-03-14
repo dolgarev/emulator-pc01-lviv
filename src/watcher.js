@@ -18,107 +18,107 @@
 import { Tape } from './tape.js';
 import { I8080 } from './i8080.js';
 
-export function Watcher() {}
+export class Watcher {
+  static profiles = {
+    default: {
+      //Подмена для BLOAD
+      0xdd94: function () {
+        const io_error = function () {
+            this.cpu.execute(0xe5);
+            this.cpu.execute(0xd5);
+            this.cpu.execute(0xc5);
+            this.cpu.jump(0xe4c7);
+            this.resume();
+          }.bind(this),
+          install = function () {
+            if (this.bload(this.get_file())) {
+              this.cpu.gosub(0xe48a);
+              this.cpu.jump(0xdd61);
+              this.resume();
+            } else {
+              io_error();
+            }
+            this.detach_file();
+          }.bind(this);
 
-Watcher.get = function (profile, context) {
-  if (!(profile in Watcher.profiles)) {
-    throw new Error('WATCHER: Invalid PROFILE param');
-  }
+        this.suspend();
 
-  const watcher = new Watcher(),
-    entry = Watcher.profiles[profile];
+        if (this.exists_attached_file()) {
+          install();
+        } else if (this.tape instanceof Tape) {
+          this.tape.load().then((file) => {
+            this.attach_file(file);
+            install();
+          }, io_error);
 
-  for (const key in entry) {
-    if (entry[key] instanceof Function) {
-      Object.defineProperty(watcher, key, {
-        enumerable: true,
-        value: entry[key].bind(context),
-      });
+          return I8080.NOPE_OPTCODE;
+        } else {
+          io_error();
+        }
+
+        return I8080.UNDEF_OPTCODE;
+      },
+      //Подмена для CLOAD (1)
+      0xe50b: function () {
+        const io_error = function () {
+            this.cpu.execute(0xe5);
+            this.cpu.execute(0xd5);
+            this.cpu.execute(0xc5);
+            this.cpu.jump(0xe4c7);
+            this.resume();
+          }.bind(this),
+          install = function () {
+            if (this.cload(this.get_file())) {
+              this.cpu.gosub(0xe48a);
+              this.cpu.jump(0xe26d);
+              this.resume();
+            } else {
+              io_error();
+            }
+            this.detach_file();
+          }.bind(this);
+
+        this.suspend();
+
+        if (this.exists_attached_file()) {
+          install();
+        } else if (this.tape instanceof Tape) {
+          this.tape.load().then((file) => {
+            this.attach_file(file);
+            install();
+          }, io_error);
+
+          return I8080.NOPE_OPTCODE;
+        } else {
+          io_error();
+        }
+
+        return I8080.UNDEF_OPTCODE;
+      },
+      //Подмена для CLOAD (2)
+      0xe55e: function () {
+        return (this.cpu.jump(0xe561), I8080.UNDEF_OPTCODE);
+      },
+    },
+  };
+
+  static get(profile, context) {
+    if (!(profile in Watcher.profiles)) {
+      throw new Error('WATCHER: Invalid PROFILE param');
     }
+
+    const watcher = new Watcher(),
+      entry = Watcher.profiles[profile];
+
+    for (const key in entry) {
+      if (entry[key] instanceof Function) {
+        Object.defineProperty(watcher, key, {
+          enumerable: true,
+          value: entry[key].bind(context),
+        });
+      }
+    }
+
+    return watcher;
   }
-
-  return watcher;
-};
-
-Watcher.profiles = {
-  default: {
-    //Подмена для BLOAD
-    0xdd94: function () {
-      const io_error = function () {
-          this.cpu.execute(0xe5);
-          this.cpu.execute(0xd5);
-          this.cpu.execute(0xc5);
-          this.cpu.jump(0xe4c7);
-          this.resume();
-        }.bind(this),
-        install = function () {
-          if (this.bload(this.get_file())) {
-            this.cpu.gosub(0xe48a);
-            this.cpu.jump(0xdd61);
-            this.resume();
-          } else {
-            io_error();
-          }
-          this.detach_file();
-        }.bind(this);
-
-      this.suspend();
-
-      if (this.exists_attached_file()) {
-        install();
-      } else if (this.tape instanceof Tape) {
-        this.tape.load().then((file) => {
-          this.attach_file(file);
-          install();
-        }, io_error);
-
-        return I8080.NOPE_OPTCODE;
-      } else {
-        io_error();
-      }
-
-      return I8080.UNDEF_OPTCODE;
-    },
-    //Подмена для CLOAD (1)
-    0xe50b: function () {
-      const io_error = function () {
-          this.cpu.execute(0xe5);
-          this.cpu.execute(0xd5);
-          this.cpu.execute(0xc5);
-          this.cpu.jump(0xe4c7);
-          this.resume();
-        }.bind(this),
-        install = function () {
-          if (this.cload(this.get_file())) {
-            this.cpu.gosub(0xe48a);
-            this.cpu.jump(0xe26d);
-            this.resume();
-          } else {
-            io_error();
-          }
-          this.detach_file();
-        }.bind(this);
-
-      this.suspend();
-
-      if (this.exists_attached_file()) {
-        install();
-      } else if (this.tape instanceof Tape) {
-        this.tape.load().then((file) => {
-          this.attach_file(file);
-          install();
-        }, io_error);
-
-        return I8080.NOPE_OPTCODE;
-      } else {
-        io_error();
-      }
-
-      return I8080.UNDEF_OPTCODE;
-    },
-    //Подмена для CLOAD (2)
-    0xe55e: function () {
-      return (this.cpu.jump(0xe561), I8080.UNDEF_OPTCODE);
-    },
-  },
-};
+}

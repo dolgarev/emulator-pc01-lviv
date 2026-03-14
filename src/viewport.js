@@ -17,42 +17,44 @@
 
 import { Setting } from './setting.js';
 
-export function Viewport(emu_settings) {
-  if (!(emu_settings instanceof Setting)) {
-    throw new Error('VIEWPORT: Invalid emulator settings');
+export class Viewport {
+  constructor(emu_settings) {
+    if (!(emu_settings instanceof Setting)) {
+      throw new Error('VIEWPORT: Invalid emulator settings');
+    }
+
+    this.container = emu_settings.viewport.container.node;
+
+    this.CANVAS_HEIGHT = 256;
+    this.CANVAS_WIDTH = 256;
+    this.SCALE = 2;
+
+    this.init();
   }
 
-  this.container = emu_settings.viewport.container.node;
+  init() {
+    this.canvas = document.createElement('canvas');
+    this.canvas.style.imageRendering = '-webkit-optimize-contrast';
 
-  this.CANVAS_HEIGHT = 256;
-  this.CANVAS_WIDTH = 256;
-  this.SCALE = 2;
+    this.set_resolution(this.CANVAS_WIDTH, this.CANVAS_HEIGHT, this.SCALE);
+    this.container.appendChild(this.canvas);
+  }
 
-  this.init();
+  terminate() {
+    if (this.canvas instanceof HTMLCanvasElement) {
+      this.canvas.remove();
+      this.container = this.canvas = null;
+    }
+  }
+
+  pause(state) {
+    this.canvas.classList[state ? 'add' : 'remove']('pause');
+  }
+
+  set_resolution(width, height, scale = 1) {
+    this.canvas.width = width;
+    this.canvas.height = height;
+    this.canvas.style.width = `${width * scale}px`;
+    this.canvas.style.height = `${height * scale}px`;
+  }
 }
-
-Viewport.prototype.init = function () {
-  this.canvas = document.createElement('canvas');
-  this.canvas.style.imageRendering = '-webkit-optimize-contrast';
-
-  this.set_resolution(this.CANVAS_WIDTH, this.CANVAS_HEIGHT, this.SCALE);
-  this.container.appendChild(this.canvas);
-};
-
-Viewport.prototype.terminate = function () {
-  if (this.canvas instanceof HTMLCanvasElement) {
-    this.canvas.remove();
-    this.container = this.canvas = null;
-  }
-};
-
-Viewport.prototype.pause = function (state) {
-  this.canvas.classList[state ? 'add' : 'remove']('pause');
-};
-
-Viewport.prototype.set_resolution = function (width, height, scale = 1) {
-  this.canvas.width = width;
-  this.canvas.height = height;
-  this.canvas.style.width = `${width * scale}px`;
-  this.canvas.style.height = `${height * scale}px`;
-};

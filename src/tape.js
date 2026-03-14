@@ -18,114 +18,118 @@
 import { Config } from './config.js';
 import { Notify } from './notify.js';
 
-export function Tape(config) {
-  if (!(config instanceof Config)) {
-    throw new Error('TAPE: Invalid CONFIG object');
+export class Tape {
+  constructor(config) {
+    if (!(config instanceof Config)) {
+      throw new Error('TAPE: Invalid CONFIG object');
+    }
+    this.config = config;
   }
-  this.config = config;
+
+  terminate() {
+    this.config = null;
+  }
+
+  load() {
+    return new Promise((resolve, reject) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      // Map regex to accepts roughly, or let user pick any and validate after
+
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) {
+          reject(new Error('No file selected'));
+          return;
+        }
+        if (!this.is_file(file)) {
+          Notify.show('Invalid file format.');
+          reject(new Error('Invalid file format.'));
+          return;
+        }
+        this.read(file).then(resolve).catch(reject);
+      };
+
+      input.click();
+    });
+  }
+
+  read(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onerror = () => {
+        console.log('TAPE: Read failed.');
+        Tape.display_error(reader.error);
+        Notify.show(`File "${file.name}" not loaded.`);
+        reject(reader.error);
+      };
+
+      reader.onload = (evt) => {
+        resolve(new DataView(evt.target.result));
+      };
+
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  store(data, options) {
+    const default_options = {
+      name: 'untitled',
+      ext: 'sav',
+      mime: 'application/octet-stream',
+    };
+
+    for (const key in default_options) {
+      if (!Object.prototype.hasOwnProperty.call(options, key)) {
+        options[key] = default_options[key];
+      }
+    }
+
+    if (options.ext === 'sav' || options.ext === 'lvt') {
+      options.mime = 'application/octet-stream';
+    }
+
+    // Convert DataView/Buffer to Blob
+    const buffer = data.buffer ? data.buffer : data;
+    const blob = new Blob([buffer], { type: options.mime });
+    const filename = `${options.name}.${options.ext}`;
+
+    return this.save(blob, filename);
+  }
+
+  save(blob, filename = 'download.sav') {
+    return new Promise((resolve, reject) => {
+      try {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          resolve();
+        }, 100);
+      } catch (e) {
+        console.log('TAPE: Save failed.');
+        Tape.display_error(e);
+        reject(e);
+      }
+    });
+  }
+
+  is_file(file) {
+    return (
+      file instanceof File && file.name.match(this.config.tape.file_extensions) && file.size > 0
+    );
+  }
+
+  static display_error(e) {
+    if (!e) return;
+    console.error(e.message || e);
+  }
 }
-
-Tape.prototype.terminate = function () {
-  this.config = null;
-};
-
-Tape.prototype.load = function () {
-  return new Promise((resolve, reject) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    // Map regex to accepts roughly, or let user pick any and validate after
-
-    input.onchange = (e) => {
-      const file = e.target.files[0];
-      if (!file) {
-        reject(new Error('No file selected'));
-        return;
-      }
-      if (!this.is_file(file)) {
-        Notify.show('Invalid file format.');
-        reject(new Error('Invalid file format.'));
-        return;
-      }
-      this.read(file).then(resolve).catch(reject);
-    };
-
-    input.click();
-  });
-};
-
-Tape.prototype.read = function (file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onerror = () => {
-      console.log('TAPE: Read failed.');
-      Tape.display_error(reader.error);
-      Notify.show(`File "${file.name}" not loaded.`);
-      reject(reader.error);
-    };
-
-    reader.onload = (evt) => {
-      resolve(new DataView(evt.target.result));
-    };
-
-    reader.readAsArrayBuffer(file);
-  });
-};
-
-Tape.prototype.store = function (data, options) {
-  const default_options = {
-    name: 'untitled',
-    ext: 'sav',
-    mime: 'application/octet-stream',
-  };
-
-  for (const key in default_options) {
-    if (!Object.prototype.hasOwnProperty.call(options, key)) {
-      options[key] = default_options[key];
-    }
-  }
-
-  if (options.ext === 'sav' || options.ext === 'lvt') {
-    options.mime = 'application/octet-stream';
-  }
-
-  // Convert DataView/Buffer to Blob
-  const buffer = data.buffer ? data.buffer : data;
-  const blob = new Blob([buffer], { type: options.mime });
-  const filename = `${options.name}.${options.ext}`;
-
-  return this.save(blob, filename);
-};
-
-Tape.prototype.save = function (blob, filename = 'download.sav') {
-  return new Promise((resolve, reject) => {
-    try {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        resolve();
-      }, 100);
-    } catch (e) {
-      console.log('TAPE: Save failed.');
-      Tape.display_error(e);
-      reject(e);
-    }
-  });
-};
-
-Tape.prototype.is_file = function (file) {
-  return file instanceof File && file.name.match(this.config.tape.file_extensions) && file.size > 0;
-};
-
-Tape.display_error = function (e) {
-  if (!e) return;
-  console.error(e.message || e);
-};

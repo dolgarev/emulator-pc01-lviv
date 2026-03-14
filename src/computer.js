@@ -19,86 +19,88 @@ import { Setting } from './setting.js';
 import { Profile } from './profile.js';
 import { Dump } from './dump.js';
 
-export function Computer(emu_settings) {
-  if (!(emu_settings instanceof Setting)) {
-    throw new Error('COMPUTER: Invalid emulator settings');
+export class Computer {
+  constructor(emu_settings) {
+    if (!(emu_settings instanceof Setting)) {
+      throw new Error('COMPUTER: Invalid emulator settings');
+    }
+    this.settings = emu_settings;
+
+    this.profile = undefined;
+    this.profile_name = 'default';
   }
-  this.settings = emu_settings;
 
-  this.profile = undefined;
-  this.profile_name = 'default';
-}
+  async initAsync() {
+    if (this.settings.dump.is_connected) {
+      await this.load_dump(this.settings.dump.default_dump);
+    } else {
+      await this.init();
+    }
+  }
 
-Computer.prototype.initAsync = async function () {
-  if (this.settings.dump.is_connected) {
-    await this.load_dump(this.settings.dump.default_dump);
-  } else {
+  async init() {
+    this.profile = new Profile(
+      this.settings,
+      this.profile_name === '*' ? undefined : this.profile_name
+    );
+    await this.profile.initAsync();
+  }
+
+  async restart(profile) {
+    if (this.profile instanceof Profile) {
+      this.profile.terminate();
+    }
+
+    this.profile_name = profile;
     await this.init();
   }
-};
 
-Computer.prototype.init = async function () {
-  this.profile = new Profile(
-    this.settings,
-    this.profile_name === '*' ? undefined : this.profile_name
-  );
-  await this.profile.initAsync();
-};
+  terminate() {
+    if (this.profile instanceof Profile) {
+      this.profile.terminate();
 
-Computer.prototype.restart = async function (profile) {
-  if (this.profile instanceof Profile) {
-    this.profile.terminate();
+      this.profile = this.profile_name = this.settings = null;
+    } else {
+      throw new Error('COMPUTER: Invalid PROFILE object');
+    }
   }
 
-  this.profile_name = profile;
-  await this.init();
-};
-
-Computer.prototype.terminate = function () {
-  if (this.profile instanceof Profile) {
-    this.profile.terminate();
-
-    this.profile = this.profile_name = this.settings = null;
-  } else {
-    throw new Error('COMPUTER: Invalid PROFILE object');
-  }
-};
-
-Computer.prototype.reset = function () {
-  if (this.profile instanceof Profile) {
-    this.profile.reset();
-  } else {
-    throw new Error('COMPUTER: Invalid PROFILE object');
-  }
-};
-
-Computer.prototype.run = function () {
-  if (this.profile instanceof Profile) {
-    this.profile.resume();
-  } else {
-    throw new Error('COMPUTER: Invalid PROFILE object');
-  }
-};
-
-Computer.prototype.stop = function () {
-  if (this.profile instanceof Profile) {
-    this.profile.suspend();
-  } else {
-    throw new Error('COMPUTER: Invalid PROFILE object');
-  }
-};
-
-Computer.prototype.load_dump = async function (dump_name) {
-  const dump = await Dump.get(dump_name);
-
-  await this.restart(dump.profile);
-  this.profile.load_dump(dump);
-};
-
-Computer.prototype.get_description = function () {
-  if (!(this.profile instanceof Profile)) {
-    throw new Error('COMPUTER: Invalid PROFILE object');
+  reset() {
+    if (this.profile instanceof Profile) {
+      this.profile.reset();
+    } else {
+      throw new Error('COMPUTER: Invalid PROFILE object');
+    }
   }
 
-  return this.profile.get_description();
-};
+  run() {
+    if (this.profile instanceof Profile) {
+      this.profile.resume();
+    } else {
+      throw new Error('COMPUTER: Invalid PROFILE object');
+    }
+  }
+
+  stop() {
+    if (this.profile instanceof Profile) {
+      this.profile.suspend();
+    } else {
+      throw new Error('COMPUTER: Invalid PROFILE object');
+    }
+  }
+
+  async load_dump(dump_name) {
+    const dump = await Dump.get(dump_name);
+
+    await this.restart(dump.profile);
+    this.profile.load_dump(dump);
+  }
+
+  get_description() {
+    if (!(this.profile instanceof Profile)) {
+      throw new Error('COMPUTER: Invalid PROFILE object');
+    }
+
+    return this.profile.get_description();
+  }
+}
