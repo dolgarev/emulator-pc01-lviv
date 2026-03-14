@@ -111,6 +111,7 @@ export class Profile {
       f_cycles = this.config.cpu.frame_cycles,
       keyboard = this.keyboard,
       screen = this.screen,
+      viewport = this.viewport,
       timers = this.timers;
 
     if (this.is_suspended) {
@@ -166,12 +167,13 @@ export class Profile {
 
     function interrupt_handler() {
       beeper.play();
-      timers.animation = window.requestAnimationFrame(animation_handler);
-    }
-
-    function animation_handler() {
-      screen.draw();
-      timers.restart = window.setTimeout(main_loop, 0);
+      timers.animation = window.requestAnimationFrame(() => {
+        const image_data = screen.draw();
+        if (image_data) {
+          viewport.render(image_data);
+        }
+        timers.restart = window.setTimeout(main_loop, 0);
+      });
     }
   }
 
@@ -235,7 +237,7 @@ export class Profile {
         }
 
         return new Blob([view], { type: parts[1] });
-      })(this.screen.shoot());
+      })(this.viewport.shoot(this.config.screen.screenshot_type));
 
       const F = this.resume.bind(this);
 

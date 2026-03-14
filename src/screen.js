@@ -60,7 +60,6 @@ export class Screen {
     this.reset_cache();
 
     this.allow_color_mode = config.screen.allow_color_mode;
-    this.screenshot_type = config.screen.screenshot_type;
     this.dirty = false;
   }
 
@@ -86,15 +85,13 @@ export class Screen {
   init() {
     this.canvas = this.viewport.canvas;
 
-    this.context = this.canvas.getContext('2d');
-    if (!this.context) {
+    // Get 2D context for creating ImageData (rendering is done by Viewport)
+    const context = this.canvas.getContext('2d');
+    if (!context) {
       throw new Error('SCREEN: 2D context not supported');
     }
 
-    this.context.imageSmoothingEnabled = true;
-    this.context.webkitImageSmoothingEnabled = true;
-
-    this.image_data = this.context.createImageData(
+    this.image_data = context.createImageData(
       this.viewport.CANVAS_WIDTH,
       this.viewport.CANVAS_HEIGHT
     );
@@ -272,9 +269,11 @@ export class Screen {
     this.cache_palette = palette;
 
     if (dirty) {
-      this.context.putImageData(this.image_data, 0, 0);
       this.dirty = false;
+      return this.image_data;
     }
+
+    return null;
   }
 
   change_color_mode(state = !this.allow_color_mode) {
@@ -289,9 +288,5 @@ export class Screen {
   change_palette(step) {
     const v = this.io.ports[this.io.PALETTE_PORT];
     this.io.ports[this.io.PALETTE_PORT] = (v & 0x80) | ((v + step) & 0x7f);
-  }
-
-  shoot() {
-    return this.canvas.toDataURL(this.screenshot_type);
   }
 }

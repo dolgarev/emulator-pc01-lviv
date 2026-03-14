@@ -76,4 +76,23 @@ export class Viewport {
     this.canvas.style.width = `${scaledWidth}px`;
     this.canvas.style.height = `${scaledHeight}px`;
   }
+
+  render(image_data) {
+    if (!image_data) return;
+
+    const context = this.canvas.getContext('2d');
+    if (!context) {
+      throw new Error('VIEWPORT: 2D context not available');
+    }
+
+    // Enable image smoothing for better visual quality
+    context.imageSmoothingEnabled = true;
+    context.webkitImageSmoothingEnabled = true;
+
+    context.putImageData(image_data, 0, 0);
+  }
+
+  shoot(screenshot_type = 'image/png') {
+    return this.canvas.toDataURL(screenshot_type);
+  }
 }
