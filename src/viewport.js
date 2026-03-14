@@ -17,26 +17,35 @@
 
 import { Setting } from './setting.js';
 
+// Aspect ratio constants for screen scaling
+// Original PC-01 had non-square pixels, modern displays need correct aspect ratio
+const _ASPECT_RATIO_1_1 = 1.0; // Square pixels (current implementation)
+const ASPECT_RATIO_4_3 = 4 / 3; // Traditional CRT aspect ratio
+const _ASPECT_RATIO_16_9 = 16 / 9; // Widescreen aspect ratio
+
+// Current aspect ratio setting (can be changed to ASPECT_RATIO_4_3 or ASPECT_RATIO_16_9)
+const ASPECT_RATIO = ASPECT_RATIO_4_3;
+
 export class Viewport {
   constructor(emu_settings) {
     if (!(emu_settings instanceof Setting)) {
       throw new Error('VIEWPORT: Invalid emulator settings');
     }
 
+    this.canvas = document.createElement('canvas');
     this.container = emu_settings.viewport.container.node;
 
     this.CANVAS_HEIGHT = 256;
     this.CANVAS_WIDTH = 256;
     this.SCALE = 2;
+    this.ASPECT_RATIO = ASPECT_RATIO;
 
     this.init();
   }
 
   init() {
-    this.canvas = document.createElement('canvas');
     this.canvas.style.imageRendering = '-webkit-optimize-contrast';
-
-    this.set_resolution(this.CANVAS_WIDTH, this.CANVAS_HEIGHT, this.SCALE);
+    this.set_resolution();
     this.container.appendChild(this.canvas);
   }
 
@@ -51,10 +60,20 @@ export class Viewport {
     this.canvas.classList[state ? 'add' : 'remove']('pause');
   }
 
-  set_resolution(width, height, scale = 1) {
+  set_resolution(
+    width = this.CANVAS_WIDTH,
+    height = this.CANVAS_HEIGHT,
+    aspectRatio = this.ASPECT_RATIO,
+    scale = this.SCALE
+  ) {
     this.canvas.width = width;
     this.canvas.height = height;
-    this.canvas.style.width = `${width * scale}px`;
-    this.canvas.style.height = `${height * scale}px`;
+
+    // Apply aspect ratio scaling to width
+    const scaledWidth = width * scale * aspectRatio;
+    const scaledHeight = height * scale;
+
+    this.canvas.style.width = `${scaledWidth}px`;
+    this.canvas.style.height = `${scaledHeight}px`;
   }
 }

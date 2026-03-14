@@ -52,7 +52,8 @@ export class Screen {
     if (!(viewport instanceof Viewport)) {
       throw new Error('SCREEN: Invalid VIEWPORT object');
     }
-    this.init(viewport);
+    this.viewport = viewport;
+    this.init();
 
     this.cache_palette = void 0;
     this.cache = new Uint8Array(0x4000);
@@ -82,8 +83,8 @@ export class Screen {
   static cache_rgb = [];
   static cache_grayscale = [];
 
-  init(viewport) {
-    this.canvas = viewport.canvas;
+  init() {
+    this.canvas = this.viewport.canvas;
 
     this.context = this.canvas.getContext('2d');
     if (!this.context) {
@@ -93,7 +94,10 @@ export class Screen {
     this.context.imageSmoothingEnabled = true;
     this.context.webkitImageSmoothingEnabled = true;
 
-    this.image_data = this.context.createImageData(viewport.CANVAS_WIDTH, viewport.CANVAS_HEIGHT);
+    this.image_data = this.context.createImageData(
+      this.viewport.CANVAS_WIDTH,
+      this.viewport.CANVAS_HEIGHT
+    );
 
     //Переход на Uint32Array по результатам теста "Canvas Pixel Manipulation"
     //[http://jsperf.com/canvas-pixel-manipulation/98]
