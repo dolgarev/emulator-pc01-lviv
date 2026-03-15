@@ -91,6 +91,11 @@ export class Viewport {
     context.putImageData(image_data, 0, 0);
   }
 
+  renderScreen(screen) {
+    const image_data = screen.draw();
+    this.render(image_data);
+  }
+
   takeScreenshoot(cb) {
     this.canvas.toBlob(cb);
   }

@@ -208,10 +208,7 @@ export class ComputerProfile {
     function interrupt_handler() {
       beeper.play();
       timers.animation = window.requestAnimationFrame(() => {
-        const image_data = screen.draw();
-        if (image_data) {
-          viewport.render(image_data);
-        }
+        viewport.renderScreen(screen);
         timers.restart = window.setTimeout(main_loop, 0);
       });
     }
@@ -241,7 +238,7 @@ export class ComputerProfile {
     //Экран необходимо перерисовать, чтобы отобразить изменения,
     //которые произошли до блокировки, поскольку
     //запрос requestAnimationFrame будет остановлен.
-    this.screen.draw();
+    this.viewport.renderScreen(this.screen);
     this.beeper.play();
 
     window.clearTimeout(this.timers.interrupt);
@@ -267,9 +264,47 @@ export class ComputerProfile {
       this.suspend();
 
       const srctype = this.config.screen.screenshot_type ?? 'image/png';
+
+      // Определяем расширение файла на основе srctype
+      let extension = 'bin'; // Расширение по умолчанию
+      switch (srctype) {
+        case 'image/png':
+          extension = 'png';
+          break;
+        case 'image/jpeg':
+          extension = 'jpg';
+          break;
+        case 'image/webp':
+          extension = 'webp';
+          break;
+        default:
+          // Пытаемся извлечь расширение из MIME-типа, если оно не является одним из известных
+          const parts = srctype.split('/');
+          if (parts.length > 1) {
+            extension = parts[1].split(';')[0]; // Извлекаем подтип и убираем параметры (например, ';base64')
+          }
+          if (!extension) {
+            extension = 'bin'; // Если не удалось извлечь, возвращаемся к 'bin'
+            console.warn(`COMPUTER_PROFILE: Unknown screenshot type '${srctype}', defaulting to '.bin' extension.`);
+          }
+          break;
+      }
+
+      // Генерируем метку времени для имени файла
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      const timestamp = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
+
+      const filename = `screenshot_${timestamp}.${extension}`;
+
       this.viewport.takeScreenshoot((blob) => {
         if (blob) {
-          this.tape.save(blob, 'screenshot.png').then(F, F);
+          this.tape.save(blob, filename).then(F, F);
         } else {
           console.error('COMPUTER_PROFILE: Failed to create blob from canvas.');
           F();
