@@ -263,26 +263,18 @@ export class ComputerProfile {
 
   shoot() {
     if (this.tape instanceof Tape) {
-      //canvas.toBlob() до сих пор нет в Chrome/Chromium,
-      //поэтому воспользуемся костылем из оф.багтрекера
-      //[https://code.google.com/p/chromium/issues/detail?id=67587#c49]
-
-      const blob = (function (data) {
-        const parts = data.match(/data:([^;]*)(;base64)?,([0-9A-Za-z+/]+)/),
-          bin_str = atob(parts[3]),
-          view = new Uint8ClampedArray(new ArrayBuffer(bin_str.length));
-
-        for (let i = 0, l = view.length; i < l; i++) {
-          view[i] = bin_str.charCodeAt(i);
-        }
-
-        return new Blob([view], { type: parts[1] });
-      })(this.viewport.shoot(this.config.screen.screenshot_type));
-
       const F = this.resume.bind(this);
-
       this.suspend();
-      this.tape.save(blob, 'screenshot.png').then(F, F);
+
+      const srctype = this.config.screen.screenshot_type ?? 'image/png';
+      this.viewport.takeScreenshoot((blob) => {
+        if (blob) {
+          this.tape.save(blob, 'screenshot.png').then(F, F);
+        } else {
+          console.error('COMPUTER_PROFILE: Failed to create blob from canvas.');
+          F();
+        }
+      }, srctype);
     }
   }
 

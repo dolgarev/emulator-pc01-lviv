@@ -91,7 +91,7 @@ export class Viewport {
     context.putImageData(image_data, 0, 0);
   }
 
-  shoot(screenshot_type = 'image/png') {
-    return this.canvas.toDataURL(screenshot_type);
+  takeScreenshoot(cb) {
+    this.canvas.toBlob(cb);
   }
 }
