@@ -15,96 +15,88 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-export class Settings {
-  constructor(profile) {
-    const default_settings = {
-        viewport: {
-          container: {
-            id: 'canvas_container',
-          },
-        },
-        controls: {
-          local_load_button: {
-            id: 'load_button',
-            node: undefined,
-          },
-          help_button: {
-            id: 'help_button',
-            node: undefined,
-          },
-        },
-        notify: {
-          id: 'notify',
-          node: undefined,
-          delay: 3000,
-        },
-        beeper: {
-          allow_sound: true,
-          allow_highpass_filter: false,
-        },
-        cpu: {
-          i8080: {
-            clock_speed: 2.2 * 1000000,
-            frame_cycles: 44800,
-          },
-        },
-        memory: {
-          strict_mode: false,
-        },
-        rom: {
-          image: 1990,
-        },
-        screen: {
-          allow_color_mode: true,
-          screenshot_type: 'image/png',
-        },
-        dump: {
-          is_connected: true,
-          default_dump: 'mtrack',
-        },
-        tape: {
-          is_connected: true,
-          file_extensions: /\.(lv(t|r|[0-9]{1,2})|sav|e3)$/i,
-        },
-        dnd: {
-          is_connected: true,
-          container: {
-            id: 'body_container',
-            node: undefined,
-          },
-          file_extensions: /\.(lv(t|r|[0-9]{1,2})|sav|e3)$/i,
-        },
-      },
-      settings = {};
+const DEFAULT_SETTINGS = {
+  viewport: {
+    container: {
+      id: 'canvas_container',
+    },
+  },
+  controls: {
+    local_load_button: {
+      id: 'load_button',
+      node: undefined,
+    },
+    help_button: {
+      id: 'help_button',
+      node: undefined,
+    },
+  },
+  notify: {
+    id: 'notify',
+    node: undefined,
+    delay: 3000,
+  },
+  beeper: {
+    allow_sound: true,
+    allow_highpass_filter: false,
+  },
+  cpu: {
+    i8080: {
+      clock_speed: 2.2 * 1000000,
+      frame_cycles: 44800,
+    },
+  },
+  memory: {
+    strict_mode: false,
+  },
+  rom: {
+    image: 1990,
+  },
+  screen: {
+    allow_color_mode: true,
+    screenshot_type: 'image/png',
+  },
+  dump: {
+    is_connected: true,
+    default_dump: 'mtrack',
+  },
+  tape: {
+    is_connected: true,
+    file_extensions: /\.(lv(t|r|[0-9]{1,2})|sav|e3)$/i,
+  },
+  dnd: {
+    is_connected: true,
+    container: {
+      id: 'body_container',
+      node: undefined,
+    },
+    file_extensions: /\.(lv(t|r|[0-9]{1,2})|sav|e3)$/i,
+  },
+};
 
-    switch (profile || 'default') {
+export class Settings {
+  constructor(profile = 'default') {
+    const predefined_settings = {};
+    switch (profile) {
       case 'default':
       case 'standard':
-        settings.computer = {
+        predefined_settings.computer = {
           profile: 'pc01_lvov_80',
           allow_turbo_mode: true,
         };
         break;
 
       case 'standard_fixed':
-        settings.computer = {
+        predefined_settings.computer = {
           profile: 'pc01_lvov_80_fixed',
           allow_turbo_mode: true,
         };
         break;
     }
 
-    for (const key in default_settings) {
-      if (!(key in settings)) {
-        settings[key] = default_settings[key];
-      }
-    }
-
-    for (const prop in settings) {
-      Object.defineProperty(this, prop, {
-        enumerable: true,
-        value: settings[prop],
-      });
+    const settings = { ...DEFAULT_SETTINGS, ...predefined_settings };
+    for (const [prop, value] of Object.entries(settings)) {
+      Object.defineProperty(this, prop, { value, enumerable: true });
     }
 
     this.init();
