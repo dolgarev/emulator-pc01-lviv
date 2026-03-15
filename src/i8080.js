@@ -1,7 +1,7 @@
 // Intel 8080 (KR580VM80A) microprocessor core model in JavaScript
 //
-// Copyright (C) 2014 Oleg Dolgarev <o.dolgarev@gmail.com>
 // Copyright (C) 2012 Alexander Demin <alexander@demin.ws>
+// Copyright (C) 2014 Oleg Dolgarev <o.dolgarev@gmail.com>
 //
 // Credits
 //
@@ -57,7 +57,7 @@ export function I8080(config, memory, io) {
   //            0  1  2  3  4  5  6  7
   this.regs = new Uint8Array(8);
 
-  this.traps = {};
+  this.traps = new Map();
   this.init();
 
   this.reg = function (r) {
@@ -200,14 +200,23 @@ export function I8080(config, memory, io) {
   };
 
   this.get_optcode = function () {
-    let v;
-    for (
-      v = this.traps[this.pc] ? this.traps[this.pc]() : I8080.UNDEF_OPTCODE;
-      v === I8080.UNDEF_OPTCODE;
-      v = this.memory_read_byte(this.pc)
-    );
+    let opcode = I8080.UNDEF_OPTCODE;
+
+    if (this.traps.has(this.pc)) {
+      // If a trap is defined for the current program counter, execute it.
+      const trapHandler = this.traps.get(this.pc);
+      opcode = trapHandler();
+    }
+
+    // If the opcode is still undefined (either no trap or trap returned UNDEF_OPTCODE),
+    // then read the byte directly from memory at the current program counter.
+    if (opcode === I8080.UNDEF_OPTCODE) {
+      opcode = this.memory_read_byte(this.pc);
+    }
+
+    // Increment the program counter for the next instruction.
     this.pc = ++this.pc & 0xffff;
-    return v;
+    return opcode;
   };
 
   this.next_pc_byte = function () {
@@ -1121,7 +1130,9 @@ I8080.prototype.run = function (frame_cycles) {
   I8080.start_frame = I8080.total_cpu_cycles;
 
   let cycles = 0;
-  for (; cycles < frame_cycles; cycles += this.instruction());
+  while (cycles < frame_cycles) {
+    cycles += this.instruction();
+  }
 
   return cycles;
 };
@@ -1149,12 +1160,16 @@ I8080.prototype.idle = function (state = !this.is_idle) {
 
 I8080.prototype.set_traps = function (watcher) {
   if (!(watcher instanceof Watcher)) {
-    throw new Error('MEMORY: Invalid WATCHER object');
+    // The error message referred to 'MEMORY' but this is a CPU method.
+    throw new Error('CPU: Invalid WATCHER object');
   }
 
   for (const addr in watcher) {
-    if (Object.prototype.hasOwnProperty.call(watcher, addr)) {
-      this.traps[addr] = watcher[addr];
+    if (Object.hasOwn(watcher, addr)) {
+      // Addresses are typically numeric. The 'for...in' loop iterates over string keys.
+      // Converting `addr` to a Number ensures the trap is set with a numeric key,
+      // which is consistent with how `this.pc` is used for lookups in `get_optcode`.
+      this.traps.set(Number(addr), watcher[addr]);
     }
   }
 };
