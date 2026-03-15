@@ -31,10 +31,10 @@ import { Watcher } from './watcher.js';
 import { Dump } from './dump.js';
 import { Notify } from './notify.js';
 
-export class Profile {
+export class ComputerProfile {
   constructor(emu_settings, profile) {
     if (!(emu_settings instanceof Settings)) {
-      throw new Error('PROFILE: Invalid emulator settings');
+      throw new Error('COMPUTER_PROFILE: Invalid emulator settings');
     }
     this.settings = emu_settings;
 
@@ -115,7 +115,7 @@ export class Profile {
       timers = this.timers;
 
     if (this.is_suspended) {
-      throw new Error('PROFILE: MAIN LOOP suspended!');
+      throw new Error('COMPUTER_PROFILE: MAIN LOOP suspended!');
     } else {
       window.setTimeout(main_loop, 0);
     }

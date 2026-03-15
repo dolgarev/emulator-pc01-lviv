@@ -16,7 +16,7 @@
  */
 
 import { Settings } from './settings.js';
-import { Profile } from './profile.js';
+import { ComputerProfile } from './computerProfile.js';
 import { Dump } from './dump.js';
 
 export class Computer {
@@ -39,7 +39,7 @@ export class Computer {
   }
 
   async init() {
-    this.profile = new Profile(
+    this.profile = new ComputerProfile(
       this.settings,
       this.profile_name === '*' ? undefined : this.profile_name
     );
@@ -47,7 +47,7 @@ export class Computer {
   }
 
   async restart(profile) {
-    if (this.profile instanceof Profile) {
+    if (this.profile instanceof ComputerProfile) {
       this.profile.terminate();
     }
 
@@ -56,36 +56,36 @@ export class Computer {
   }
 
   terminate() {
-    if (this.profile instanceof Profile) {
+    if (this.profile instanceof ComputerProfile) {
       this.profile.terminate();
 
       this.profile = this.profile_name = this.settings = null;
     } else {
-      throw new Error('COMPUTER: Invalid PROFILE object');
+      throw new Error('COMPUTER: Invalid ComputerProfile object');
     }
   }
 
   reset() {
-    if (this.profile instanceof Profile) {
+    if (this.profile instanceof ComputerProfile) {
       this.profile.reset();
     } else {
-      throw new Error('COMPUTER: Invalid PROFILE object');
+      throw new Error('COMPUTER: Invalid ComputerProfile object');
     }
   }
 
   run() {
-    if (this.profile instanceof Profile) {
+    if (this.profile instanceof ComputerProfile) {
       this.profile.resume();
     } else {
-      throw new Error('COMPUTER: Invalid PROFILE object');
+      throw new Error('COMPUTER: Invalid ComputerProfile object');
     }
   }
 
   stop() {
-    if (this.profile instanceof Profile) {
+    if (this.profile instanceof ComputerProfile) {
       this.profile.suspend();
     } else {
-      throw new Error('COMPUTER: Invalid PROFILE object');
+      throw new Error('COMPUTER: Invalid ComputerProfile object');
     }
   }
 
@@ -97,8 +97,8 @@ export class Computer {
   }
 
   get_description() {
-    if (!(this.profile instanceof Profile)) {
-      throw new Error('COMPUTER: Invalid PROFILE object');
+    if (!(this.profile instanceof ComputerProfile)) {
+      throw new Error('COMPUTER: Invalid ComputerProfile object');
     }
 
     return this.profile.get_description();
