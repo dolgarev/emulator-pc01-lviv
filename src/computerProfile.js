@@ -113,11 +113,17 @@ export class ComputerProfile {
       if ('local_load_button' in this.settings.controls) {
         this.local_load_button_handler = () => {
           if (this.is_suspended) return;
+
           this.suspend();
-          this.tape.load().then((file) => {
-            this.load(file);
-            this.resume();
-          }, this.resume.bind(this));
+          this.tape
+            .load()
+            .then((file) => {
+              this.load(file);
+              this.resume();
+            })
+            .catch(() => {
+              this.resume();
+            });
         };
 
         this.settings.controls.local_load_button.node.addEventListener(
@@ -129,14 +135,18 @@ export class ComputerProfile {
 
     if (this.settings.dnd.is_connected) {
       this.dnd = new DnD(this.config, () => {
-        if (!this.is_suspended) {
-          this.suspend();
+        if (this.is_suspended) return;
 
-          this.dnd.read().then((file) => {
+        this.suspend();
+        this.dnd
+          .read()
+          .then((file) => {
             this.load(file);
             this.resume();
-          }, this.resume.bind(this));
-        }
+          })
+          .catch(() => {
+            this.resume();
+          });
       });
     }
   }
@@ -318,10 +328,10 @@ export class ComputerProfile {
     this.suspend();
     this.viewport.terminate();
 
-    if (this.tape && this.tape instanceof Tape) {
+    if (this.tape instanceof Tape) {
       this.tape.terminate();
 
-      if (this.local_load_button_handler && this.local_load_button_handler instanceof Function) {
+      if (this.local_load_button_handler instanceof Function) {
         this.settings.controls.local_load_button.node.removeEventListener(
           'click',
           this.local_load_button_handler
@@ -330,7 +340,7 @@ export class ComputerProfile {
       }
     }
 
-    if (this.dnd && this.dnd instanceof DnD) {
+    if (this.dnd instanceof DnD) {
       this.dnd.close();
     }
 
