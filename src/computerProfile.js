@@ -111,16 +111,14 @@ export class ComputerProfile {
       this.tape = new Tape(this.config);
 
       if ('local_load_button' in this.settings.controls) {
-        this.local_load_button_handler = function () {
-          if (!this.is_suspended) {
-            this.suspend();
-
-            this.tape.load().then((file) => {
-              this.load(file);
-              this.resume();
-            }, this.resume.bind(this));
-          }
-        }.bind(this);
+        this.local_load_button_handler = () => {
+          if (this.is_suspended) return;
+          this.suspend();
+          this.tape.load().then((file) => {
+            this.load(file);
+            this.resume();
+          }, this.resume.bind(this));
+        };
 
         this.settings.controls.local_load_button.node.addEventListener(
           'click',
@@ -277,7 +275,7 @@ export class ComputerProfile {
         case 'image/webp':
           extension = 'webp';
           break;
-        default:
+        default: {
           // Пытаемся извлечь расширение из MIME-типа, если оно не является одним из известных
           const parts = srctype.split('/');
           if (parts.length > 1) {
@@ -285,9 +283,12 @@ export class ComputerProfile {
           }
           if (!extension) {
             extension = 'bin'; // Если не удалось извлечь, возвращаемся к 'bin'
-            console.warn(`COMPUTER_PROFILE: Unknown screenshot type '${srctype}', defaulting to '.bin' extension.`);
+            console.warn(
+              `COMPUTER_PROFILE: Unknown screenshot type '${srctype}', defaulting to '.bin' extension.`
+            );
           }
           break;
+        }
       }
 
       // Генерируем метку времени для имени файла
