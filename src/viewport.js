@@ -87,7 +87,6 @@ export class Viewport {
 
     // Enable image smoothing for better visual quality
     context.imageSmoothingEnabled = true;
-    context.webkitImageSmoothingEnabled = true;
 
     context.putImageData(image_data, 0, 0);
   }
