@@ -59,7 +59,7 @@ export class Config {
             allow_color_mode: true,
             screenshot_type: emu_settings.screen.screenshot_type,
           },
-          watcher: {
+          traps: {
             profile: 'default',
           },
         };
@@ -97,7 +97,7 @@ export class Config {
             allow_color_mode: true,
             screenshot_type: emu_settings.screen.screenshot_type,
           },
-          watcher: {
+          traps: {
             profile: 'default',
           },
         };

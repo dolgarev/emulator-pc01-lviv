@@ -35,9 +35,12 @@
 import { Config } from './config.js';
 import { Memory } from './memory.js';
 import { IO } from './io.js';
-import { Watcher } from './watcher.js';
+import { Traps } from './traps.js';
 
-export function I8080(config, memory, io) {
+const NOPE_OPTCODE = 0x00;
+const UNDEF_OPTCODE = 0x100;
+
+export function I8080(config, memory, io, traps) {
   if (!(config instanceof Config)) {
     throw new Error('CPU: Invalid CONFIG object');
   }
@@ -53,11 +56,15 @@ export function I8080(config, memory, io) {
   }
   this.io = io;
 
+  if (!(traps instanceof Traps)) {
+    throw new Error('CPU: Invalid TRAPS object');
+  }
+  this.traps = traps;
+
   // Registers: b, c, d, e, h, l, m, a
   //            0  1  2  3  4  5  6  7
   this.regs = new Uint8Array(8);
 
-  this.traps = new Map();
   this.init();
 
   this.reg = function (r) {
@@ -200,17 +207,19 @@ export function I8080(config, memory, io) {
   };
 
   this.get_optcode = function () {
-    let opcode = I8080.UNDEF_OPTCODE;
+    let opcode = UNDEF_OPTCODE;
 
     if (this.traps.has(this.pc)) {
       // If a trap is defined for the current program counter, execute it.
-      const trapHandler = this.traps.get(this.pc);
-      opcode = trapHandler();
+      const dummy_opcode = this.traps.handle(this.pc);
+      if (Number.isInteger(dummy_opcode)) {
+        opcode = dummy_opcode;
+      }
     }
 
     // If the opcode is still undefined (either no trap or trap returned UNDEF_OPTCODE),
     // then read the byte directly from memory at the current program counter.
-    if (opcode === I8080.UNDEF_OPTCODE) {
+    if (opcode === UNDEF_OPTCODE) {
       opcode = this.memory_read_byte(this.pc);
     }
 
@@ -1158,23 +1167,13 @@ I8080.prototype.idle = function (state = !this.is_idle) {
   this.is_idle = state;
 };
 
-I8080.prototype.set_traps = function (watcher) {
-  if (!(watcher instanceof Watcher)) {
-    // The error message referred to 'MEMORY' but this is a CPU method.
-    throw new Error('CPU: Invalid WATCHER object');
-  }
-
-  for (const addr in watcher) {
-    if (Object.hasOwn(watcher, addr)) {
-      // Addresses are typically numeric. The 'for...in' loop iterates over string keys.
-      // Converting `addr` to a Number ensures the trap is set with a numeric key,
-      // which is consistent with how `this.pc` is used for lookups in `get_optcode`.
-      this.traps.set(Number(addr), watcher[addr]);
-    }
-  }
+I8080.prototype.getNopeOptcode = function () {
+  return NOPE_OPTCODE;
 };
 
-I8080.NOPE_OPTCODE = 0x00;
-I8080.UNDEF_OPTCODE = 0x100;
+I8080.prototype.getUndefOptcode = function () {
+  return UNDEF_OPTCODE;
+};
+
 I8080.start_frame = 0;
 I8080.total_cpu_cycles = 0;

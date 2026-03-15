@@ -27,7 +27,7 @@ import { Viewport } from './viewport.js';
 import { Screen } from './screen.js';
 import { Tape } from './tape.js';
 import { DnD } from './dnd.js';
-import { Watcher } from './watcher.js';
+import { Traps } from './traps.js';
 import { Dump } from './dump.js';
 import { Notify } from './notify.js';
 import { ComputerProfile } from './computerProfile.js';
@@ -53,7 +53,7 @@ export class ComputerProfileBuilder {
     this._screen = null;
     this._tape = null;
     this._dnd = null;
-    this._watcher = null;
+    this._traps = null;
     this._dump = null;
     this._notify = null;
   }
@@ -224,16 +224,11 @@ export class ComputerProfileBuilder {
     return this;
   }
 
-  /**
-   * Sets the watcher.
-   * @param {Watcher} watcher - The watcher.
-   * @returns {ComputerProfileBuilder}
-   */
-  withWatcher(watcher) {
-    if (!(watcher instanceof Watcher)) {
-      throw new Error('COMPUTER_PROFILE_BUILDER: Invalid Watcher object');
+  withTraps(traps) {
+    if (!(traps instanceof Traps)) {
+      throw new Error('COMPUTER_PROFILE_BUILDER: Invalid Traps object');
     }
-    this._watcher = watcher;
+    this._traps = traps;
     return this;
   }
 
@@ -268,140 +263,41 @@ export class ComputerProfileBuilder {
    * @returns {ComputerProfile}
    */
   buildStandard() {
-    this._validateRequired();
+    if (!this._settings) {
+      throw new Error('COMPUTER_PROFILE_BUILDER: Settings is required');
+    }
 
     // Create components if they were not explicitly set
-    if (!this._config) {
-      this._config = new Config(this._settings, this._profile);
-    }
-
-    if (!this._beeper) {
-      this._beeper = new Beeper(this._config);
-    }
-
-    if (!this._keyboard) {
-      this._keyboard = new Keyboard();
-    }
-
-    if (!this._io) {
-      this._io = new IO(this._config, this._beeper, this._keyboard);
-    }
-
-    if (!this._memory) {
-      this._memory = new Memory(this._config, this._io);
-    }
-
-    if (!this._rom) {
-      this._rom = new Rom(this._config, this._memory);
-    }
-
-    if (!this._cpu) {
-      this._cpu = new I8080(this._config, this._memory, this._io);
-    }
-
-    if (!this._viewport) {
-      this._viewport = new Viewport(this._settings);
-    }
-
-    if (!this._screen) {
-      this._screen = new Screen(this._config, this._io, this._memory, this._viewport);
-    }
+    this._config ??= new Config(this._settings, this._profile);
+    this._beeper ??= new Beeper(this._config);
+    this._keyboard ??= new Keyboard();
+    this._io ??= new IO(this._config, this._beeper, this._keyboard);
+    this._memory ??= new Memory(this._config, this._io);
+    this._rom ??= new Rom(this._config, this._memory);
+    this._traps ??= new Traps();
+    this._cpu ??= new I8080(this._config, this._memory, this._io, this._traps);
+    this._viewport ??= new Viewport(this._settings);
+    this._screen ??= new Screen(this._config, this._io, this._memory, this._viewport);
+    this._tape ??= new Tape(this._config);
+    this._dnd ??= new DnD(this._config);
 
     // Create ComputerProfile with injected dependencies
-    return new ComputerProfile(
-      this._settings,
-      this._profile,
-      this._config,
-      this._beeper,
-      this._keyboard,
-      this._io,
-      this._memory,
-      this._rom,
-      this._cpu,
-      this._viewport,
-      this._screen
-    );
-  }
-
-  /**
-   * Creates a test configuration (all components must be explicitly set).
-   * @returns {ComputerProfile}
-   */
-  buildTest() {
-    this._validateAll();
-
-    return new ComputerProfile(
-      this._settings,
-      this._profile,
-      this._config,
-      this._beeper,
-      this._keyboard,
-      this._io,
-      this._memory,
-      this._rom,
-      this._cpu,
-      this._viewport,
-      this._screen
-    );
-  }
-
-  /**
-   * Creates a minimal configuration (only essential components).
-   * @returns {ComputerProfile}
-   */
-  buildMinimal() {
-    this._validateRequired();
-
-    // Create only the required components
-    if (!this._config) {
-      this._config = new Config(this._settings, this._profile);
-    }
-
-    if (!this._beeper) {
-      this._beeper = new Beeper(this._config);
-    }
-
-    if (!this._keyboard) {
-      this._keyboard = new Keyboard();
-    }
-
-    if (!this._io) {
-      this._io = new IO(this._config, this._beeper, this._keyboard);
-    }
-
-    if (!this._memory) {
-      this._memory = new Memory(this._config, this._io);
-    }
-
-    if (!this._rom) {
-      this._rom = new Rom(this._config, this._memory);
-    }
-
-    if (!this._cpu) {
-      this._cpu = new I8080(this._config, this._memory, this._io);
-    }
-
-    if (!this._viewport) {
-      this._viewport = new Viewport(this._settings);
-    }
-
-    if (!this._screen) {
-      this._screen = new Screen(this._config, this._io, this._memory, this._viewport);
-    }
-
-    return new ComputerProfile(
-      this._settings,
-      this._profile,
-      this._config,
-      this._beeper,
-      this._keyboard,
-      this._io,
-      this._memory,
-      this._rom,
-      this._cpu,
-      this._viewport,
-      this._screen
-    );
+    return new ComputerProfile({
+      settings: this._settings,
+      profile: this._profile,
+      config: this._config,
+      beeper: this._beeper,
+      keyboard: this._keyboard,
+      io: this._io,
+      memory: this._memory,
+      rom: this._rom,
+      traps: this._traps,
+      cpu: this._cpu,
+      viewport: this._viewport,
+      screen: this._screen,
+      tape: this._tape,
+      dnd: this._dnd,
+    });
   }
 
   /**
@@ -412,68 +308,5 @@ export class ComputerProfileBuilder {
    */
   static createStandard(settings, profile) {
     return new ComputerProfileBuilder().withSettings(settings).withProfile(profile).buildStandard();
-  }
-
-  /**
-   * Static method for creating a test configuration.
-   * @param {Settings} settings - Emulator settings.
-   * @param {string|Object|undefined} profile - Configuration profile (string, object, or undefined).
-   * @param {Object} components - Object with components for injection.
-   * @returns {ComputerProfile}
-   */
-  static createTest(settings, profile, components = {}) {
-    const builder = new ComputerProfileBuilder().withSettings(settings).withProfile(profile);
-
-    // Inject components if provided
-    if (components.config) builder.withConfig(components.config);
-    if (components.beeper) builder.withBeeper(components.beeper);
-    if (components.keyboard) builder.withKeyboard(components.keyboard);
-    if (components.io) builder.withIO(components.io);
-    if (components.memory) builder.withMemory(components.memory);
-    if (components.rom) builder.withRom(components.rom);
-    if (components.cpu) builder.withCPU(components.cpu);
-    if (components.viewport) builder.withViewport(components.viewport);
-    if (components.screen) builder.withScreen(components.screen);
-
-    return builder.buildTest();
-  }
-
-  /**
-   * Validates required parameters.
-   * @private
-   */
-  _validateRequired() {
-    if (!this._settings) {
-      throw new Error('COMPUTER_PROFILE_BUILDER: Settings is required');
-    }
-    // Profile can be undefined (value from settings is used)
-  }
-
-  /**
-   * Validates all parameters (for test configuration).
-   * @private
-   */
-  _validateAll() {
-    this._validateRequired();
-
-    const required = [
-      'config',
-      'beeper',
-      'keyboard',
-      'io',
-      'memory',
-      'rom',
-      'cpu',
-      'viewport',
-      'screen',
-    ];
-
-    for (const component of required) {
-      if (!this[`_${component}`]) {
-        throw new Error(
-          `COMPUTER_PROFILE_BUILDER: ${component.charAt(0).toUpperCase() + component.slice(1)} is required for test configuration`
-        );
-      }
-    }
   }
 }

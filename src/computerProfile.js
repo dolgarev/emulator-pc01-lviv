@@ -15,39 +15,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { Settings } from './settings.js';
-import { Config } from './config.js';
-import { Beeper } from './beeper.js';
-import { Keyboard } from './keyboard.js';
-import { IO } from './io.js';
-import { Memory } from './memory.js';
-import { Rom } from './rom.js';
-import { I8080 } from './i8080.js';
-import { Viewport } from './viewport.js';
-import { Screen } from './screen.js';
 import { Tape } from './tape.js';
 import { DnD } from './dnd.js';
-import { Watcher } from './watcher.js';
 import { Dump } from './dump.js';
 import { Notify } from './notify.js';
 
 export class ComputerProfile {
   /**
    * Конструктор с внедрением зависимостей (DI)
-   * @param {Settings} emu_settings - Настройки эмулятора
-   * @param {Object} profile - Профиль конфигурации
-   * @param {Config} [config] - Конфигурация (если не предоставлена, будет создана)
-   * @param {Beeper} [beeper] - Динамик (если не предоставлен, будет создан)
-   * @param {Keyboard} [keyboard] - Клавиатура (если не предоставлена, будет создана)
-   * @param {IO} [io] - I/O порты (если не предоставлены, будут созданы)
-   * @param {Memory} [memory] - Память (если не предоставлена, будет создана)
-   * @param {Rom} [rom] - ROM (если не предоставлена, будет создана)
-   * @param {I8080} [cpu] - CPU (если не предоставлен, будет создан)
-   * @param {Viewport} [viewport] - Viewport (если не предоставлен, будет создан)
-   * @param {Screen} [screen] - Экран (если не предоставлен, будет создан)
    */
-  constructor(
-    emu_settings,
+  constructor({
+    settings,
     profile,
     config,
     beeper,
@@ -57,23 +35,25 @@ export class ComputerProfile {
     rom,
     cpu,
     viewport,
-    screen
-  ) {
-    if (!(emu_settings instanceof Settings)) {
-      throw new Error('COMPUTER_PROFILE: Invalid emulator settings');
-    }
-    this.settings = emu_settings;
-
-    // Создаём или используем предоставленные компоненты
-    this.config = config || new Config(this.settings, profile);
-    this.beeper = beeper || new Beeper(this.config);
-    this.keyboard = keyboard || new Keyboard();
-    this.io = io || new IO(this.config, this.beeper, this.keyboard);
-    this.memory = memory || new Memory(this.config, this.io);
-    this.rom = rom || new Rom(this.config, this.memory);
-    this.cpu = cpu || new I8080(this.config, this.memory, this.io);
-    this.viewport = viewport || new Viewport(this.settings);
-    this.screen = screen || new Screen(this.config, this.io, this.memory, this.viewport);
+    screen,
+    traps,
+    tape,
+    dnd,
+  }) {
+    this.settings = settings;
+    this.profile = profile;
+    this.config = config;
+    this.beeper = beeper;
+    this.keyboard = keyboard;
+    this.io = io;
+    this.memory = memory;
+    this.rom = rom;
+    this.traps = traps;
+    this.cpu = cpu;
+    this.viewport = viewport;
+    this.screen = screen;
+    this.tape = tape;
+    this.dnd = dnd;
 
     this.attached_file = void 0;
 
@@ -103,13 +83,9 @@ export class ComputerProfile {
   async initAsync() {
     await this.rom.init();
 
-    if ('watcher' in this.config) {
-      this.cpu.set_traps(Watcher.get(this.config.watcher.profile, this));
-    }
+    this.traps.activate(this.config.traps.profile, this);
 
     if (this.settings.tape.is_connected) {
-      this.tape = new Tape(this.config);
-
       if ('local_load_button' in this.settings.controls) {
         this.local_load_button_handler = () => {
           if (this.is_suspended) return;
@@ -134,7 +110,7 @@ export class ComputerProfile {
     }
 
     if (this.settings.dnd.is_connected) {
-      this.dnd = new DnD(this.config, () => {
+      this.dnd.attachDropHandler(() => {
         if (this.is_suspended) return;
 
         this.suspend();
@@ -267,7 +243,7 @@ export class ComputerProfile {
   }
 
   shoot() {
-    if (this.tape instanceof Tape) {
+    if (this.hasTape()) {
       const F = this.resume.bind(this);
       this.suspend();
 
@@ -328,10 +304,10 @@ export class ComputerProfile {
     this.suspend();
     this.viewport.terminate();
 
-    if (this.tape instanceof Tape) {
+    if (this.hasTape()) {
       this.tape.terminate();
 
-      if (this.local_load_button_handler instanceof Function) {
+      if (typeof this.local_load_button_handler === 'function') {
         this.settings.controls.local_load_button.node.removeEventListener(
           'click',
           this.local_load_button_handler
@@ -361,6 +337,10 @@ export class ComputerProfile {
       description: computer.description,
       profile: computer.profile,
     };
+  }
+
+  hasTape() {
+    return this.tape instanceof Tape;
   }
 
   async load(data) {

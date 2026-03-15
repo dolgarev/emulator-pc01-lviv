@@ -60,7 +60,7 @@ export class Settings {
         },
         dump: {
           is_connected: true,
-          default_dump: 'aerco1',
+          default_dump: 'mtrack',
         },
         tape: {
           is_connected: true,

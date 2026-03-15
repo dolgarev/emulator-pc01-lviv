@@ -20,16 +20,11 @@ import { Config } from './config.js';
 import { Notify } from './notify.js';
 
 export class DnD {
-  constructor(config, success_callback) {
+  constructor(config) {
     if (!(config instanceof Config)) {
       throw new Error('DnD: Invalid CONFIG object');
     }
     this.config = config;
-
-    if (!(success_callback instanceof Function)) {
-      throw new Error('DnD: Callback must be function');
-    }
-    this.success_callback = success_callback;
 
     this.node = this.config.dnd.container.node;
 
@@ -65,6 +60,13 @@ export class DnD {
     this.node.removeEventListener('drop', this.handlers.drop);
 
     this.node = this.files = this.success_callback = this.handlers = null;
+  }
+
+  attachDropHandler(success_callback) {
+    if (typeof success_callback !== 'function') {
+      throw new Error('DnD: Callback must be function');
+    }
+    this.success_callback = success_callback;
   }
 
   dragenter(evt) {
