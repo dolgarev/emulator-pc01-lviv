@@ -17,6 +17,7 @@
 
 import { Settings } from './settings.js';
 import { ComputerProfile } from './computerProfile.js';
+import { ComputerProfileBuilder } from './computerProfileBuilder.js';
 import { Dump } from './dump.js';
 
 export class Computer {
@@ -39,7 +40,8 @@ export class Computer {
   }
 
   async init() {
-    this.profile = new ComputerProfile(
+    // Используем ComputerProfileBuilder для создания профиля
+    this.profile = ComputerProfileBuilder.createStandard(
       this.settings,
       this.profile_name === '*' ? undefined : this.profile_name
     );

@@ -32,21 +32,48 @@ import { Dump } from './dump.js';
 import { Notify } from './notify.js';
 
 export class ComputerProfile {
-  constructor(emu_settings, profile) {
+  /**
+   * Конструктор с внедрением зависимостей (DI)
+   * @param {Settings} emu_settings - Настройки эмулятора
+   * @param {Object} profile - Профиль конфигурации
+   * @param {Config} [config] - Конфигурация (если не предоставлена, будет создана)
+   * @param {Beeper} [beeper] - Динамик (если не предоставлен, будет создан)
+   * @param {Keyboard} [keyboard] - Клавиатура (если не предоставлена, будет создана)
+   * @param {IO} [io] - I/O порты (если не предоставлены, будут созданы)
+   * @param {Memory} [memory] - Память (если не предоставлена, будет создана)
+   * @param {Rom} [rom] - ROM (если не предоставлена, будет создана)
+   * @param {I8080} [cpu] - CPU (если не предоставлен, будет создан)
+   * @param {Viewport} [viewport] - Viewport (если не предоставлен, будет создан)
+   * @param {Screen} [screen] - Экран (если не предоставлен, будет создан)
+   */
+  constructor(
+    emu_settings,
+    profile,
+    config,
+    beeper,
+    keyboard,
+    io,
+    memory,
+    rom,
+    cpu,
+    viewport,
+    screen
+  ) {
     if (!(emu_settings instanceof Settings)) {
       throw new Error('COMPUTER_PROFILE: Invalid emulator settings');
     }
     this.settings = emu_settings;
 
-    this.config = new Config(this.settings, profile);
-    this.beeper = new Beeper(this.config);
-    this.keyboard = new Keyboard();
-    this.io = new IO(this.config, this.beeper, this.keyboard);
-    this.memory = new Memory(this.config, this.io);
-    this.rom = new Rom(this.config, this.memory);
-    this.cpu = new I8080(this.config, this.memory, this.io);
-    this.viewport = new Viewport(this.settings);
-    this.screen = new Screen(this.config, this.io, this.memory, this.viewport);
+    // Создаём или используем предоставленные компоненты
+    this.config = config || new Config(this.settings, profile);
+    this.beeper = beeper || new Beeper(this.config);
+    this.keyboard = keyboard || new Keyboard();
+    this.io = io || new IO(this.config, this.beeper, this.keyboard);
+    this.memory = memory || new Memory(this.config, this.io);
+    this.rom = rom || new Rom(this.config, this.memory);
+    this.cpu = cpu || new I8080(this.config, this.memory, this.io);
+    this.viewport = viewport || new Viewport(this.settings);
+    this.screen = screen || new Screen(this.config, this.io, this.memory, this.viewport);
 
     this.attached_file = void 0;
 
@@ -58,6 +85,19 @@ export class ComputerProfile {
 
     this.is_paused = false;
     this.is_suspended = false;
+
+    // Сохраняем информацию о том, какие компоненты были внедрены
+    this._injectedComponents = {
+      config: !!config,
+      beeper: !!beeper,
+      keyboard: !!keyboard,
+      io: !!io,
+      memory: !!memory,
+      rom: !!rom,
+      cpu: !!cpu,
+      viewport: !!viewport,
+      screen: !!screen,
+    };
   }
 
   async initAsync() {
