@@ -24,8 +24,8 @@ export class Rom {
     }
     this.config = config;
 
-    if (!memory || typeof memory.get_rom_page !== 'function') {
-      throw new Error('ROM: Invalid memory instance [debug: v2]');
+    if (typeof memory?.get_rom_page !== 'function') {
+      throw new Error('ROM: Invalid memory instance');
     }
     this.rom_page = memory.get_rom_page();
 
