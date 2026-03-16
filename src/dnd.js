@@ -104,29 +104,24 @@ export class DnD {
     }
   }
 
-  read() {
-    return new Promise((resolve, reject) => {
-      const file = this.files[0];
+  async read() {
+    const file = this.files[0];
 
-      function error_handler() {
-        console.log('DnD: Read failed.');
-        Notify.show(`File "${file.name}" not loaded.`);
-        reject();
-      }
+    if (!this.is_file(file)) {
+      const error = new Error(`File "${file.name}" not loaded.`);
+      console.error('DnD: Read failed.', error);
+      Notify.show(error.message);
+      throw error;
+    }
 
-      if (this.is_file(file)) {
-        const reader = new FileReader();
-
-        reader.onerror = error_handler;
-        reader.onload = function (evt) {
-          resolve(new DataView(evt.target.result));
-        };
-
-        reader.readAsArrayBuffer(file);
-      } else {
-        error_handler();
-      }
-    });
+    try {
+      const buffer = await file.arrayBuffer();
+      return new DataView(buffer);
+    } catch (err) {
+      console.error('DnD: Read failed.', err);
+      Notify.show(`File "${file.name}" not loaded.`);
+      throw err;
+    }
   }
 
   is_file(file) {
