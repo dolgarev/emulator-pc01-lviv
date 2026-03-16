@@ -61,6 +61,7 @@ export class Screen {
 
     this.allow_color_mode = config.screen.allow_color_mode;
     this.dirty = false;
+    this.cacheValid = false;
   }
 
   static LUT = {
@@ -142,7 +143,7 @@ export class Screen {
 
   reset_cache() {
     this.cache.fill(0);
-    this.cache.is_valid = false;
+    this.cacheValid = false;
     this.dirty = true;
   }
 
@@ -232,7 +233,7 @@ export class Screen {
     const cache = this.cache;
     const cache_color = Screen.cache_color;
     const palette = this.io.input(this.io.PALETTE_PORT) & 0x7f;
-    const is_valid = cache.is_valid && this.cache_palette === palette;
+    const is_valid = this.cacheValid && this.cache_palette === palette;
     const is_color = this.allow_color_mode;
     const rgb = Screen.cache_rgb[palette];
     const grayscale = Screen.cache_grayscale[palette];
@@ -265,7 +266,7 @@ export class Screen {
       }
     }
 
-    cache.is_valid = true;
+    this.cacheValid = true;
     this.cache_palette = palette;
 
     if (dirty) {

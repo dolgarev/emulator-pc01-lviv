@@ -26,6 +26,9 @@ const _ASPECT_RATIO_16_9 = 16 / 9; // Widescreen aspect ratio
 // Current aspect ratio setting (can be changed to ASPECT_RATIO_4_3 or ASPECT_RATIO_16_9)
 const ASPECT_RATIO = ASPECT_RATIO_4_3;
 
+const IMAGE_RENDERING = 'crisp-edges'; // -webkit-optimize-contrast | pixelated | crisp-edges
+const IMAGE_SMOOTHING_ENABLED = false;
+
 export class Viewport {
   constructor(emu_settings) {
     if (!(emu_settings instanceof Settings)) {
@@ -44,7 +47,7 @@ export class Viewport {
   }
 
   init() {
-    this.canvas.style.imageRendering = '-webkit-optimize-contrast';
+    this.canvas.style.imageRendering = IMAGE_RENDERING
     this.set_resolution();
     this.container.appendChild(this.canvas);
   }
@@ -86,7 +89,7 @@ export class Viewport {
     }
 
     // Enable image smoothing for better visual quality
-    context.imageSmoothingEnabled = true;
+    context.imageSmoothingEnabled = IMAGE_SMOOTHING_ENABLED;
 
     context.putImageData(image_data, 0, 0);
   }
