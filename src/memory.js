@@ -285,10 +285,10 @@ export class Memory {
     return this.pages[this.vram_page_index];
   }
 
-  get_state(mem_map) {
+  get_state(mem_map = 'default') {
     const mem = [];
 
-    switch (mem_map || 'default') {
+    switch (mem_map) {
       case 80:
       case 'standard':
       case 'default': {
@@ -314,9 +314,9 @@ export class Memory {
 export class MemPage {
   constructor(config) {
     this.begin = config.begin;
-    this.is_readable = 'is_readable' in config ? config.is_readable : true;
-    this.is_writable = 'is_writable' in config ? config.is_writable : true;
-    this.strict_mode = 'strict_mode' in config ? config.strict_mode : true;
+    this.is_readable = config.is_readable ?? true;
+    this.is_writable = config.is_writable ?? true;
+    this.strict_mode = config.strict_mode ?? true;
 
     if ('is_rom' in config) {
       this.is_rom = config.is_rom;
