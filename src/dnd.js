@@ -35,10 +35,10 @@ export class DnD {
       drop: this.drop.bind(this),
     };
 
-    this.node.addEventListener('dragenter', this.handlers.dragenter, false);
-    this.node.addEventListener('dragover', this.handlers.dragover, false);
-    this.node.addEventListener('dragleave', this.handlers.dragleave, false);
-    this.node.addEventListener('drop', this.handlers.drop, false);
+    this.node.addEventListener('dragenter', this.handlers.dragenter);
+    this.node.addEventListener('dragover', this.handlers.dragover);
+    this.node.addEventListener('dragleave', this.handlers.dragleave);
+    this.node.addEventListener('drop', this.handlers.drop);
 
     this.files = undefined;
 
@@ -94,12 +94,22 @@ export class DnD {
 
     this.node.classList.remove('dropping');
 
-    //DnD не всегда срабатывает корректно. Причина неизвестна.
-    if (evt.dataTransfer.files.length) {
-      this.files = evt.dataTransfer.files;
-      window.setTimeout(this.success_callback, 0);
+    let files = [];
+
+    if (evt.dataTransfer.items?.length) {
+      files = [...evt.dataTransfer.items]
+        .filter((item) => item.kind === 'file')
+        .map((item) => item.getAsFile())
+        .filter(Boolean);
+    } else if (evt.dataTransfer.files?.length) {
+      files = evt.dataTransfer.files;
+    }
+
+    if (files.length) {
+      this.files = files;
+      queueMicrotask(this.success_callback);
     } else {
-      console.log('DnD: File not loaded');
+      console.warn('DnD: File not loaded');
       Notify.show('File not loaded. Try again.');
     }
   }
@@ -126,7 +136,7 @@ export class DnD {
 
   is_file(file) {
     return (
-      file instanceof File && file.name.match(this.config.dnd.file_extensions) && file.size > 0
+      file instanceof File && file.size > 0 && file.name.match(this.config.dnd.file_extensions)
     );
   }
 }
