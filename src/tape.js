@@ -30,106 +30,82 @@ export class Tape {
     this.config = null;
   }
 
-  load() {
-    return new Promise((resolve, reject) => {
+  async load() {
+    const file = await this.pickFile();
+
+    if (!file) {
+      throw new Error('No file selected');
+    }
+
+    if (!this.is_file(file)) {
+      Notify.show('Invalid file format.');
+      throw new Error('Invalid file format.');
+    }
+
+    return this.read(file);
+  }
+
+  pickFile() {
+    return new Promise((resolve) => {
       const input = document.createElement('input');
       input.type = 'file';
-      // Map regex to accepts roughly, or let user pick any and validate after
 
       input.onchange = (e) => {
-        const file = e.target.files[0];
-        if (!file) {
-          reject(new Error('No file selected'));
-          return;
-        }
-        if (!this.is_file(file)) {
-          Notify.show('Invalid file format.');
-          reject(new Error('Invalid file format.'));
-          return;
-        }
-        this.read(file).then(resolve).catch(reject);
+        resolve(e.target.files?.[0]);
       };
 
       input.click();
     });
   }
 
-  read(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-
-      reader.onerror = () => {
-        console.log('TAPE: Read failed.');
-        Tape.display_error(reader.error);
-        Notify.show(`File "${file.name}" not loaded.`);
-        reject(reader.error);
-      };
-
-      reader.onload = (evt) => {
-        resolve(new DataView(evt.target.result));
-      };
-
-      reader.readAsArrayBuffer(file);
-    });
+  async read(file) {
+    try {
+      const buffer = await file.arrayBuffer();
+      return new DataView(buffer);
+    } catch (err) {
+      console.error('TAPE: Read failed.', err);
+      Notify.show(`File "${file.name}" not loaded.`);
+      throw err;
+    }
   }
 
-  store(data, options) {
-    const default_options = {
-      name: 'untitled',
-      ext: 'sav',
-      mime: 'application/octet-stream',
-    };
+  store(data, options = {}) {
+    const { name = 'untitled', ext = 'sav', mime = 'application/octet-stream' } = options;
 
-    for (const key in default_options) {
-      if (!Object.prototype.hasOwnProperty.call(options, key)) {
-        options[key] = default_options[key];
-      }
-    }
+    const finalMime = ext === 'sav' || ext === 'lvt' ? 'application/octet-stream' : mime;
 
-    if (options.ext === 'sav' || options.ext === 'lvt') {
-      options.mime = 'application/octet-stream';
-    }
-
-    // Convert DataView/Buffer to Blob
     const buffer = data.buffer ? data.buffer : data;
-    const blob = new Blob([buffer], { type: options.mime });
-    const filename = `${options.name}.${options.ext}`;
+    const blob = new Blob([buffer], { type: finalMime });
+    const filename = `${name}.${ext}`;
 
     return this.save(blob, filename);
   }
 
   save(blob, filename = 'download.sav') {
-    return new Promise((resolve, reject) => {
-      try {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
+    try {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
 
-        setTimeout(() => {
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          resolve();
-        }, 100);
-      } catch (e) {
-        console.log('TAPE: Save failed.');
-        Tape.display_error(e);
-        reject(e);
-      }
-    });
+      queueMicrotask(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+
+      return Promise.resolve();
+    } catch (e) {
+      console.error('TAPE: Save failed.');
+      Notify.show(`File "${filename}" not saved.`);
+      throw e;
+    }
   }
 
   is_file(file) {
     return (
-      file instanceof File && file.name.match(this.config.tape.file_extensions) && file.size > 0
+      file instanceof File && file.size > 0 && file.name.match(this.config.tape.file_extensions)
     );
-  }
-
-  static display_error(e) {
-    if (!e) return;
-    console.error(e.message || e);
   }
 }
