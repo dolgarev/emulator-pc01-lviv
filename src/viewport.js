@@ -47,7 +47,7 @@ export class Viewport {
   }
 
   init() {
-    this.canvas.style.imageRendering = IMAGE_RENDERING
+    this.canvas.style.imageRendering = IMAGE_RENDERING;
     this.set_resolution();
     this.container.appendChild(this.canvas);
   }

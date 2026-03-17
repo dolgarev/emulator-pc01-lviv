@@ -263,8 +263,12 @@ export class ComputerProfileBuilder {
    * @returns {ComputerProfile}
    */
   buildStandard() {
-    if (!this._settings) {
+    if (!(this._settings instanceof Settings)) {
       throw new Error('COMPUTER_PROFILE_BUILDER: Settings is required');
+    }
+
+    if (typeof this._profile !== 'string') {
+      throw new Error('COMPUTER_PROFILE_BUILDER: Profile is required');
     }
 
     // Create components if they were not explicitly set
