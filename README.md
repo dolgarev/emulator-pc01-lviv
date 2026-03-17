@@ -1,15 +1,13 @@
 Emulator PC-01 Lviv
 ==
-This is PC-01 Lviv emulator written in JavaScript and HTML5.
+A nostalgic dive into Soviet computing: The PC-01 Lviv Emulator.
 
 <img width="1280" height="800" alt="image" src="https://github.com/user-attachments/assets/631392a8-1c89-4a78-9dc5-9867a27df13d" />
 
-This project is my first step into the world of Open Source.
+This is an emulator of the Soviet home computer PC-01 "Lviv", originally developed as a Chrome Packaged App using JavaScript and HTML5. While this project holds significant historical interest as one of my first open-source endeavors, its original packaged app format is now largely deprecated.
 
-This is an emulator of the soviet computer PC-01 "Lvov", which was produced in Ukraine in 1980-s. It was the first Ukrainian computer for home use. To purchase and use it you didn't need the KGB's permission :)
+The PC-01 "Lviv" was a pioneering Ukrainian home computer produced in the 1980s. Notably, it was the first Ukrainian computer for personal use, accessible without the need for special permissions.
 
-Emulator is made in the form of packaged app for browsers Chromium/Google Chrome and is a cross-platform application. The emulator can be used offline too.
+The emulator was initially distributed as a cross-platform packaged application for Chromium/Google Chrome, offering offline functionality. The application was previously available on the Chrome Web Store [http://goo.gl/iqoj80], though this version is no longer actively maintained.
 
-You can download this application at Chrome Web Store [http://goo.gl/iqoj80].
-
-Andrey Chistyakov offered his game "Aerocobra" to include into emulator.
+Special thanks to Andrey Chistyakov for offering his game "Aerocobra" for inclusion in the emulator.
