@@ -2,6 +2,8 @@ Emulator PC-01 Lviv
 ==
 This is PC-01 Lviv emulator written in JavaScript and HTML5.
 
+<img width="1280" height="800" alt="image" src="https://github.com/user-attachments/assets/631392a8-1c89-4a78-9dc5-9867a27df13d" />
+
 This project is my first step into the world of Open Source.
 
 This is an emulator of the soviet computer PC-01 "Lvov", which was produced in Ukraine in 1980-s. It was the first Ukrainian computer for home use. To purchase and use it you didn't need the KGB's permission :)
