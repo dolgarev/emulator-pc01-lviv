@@ -45,29 +45,9 @@ export class Beeper {
     this.init();
   }
 
-  static getAudioContextClass() {
-    return (
-      window.AudioContext ||
-      window.webkitAudioContext ||
-      window.mozAudioContext ||
-      window.oAudioContext ||
-      window.msAudioContext ||
-      null
-    );
-  }
-
   static activate() {
-    console.log('BEEPER: Attempting to activate AudioContext...');
-
-    const AudioContextClass = Beeper.getAudioContextClass();
-    if (!AudioContextClass) {
-      console.warn('BEEPER: Web Audio API not supported');
-      return null;
-    }
-
     try {
-      Beeper.ctx ??= new AudioContextClass();
-      console.log('BEEPER: AudioContext created. State:', Beeper.ctx.state);
+      Beeper.ctx ??= new window.AudioContext();
       return Beeper.ctx;
     } catch (error) {
       console.error('BEEPER: Failed to create AudioContext:', error);
