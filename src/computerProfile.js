@@ -74,43 +74,36 @@ export class ComputerProfile {
     this.traps.activate(this.config.traps.profile, this);
 
     if (this.settings.tape.is_connected) {
-      if ('local_load_button' in this.settings.controls) {
-        this.local_load_button_handler = () => {
-          if (this.is_suspended) return;
+      const clickOnLoadButtonHandler = async (e) => {
+        e.stopPropagation();
+        if (this.is_suspended) return;
+        this.suspend();
+        try {
+          const file = await this.tape.load();
+          this.load(file);
+        } finally {
+          this.resume();
+        }
+      };
+      document.addEventListener('ui:click:load_button', clickOnLoadButtonHandler);
 
-          this.suspend();
-          this.tape
-            .load()
-            .then((file) => {
-              this.load(file);
-              this.resume();
-            })
-            .catch(() => {
-              this.resume();
-            });
-        };
-
-        this.settings.controls.local_load_button.node.addEventListener(
-          'click',
-          this.local_load_button_handler
-        );
-      }
+      this.settings.controls.local_load_button?.node?.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.dispatchEvent(new CustomEvent('ui:click:load_button'));
+      });
     }
 
     if (this.settings.dnd.is_connected) {
-      this.dnd.attachDropHandler(() => {
+      this.dnd.attachDropHandler(async () => {
         if (this.is_suspended) return;
 
         this.suspend();
-        this.dnd
-          .read()
-          .then((file) => {
-            this.load(file);
-            this.resume();
-          })
-          .catch(() => {
-            this.resume();
-          });
+        try {
+          const file = await this.dnd.read();
+          this.load(file);
+        } finally {
+          this.resume();
+        }
       });
     }
   }

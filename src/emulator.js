@@ -35,17 +35,23 @@ export class Emulator {
 
   init() {
     if ('help_button' in this.settings.controls) {
-      const bttn = this.settings.controls.help_button;
-      const node = document.getElementById(bttn.node.dataset.target);
-
-      node.addEventListener('click', function (evt) {
-        if (evt.target.dataset.action === 'close') {
-          this.classList.remove('lightbox_show');
-        }
-      });
-
-      bttn.node.addEventListener('click', () => {
+      const node = document.getElementById(this.settings.controls.help_button.node.dataset.target);
+      const clickOnHelpButtonHandler = () => {
         node.classList.add('lightbox_show');
+
+        const clickOnCloseButtonHanlder = (e) => {
+          if (e.target.dataset.action === 'close') {
+            node.classList.remove('lightbox_show');
+            node.removeEventListener('click', clickOnCloseButtonHanlder);
+          }
+        };
+        node.addEventListener('click', clickOnCloseButtonHanlder);
+      };
+      document.addEventListener('ui:click:help_button', clickOnHelpButtonHandler);
+
+      this.settings.controls.help_button?.node?.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.dispatchEvent(new CustomEvent('ui:click:help_button'));
       });
     }
   }
