@@ -50,9 +50,17 @@ export class Tape {
       const input = document.createElement('input');
       input.type = 'file';
 
-      input.onchange = (e) => {
+      input.addEventListener('change', (e) => {
         resolve(e.target.files?.[0]);
-      };
+      });
+
+      input.addEventListener('cancel', () => {
+        resolve(null);
+      });
+
+      input.addEventListener('focusout', () => {
+        setTimeout(() => resolve(null), 100);
+      });
 
       input.click();
     });
