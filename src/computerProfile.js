@@ -323,7 +323,7 @@ export class ComputerProfile {
         break;
 
       default:
-        throw new Error('PROFILE: Unknownn file type');
+        throw new Error('PROFILE: Unknown file type');
     }
   }
 
@@ -356,7 +356,7 @@ export class ComputerProfile {
             break;
 
           default:
-            throw new Error('PROFILE: Unknownn FILE type');
+            throw new Error('PROFILE: Unknown FILE type');
         }
         this.attach_file(dump.data);
         break;
@@ -370,7 +370,7 @@ export class ComputerProfile {
         break;
 
       default:
-        throw new Error('PROFILE: Unknownn DUMP type');
+        throw new Error('PROFILE: Unknown DUMP type');
     }
   }
 
