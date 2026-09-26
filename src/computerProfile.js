@@ -17,6 +17,7 @@
 
 import { Tape } from './tape.js';
 import { DnD } from './dnd.js';
+import { Keyboard } from './keyboard.js';
 import { Dump } from './dump.js';
 import { Notify } from './notify.js';
 import { Storage } from './storage.js';
@@ -66,6 +67,9 @@ export class ComputerProfile {
 
     this.is_paused = false;
     this.is_suspended = false;
+
+    // Groups all profile-scoped event listeners so they can be removed at once.
+    this.listener_controller = new AbortController();
   }
 
   async initAsync() {
@@ -85,12 +89,18 @@ export class ComputerProfile {
           this.resume();
         }
       };
-      document.addEventListener('ui:click:load_button', clickOnLoadButtonHandler);
+      const { signal } = this.listener_controller;
 
-      this.settings.controls.local_load_button?.node?.addEventListener('click', (e) => {
-        e.preventDefault();
-        document.dispatchEvent(new CustomEvent('ui:click:load_button'));
-      });
+      document.addEventListener('ui:click:load_button', clickOnLoadButtonHandler, { signal });
+
+      this.settings.controls.local_load_button?.node?.addEventListener(
+        'click',
+        (e) => {
+          e.preventDefault();
+          document.dispatchEvent(new CustomEvent('ui:click:load_button'));
+        },
+        { signal }
+      );
     }
 
     if (this.settings.dnd.is_connected) {
@@ -251,14 +261,13 @@ export class ComputerProfile {
 
     if (this.hasTape()) {
       this.tape.terminate();
+    }
 
-      if (typeof this.local_load_button_handler === 'function') {
-        this.settings.controls.local_load_button.node.removeEventListener(
-          'click',
-          this.local_load_button_handler
-        );
-        this.local_load_button_handler = null;
-      }
+    // Remove every listener registered by initAsync() in one call.
+    this.listener_controller.abort();
+
+    if (this.keyboard instanceof Keyboard) {
+      this.keyboard.terminate();
     }
 
     if (this.dnd instanceof DnD) {

@@ -16,10 +16,10 @@
  */
 
 import { Config } from './config.js';
-import { I8080 } from './i8080.js';
+import { Clock } from './clock.js';
 
 export class Beeper {
-  constructor(config) {
+  constructor(config, clock) {
     //[http://middleearmedia.com/web-audio-api-basics/]
     //[https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode]
     //http://www.html5rocks.com/en/tutorials/webaudio/games/
@@ -31,6 +31,11 @@ export class Beeper {
       throw new Error('BEEPER: Invalid CONFIG object');
     }
     this.config = config;
+
+    if (!(clock instanceof Clock)) {
+      throw new Error('BEEPER: Invalid CLOCK object');
+    }
+    this.clock = clock;
 
     this.SAMPLE_RATE = 44100;
     this.SAMPLE_CPU_CYCLES = Math.round(config.cpu.clock_speed / this.SAMPLE_RATE);
@@ -147,7 +152,7 @@ export class Beeper {
   }
 
   process(state) {
-    const frame_offset = I8080.total_cpu_cycles - I8080.start_frame;
+    const frame_offset = this.clock.frameOffset;
     const inc_offset = frame_offset - this.prev_frame_offset;
 
     // Check for buffer overflow

@@ -166,27 +166,43 @@ export class Keyboard {
       189: 0x108, //alt + -       -> _
     };
 
+    // Groups document-level listeners so they can be removed at once.
+    this.listener_controller = new AbortController();
+
     this.init();
   }
 
   init() {
     const self = this;
+    const { signal } = this.listener_controller;
 
-    document.addEventListener('keydown', (evt) => {
-      self.press(evt.keyCode, true, (evt.shiftKey << 2) | (evt.ctrlKey << 1) | evt.altKey);
+    document.addEventListener(
+      'keydown',
+      (evt) => {
+        self.press(evt.keyCode, true, (evt.shiftKey << 2) | (evt.ctrlKey << 1) | evt.altKey);
 
-      evt.preventDefault();
-      evt.stopPropagation();
-    });
+        evt.preventDefault();
+        evt.stopPropagation();
+      },
+      { signal }
+    );
 
-    document.addEventListener('keyup', (evt) => {
-      self.press(evt.keyCode, false, (evt.shiftKey << 2) | (evt.ctrlKey << 1) | evt.altKey);
+    document.addEventListener(
+      'keyup',
+      (evt) => {
+        self.press(evt.keyCode, false, (evt.shiftKey << 2) | (evt.ctrlKey << 1) | evt.altKey);
 
-      evt.preventDefault();
-      evt.stopPropagation();
-    });
+        evt.preventDefault();
+        evt.stopPropagation();
+      },
+      { signal }
+    );
 
     this.reset();
+  }
+
+  terminate() {
+    this.listener_controller.abort();
   }
 
   reset() {

@@ -21,6 +21,11 @@ and hidden couplings**. The recommendations below are ordered by priority.
 
 ### 1. Event-listener leak in `computerProfile.js`
 
+**Status:** ✅ Fixed (2026-09-26) — listeners are now grouped with an `AbortController` and removed
+in `terminate()` via `abort()`; the dead `local_load_button_handler` branch was deleted. The same
+leak in `keyboard.js` (document-level `keydown`/`keyup` listeners) was fixed identically, and
+`ComputerProfile.terminate()` now calls `keyboard.terminate()`.
+
 **What:** In `initAsync()` a `document`-level listener is registered but never removed:
 
 ```js
@@ -41,6 +46,10 @@ duplicate firings and a memory leak.
 `local_load_button_handler` branch.
 
 ### 2. Static `I8080` cycle counters couple CPU ↔ Beeper
+
+**Status:** ✅ Fixed (2026-09-26) — a shared `Clock` (`src/clock.js`) is now injected into both
+`I8080` and `Beeper`; the static fields were removed and the circular
+`i8080 → io → beeper → i8080` import was broken.
 
 **What:** `I8080.total_cpu_cycles` and `I8080.start_frame` are mutable static class fields.
 `Beeper.process()` reads them directly (`beeper.js:150`), while `i8080.js` increments/resets them.

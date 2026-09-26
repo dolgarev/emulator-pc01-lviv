@@ -36,11 +36,12 @@ import { Config } from './config.js';
 import { Memory } from './memory.js';
 import { IO } from './io.js';
 import { Traps } from './traps.js';
+import { Clock } from './clock.js';
 
 const NOPE_OPTCODE = 0x00;
 const UNDEF_OPTCODE = 0x100;
 
-export function I8080(config, memory, io, traps) {
+export function I8080(config, memory, io, traps, clock) {
   if (!(config instanceof Config)) {
     throw new Error('CPU: Invalid CONFIG object');
   }
@@ -60,6 +61,11 @@ export function I8080(config, memory, io, traps) {
     throw new Error('CPU: Invalid TRAPS object');
   }
   this.traps = traps;
+
+  if (!(clock instanceof Clock)) {
+    throw new Error('CPU: Invalid CLOCK object');
+  }
+  this.clock = clock;
 
   // Registers: b, c, d, e, h, l, m, a
   //            0  1  2  3  4  5  6  7
@@ -1024,7 +1030,7 @@ export function I8080(config, memory, io, traps) {
         break;
     }
 
-    I8080.total_cpu_cycles += cpu_cycles;
+    this.clock.addCycles(cpu_cycles);
     return cpu_cycles;
   };
 }
@@ -1049,7 +1055,7 @@ I8080.prototype.restart = function () {
   this.halt(false);
   this.idle(false);
 
-  I8080.start_frame = I8080.total_cpu_cycles = 0;
+  this.clock.restart();
 };
 
 I8080.prototype.get_state = function () {
@@ -1136,7 +1142,7 @@ I8080.prototype.jump = function (addr) {
 };
 
 I8080.prototype.run = function (frame_cycles) {
-  I8080.start_frame = I8080.total_cpu_cycles;
+  this.clock.startFrame();
 
   let cycles = 0;
   while (cycles < frame_cycles) {
@@ -1174,6 +1180,3 @@ I8080.prototype.getNopeOptcode = function () {
 I8080.prototype.getUndefOptcode = function () {
   return UNDEF_OPTCODE;
 };
-
-I8080.start_frame = 0;
-I8080.total_cpu_cycles = 0;
