@@ -137,7 +137,7 @@ public/data/                  ROM and dump binaries (.bin)
 - i8080 core based on Alexander Demin's Intel 8080 model. Thanks to Viacheslav Slavinsky,
   Dmitry Tselikov, Ian Bartholomew, and Frank Cringle.
 - "Aerocobra" game — Andrey Chistyakov.
-- Drag & drop implementation based on the work of Eric Bidelman (Google), Apache-2.0.
+- Drag & drop handling inspired by Eric Bidelman's HTML5Rocks article *Reading files in JavaScript using the File APIs*.
 
 ## License
 
