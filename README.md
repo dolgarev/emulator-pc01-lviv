@@ -127,9 +127,7 @@ public/data/                  ROM and dump binaries (.bin)
 ## Documentation and development notes
 
 - PC-01 Lviv documentation (computer itself): <https://github.com/codepainters/lvov>
-- [`CODE_REVIEW.md`](CODE_REVIEW.md) — code quality and architecture review
-- [`IMPROVEMENTS.md`](IMPROVEMENTS.md) — project assessment and improvement list (RU)
-- [`MIGRATION_PLAN.md`](MIGRATION_PLAN.md) — Chrome App → SPA → PWA migration plan (RU)
+- [`CODE_REVIEW.md`](CODE_REVIEW.md) — project review, roadmap and improvement backlog
 
 ## Credits
 
