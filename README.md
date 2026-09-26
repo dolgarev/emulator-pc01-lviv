@@ -134,8 +134,8 @@ public/data/                  ROM and dump binaries (.bin)
 ## Credits
 
 - Emulator author: Oleg Dolgarev
-- i8080 core based on Alexander Demin's Intel 8080 model. Thanks to Viacheslav Slavinsky,
-  Dmitry Tselikov, Ian Bartholomew, and Frank Cringle.
+- i8080 core based on [Alexander Demin's i8080-js](https://github.com/begoon/i8080-js) Intel 8080
+  model. Thanks to Viacheslav Slavinsky, Dmitry Tselikov, Ian Bartholomew, and Frank Cringle.
 - "Aerocobra" game — Andrey Chistyakov.
 - Drag & drop handling inspired by Eric Bidelman's HTML5Rocks article *Reading files in JavaScript using the File APIs*.
 

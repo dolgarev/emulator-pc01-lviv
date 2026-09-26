@@ -1,6 +1,7 @@
 // Intel 8080 (KR580VM80A) microprocessor core model in JavaScript
 //
 // Copyright (C) 2012 Alexander Demin <alexander@demin.ws>
+// Intel 8080 core model: https://github.com/begoon/i8080-js
 // Copyright (C) 2014 Oleg Dolgarev <o.dolgarev@gmail.com>
 //
 // Credits
