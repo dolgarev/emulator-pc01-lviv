@@ -1,13 +1,151 @@
-Emulator PC-01 Lviv
-==
-This is PC-01 Lviv emulator written in JavaScript and HTML5.
+# Emulator PC-01 Lviv
 
-This project is my first step into the world of Open Source.
+An emulator of the Soviet-era Ukrainian home computer **PC-01 "Lviv"** (ПК-01 «Львов»),
+written in JavaScript and HTML5.
 
-This is an emulator of the soviet computer PC-01 "Lvov", which was produced in Ukraine in 1980-s. It was the first Ukrainian computer for home use. To purchase and use it you didn't need the KGB's permission :)
+> **This is the new version (2.0).**
+> The original release was a Chrome Packaged App (Manifest V2), which modern browsers no
+> longer support. Version 2.0 has been migrated to a single-page web application built with
+> [Vite](https://vitejs.dev/) and runs in any modern browser (Chrome, Edge, Firefox, Safari).
 
-Emulator is made in the form of packaged app for browsers Chromium/Google Chrome and is a cross-platform application. The emulator can be used offline too.
+## About the computer
 
-You can download this application at Chrome Web Store [http://goo.gl/iqoj80].
+The PC-01 "Lviv" was produced in Ukraine in the 1980s. It was the first Ukrainian home
+computer — and, as the story goes, you did not need the KGB's permission to buy one.
 
-Andrey Chistyakov offered his game "Aerocobra" to include into emulator.
+📖 **Documentation for the computer: <https://github.com/codepainters/lvov>**
+
+The project began in 2014 as the author's first step into the world of Open Source.
+
+## Features
+
+- Intel 8080 (КР580ВМ80А) CPU core
+- Paged memory (maps: 80, 144, 256 KiB) with RAM / ROM / VRAM
+- i8255A programmable peripheral interface (I/O ports, partial address decoding)
+- Video output to `<canvas>` (256×256, color and grayscale modes, switchable palettes)
+- Sound via the Web Audio API (beeper)
+- Keyboard input, drag & drop, and file loading
+- Snapshot save / load
+
+## Getting started
+
+Requires [Node.js](https://nodejs.org/) 20 or newer.
+
+```bash
+npm install
+npm run dev       # start the dev server at http://localhost:3000
+```
+
+Production build:
+
+```bash
+npm run build     # outputs a static site to dist/
+npm run preview   # preview the production build locally
+```
+
+Other scripts:
+
+| Script | Description |
+| --- | --- |
+| `npm run lint` | Lint the sources with ESLint |
+| `npm run format` | Format the sources with Prettier |
+| `npm run extract-data` | Regenerate the `.bin` ROM / dump files from the source data |
+
+## Controls
+
+Keyboard shortcuts (the same list is available in the in-app **HELP** dialog):
+
+| Shortcut | Action |
+| --- | --- |
+| `Ctrl` + `P` | Pause |
+| `Ctrl` + `R` | Reset |
+| `Ctrl` + `G` | Turn grayscale mode on / off |
+| `Ctrl` + `S` | Take a screenshot |
+| `Ctrl` + `+` | Increment palette |
+| `Ctrl` + `-` | Decrement palette |
+
+The PC-01 keyboard has several keys that a modern keyboard does not. They are mapped to `Alt`
+combinations:
+
+| Modern keyboard | PC-01 key |
+| --- | --- |
+| `Alt` + `0` | `<F0>` |
+| `Alt` + `1` … `Alt` + `5` | `<F1>` … `<F5>` |
+| `Alt` + `6` | `<ДИН>` |
+| `Alt` + `7` | `<CD>` |
+| `Alt` + `8` | `<ПЧ>` |
+| `Alt` + `9` | `<П/Д>` |
+| `Alt` + `-` | `_` |
+| `Alt` + `+` | `<ГТ>` |
+| `Alt` + `C` | `<СТР>` |
+| `Alt` + `G` | `<G>` |
+| `Alt` + `B` | `<B>` |
+| `Alt` + `R` | `<R>` |
+| `Alt` + `L` | `<ЛАТ>` |
+| `Alt` + `U` | `<РУС>` |
+| `Alt` + `H` | `<ДИА>` |
+| `Alt` + `Shift` | `<ВР>` |
+| `Alt` + `Enter` | `<ПС>` |
+| `Esc` | `<СУ>` |
+
+## Loading programs
+
+Use the **LOAD** button or drag & drop a file onto the window.
+
+Supported file extensions:
+
+- `.lvt`, `.lvr`, `.lv0` … `.lv99` — tape / snapshot files
+- `.sav` — snapshots
+- `.e3` — Emulator 3000 snapshots
+
+Bundled software:
+
+- **Aerocobra** — courtesy of Andrey Chistyakov
+- **Moon Tracker**
+
+## Project structure
+
+```
+src/
+  main.js                     entry point
+  emulator.js                 top-level wiring
+  computer.js                 machine lifecycle
+  computerProfile.js          main loop, snapshots, UI coordination
+  computerProfileBuilder.js   dependency-injection builder
+  clock.js                    shared CPU cycle counter
+  i8080.js                    Intel 8080 CPU core
+  memory.js, io.js            memory paging and I/O ports
+  rom.js, dump.js,            ROM images, bundled dumps,
+  storage.js, traps.js        snapshots and BLOAD/CLOAD hooks
+  screen.js, viewport.js      video output
+  beeper.js, keyboard.js      sound and input
+  tape.js, dnd.js             file loading
+  config.js, settings.js      configuration
+public/data/                  ROM and dump binaries (.bin)
+```
+
+## Documentation and development notes
+
+- PC-01 Lviv documentation (computer itself): <https://github.com/codepainters/lvov>
+- [`CODE_REVIEW.md`](CODE_REVIEW.md) — code quality and architecture review
+- [`IMPROVEMENTS.md`](IMPROVEMENTS.md) — project assessment and improvement list (RU)
+- [`MIGRATION_PLAN.md`](MIGRATION_PLAN.md) — Chrome App → SPA → PWA migration plan (RU)
+
+## Credits
+
+- Emulator author: Oleg Dolgarev
+- i8080 core based on Alexander Demin's Intel 8080 model. Thanks to Viacheslav Slavinsky,
+  Dmitry Tselikov, Ian Bartholomew, and Frank Cringle.
+- "Aerocobra" game — Andrey Chistyakov.
+- Drag & drop implementation based on the work of Eric Bidelman (Google), Apache-2.0.
+
+## License
+
+GNU General Public License v3.0 — see [`gpl-3.0.txt`](gpl-3.0.txt).
+
+## Links
+
+- Repository: <https://github.com/dolgarev/emulator-pc01-lviv>
+- Issues: <https://github.com/dolgarev/emulator-pc01-lviv/issues>
+- PC-01 Lviv documentation: <https://github.com/codepainters/lvov>
+- Legacy Chrome Web Store release (obsolete): <http://goo.gl/iqoj80>
