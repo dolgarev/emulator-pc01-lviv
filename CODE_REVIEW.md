@@ -23,8 +23,8 @@ exclusive: PWA = SPA + Service Worker + Web App Manifest.
 modules, classes, dependency injection via `ComputerProfileBuilder`, binary data extracted into
 `.bin` files, and a clean component split (Memory / IO / CPU / Screen / Viewport / Beeper /
 Keyboard / Tape / DnD / Storage / Traps). The overall architecture is sound. A code review
-subsequently found and fixed a few **real bugs and hidden couplings** (see P0 below); underneath
-the new code some legacy remains.
+subsequently found and fixed a few **real bugs and hidden couplings** (see "Completed" below);
+underneath the new code some legacy remains.
 
 ---
 
@@ -233,60 +233,8 @@ export default defineConfig({
 ## Review findings and improvement backlog
 
 Priority legend: **P0** critical, **P1** high maintainability impact, **P2** structural,
-**P3** polish / features. Status: ✅ done, ⏳ pending.
-
-### P0 — Critical bugs and hidden coupling
-
-#### P0.1 Event-listener leaks in `computerProfile.js` and `keyboard.js` — ✅ fixed
-
-`initAsync()` registered a `document`-level listener (`ui:click:load_button`) with an anonymous
-arrow function and never removed it. `terminate()` tried to clean up via
-`this.local_load_button_handler`, but that field was **never assigned** (dead code), so every
-`restart()` (dump/profile switch) leaked listeners and caused duplicate firings. `keyboard.js` had
-the same leak: `keydown`/`keyup` listeners on `document` were never removed.
-
-**Fix:** both classes now group their listeners with an `AbortController` and remove them in
-`terminate()` via `abort()`; the dead branch was deleted and `ComputerProfile.terminate()` calls
-`keyboard.terminate()`.
-
-#### P0.2 Static `I8080` cycle counters couple CPU ↔ Beeper — ✅ fixed
-
-`I8080.total_cpu_cycles` and `I8080.start_frame` were mutable static class fields; `Beeper.process()`
-read them directly, creating an implicit cross-module dependency through shared mutable class state
-(untestable in isolation, and it made Beeper depend on the CPU's internal cycle accounting).
-
-**Fix:** a shared `Clock` (`src/clock.js`) is injected into both `I8080` and `Beeper`; the static
-fields were removed and the circular `i8080 → io → beeper → i8080` import was broken.
-
-#### P0.3 Global variable `result` in `screen.js` — ✅ fixed
-
-`result = 0;` created an implicit global. **Fix:** localized with `let` during the JS modernization.
-
-#### P0.4 XSS in `notify.js` — ✅ fixed
-
-`this.node.firstChild.innerHTML = message;` assigned user-controlled text (e.g. a file name) via
-`innerHTML`. **Fix:** replaced with `textContent`.
-
-#### P0.5 Memory bank decoding bug (`memory.js:263`) — ✅ fixed (March 2026)
-
-The condition tested `io.EXTENDED_MODE_PORT` (the constant `0xF0`) against `0x04`, which is always
-`0`, so the branch never ran. **Fix:** `io.ports[io.EXTENDED_MODE_PORT]`.
-
-#### P0.6 Deprecated APIs in `tape.js` — ✅ fixed
-
-`FileError.QUOTA_EXCEEDED_ERR` and `webkitRequestFileSystem` were used. **Fix:** `tape.js` was
-rewritten during the module migration to use `Blob` and `URL.createObjectURL`.
-
-#### P0.7 Huge inline data files — ✅ fixed
-
-`dump.js` held **2.18 MB** (41,203 lines) and `rom.js` **125 KB** (2,127 lines) of binary data as JS
-arrays, slowing parsing and inflating memory. **Fix:** data moved to `public/data/*.bin` and loaded
-via `fetch()`.
-
-#### P0.8 Chrome Packaged App deprecated — ✅ resolved by Phase 1
-
-Manifest v2 Chrome Packaged Apps were removed from Chrome in 2024. **Fix:** migrated to a Vite SPA
-(see the Roadmap).
+**P3** polish / features. Status: ✅ done, ⏳ pending. Completed items have been moved to the
+[Completed](#completed) section at the end of this document.
 
 ### P1 — Highest maintainability impact
 
@@ -333,36 +281,6 @@ alone (plus many more for other types), in virtually every constructor.
 **Suggested fix:** a single `assertInstance(value, Type, label)` helper in `src/utils/assert.js`, or
 a step toward JSDoc/TypeScript typing.
 
-#### P1.5 ES modules and bundler — ✅
-
-Migrated to ES modules with Vite. This removed the rigid `<script>` ordering in HTML and enabled
-tree-shaking and code splitting. (Supersedes the old ES3-style, manually-ordered script setup.)
-
-#### P1.6 Build system and tooling — ✅ (partial)
-
-`package.json`, ESLint (Flat Config), Prettier and husky/lint-staged are configured. CI/CD
-(GitHub Actions) is still missing (see P2.10).
-
-#### P1.7 Deprecated web APIs — ✅ (partial)
-
-`webkitImageSmoothingEnabled` replaced with the standard `imageSmoothingEnabled`. `evt.which` was
-replaced with `evt.keyCode` as a tactical fix; full migration to `evt.code` is still pending
-(see P3.1).
-
-#### P1.8 Typos and license hygiene — ✅
-
-Typos (`'standart'` → `'standard'`, `'Unknow'`/`'Unknownn'` → `'Unknown'`) fixed across the project.
-The `dnd.js` Google/Apache-2.0 header was replaced with the project's GPL-3.0 header; the drag & drop
-implementation is independently written (only standard DOM API usage overlaps with the original
-sample), with a courtesy attribution kept in the README.
-
-#### P1.9 Grayscale formula in `screen.js` — ✅ (not a bug)
-
-`~~(p & 0x00ff0000 && GRAYSCALE_RED_WEIGHT) + …` uses logical `&&` rather than multiplication. This
-was investigated and confirmed to be an **intentional emulation feature**: it produces a brighter
-image resembling a real PC-01 black-and-white TV. Replacing it with correct weights makes the image
-too dark. The code is kept as is with an explanatory comment.
-
 ### P2 — Structural improvements
 
 #### P2.1 Game loop: `setTimeout` → `requestAnimationFrame` → `setTimeout` — ⏳
@@ -407,25 +325,6 @@ UI responsiveness.
 
 The emulator is tightly coupled to the DOM (via `Settings`, `Viewport`, `Keyboard`). Extracting pure
 emulation modules without DOM dependencies would simplify testing and portability.
-
-#### P2.7 Screen ↔ Viewport rendering refactor — ✅
-
-Screen previously mixed video-emulation logic with canvas operations. Now:
-- **Screen** is a data generator: `draw()` returns `ImageData` or `null`; it has no `context` and
-  does not take screenshots.
-- **Viewport** is the renderer: `render(image_data)`, screenshot handling, canvas context and
-  smoothing settings.
-- **Profile** coordinates: `screen.draw()` → `viewport.render()`.
-
-Benefits: Screen is testable without a canvas, renderers are swappable (e.g. WebGL), and each
-component has a single responsibility.
-
-#### P2.8 Rendering performance optimizations — ✅
-
-- Precomputed grayscale palette cache (`static cache_grayscale`), removing ~196,608 operations per
-  frame (12 ops/pixel × 16,384 pixels).
-- Conditional `putImageData()`: a `dirty` flag ensures the canvas is only updated when the image
-  actually changed.
 
 #### P2.9 `terminate()` property nulling via split string — ⏳
 
@@ -551,3 +450,115 @@ adaptive scaling, fullscreen; **P3** WebGL, color filters, animations, statistic
 2. **Convert `i8080.js` to a class and extract opcodes** (P1.2) — unlocks CPU testing.
 3. **Add a `test` script + Vitest**, starting with the CPU Exerciser ROM.
 4. Tidy the remaining P2/P3 items opportunistically as the code is touched.
+
+---
+
+## Completed
+
+Items below are done; they are kept for reference.
+
+### P0 — Critical bugs and hidden coupling
+
+#### P0.1 Event-listener leaks in `computerProfile.js` and `keyboard.js` — ✅ fixed
+
+`initAsync()` registered a `document`-level listener (`ui:click:load_button`) with an anonymous
+arrow function and never removed it. `terminate()` tried to clean up via
+`this.local_load_button_handler`, but that field was **never assigned** (dead code), so every
+`restart()` (dump/profile switch) leaked listeners and caused duplicate firings. `keyboard.js` had
+the same leak: `keydown`/`keyup` listeners on `document` were never removed.
+
+**Fix:** both classes now group their listeners with an `AbortController` and remove them in
+`terminate()` via `abort()`; the dead branch was deleted and `ComputerProfile.terminate()` calls
+`keyboard.terminate()`.
+
+#### P0.2 Static `I8080` cycle counters couple CPU ↔ Beeper — ✅ fixed
+
+`I8080.total_cpu_cycles` and `I8080.start_frame` were mutable static class fields; `Beeper.process()`
+read them directly, creating an implicit cross-module dependency through shared mutable class state
+(untestable in isolation, and it made Beeper depend on the CPU's internal cycle accounting).
+
+**Fix:** a shared `Clock` (`src/clock.js`) is injected into both `I8080` and `Beeper`; the static
+fields were removed and the circular `i8080 → io → beeper → i8080` import was broken.
+
+#### P0.3 Global variable `result` in `screen.js` — ✅ fixed
+
+`result = 0;` created an implicit global. **Fix:** localized with `let` during the JS modernization.
+
+#### P0.4 XSS in `notify.js` — ✅ fixed
+
+`this.node.firstChild.innerHTML = message;` assigned user-controlled text (e.g. a file name) via
+`innerHTML`. **Fix:** replaced with `textContent`.
+
+#### P0.5 Memory bank decoding bug (`memory.js:263`) — ✅ fixed (March 2026)
+
+The condition tested `io.EXTENDED_MODE_PORT` (the constant `0xF0`) against `0x04`, which is always
+`0`, so the branch never ran. **Fix:** `io.ports[io.EXTENDED_MODE_PORT]`.
+
+#### P0.6 Deprecated APIs in `tape.js` — ✅ fixed
+
+`FileError.QUOTA_EXCEEDED_ERR` and `webkitRequestFileSystem` were used. **Fix:** `tape.js` was
+rewritten during the module migration to use `Blob` and `URL.createObjectURL`.
+
+#### P0.7 Huge inline data files — ✅ fixed
+
+`dump.js` held **2.18 MB** (41,203 lines) and `rom.js` **125 KB** (2,127 lines) of binary data as JS
+arrays, slowing parsing and inflating memory. **Fix:** data moved to `public/data/*.bin` and loaded
+via `fetch()`.
+
+#### P0.8 Chrome Packaged App deprecated — ✅ resolved by Phase 1
+
+Manifest v2 Chrome Packaged Apps were removed from Chrome in 2024. **Fix:** migrated to a Vite SPA
+(see the Roadmap).
+
+### P1 — Highest maintainability impact
+
+#### P1.5 ES modules and bundler — ✅
+
+Migrated to ES modules with Vite. This removed the rigid `<script>` ordering in HTML and enabled
+tree-shaking and code splitting. (Supersedes the old ES3-style, manually-ordered script setup.)
+
+#### P1.6 Build system and tooling — ✅ (partial)
+
+`package.json`, ESLint (Flat Config), Prettier and husky/lint-staged are configured. CI/CD
+(GitHub Actions) is still missing (see P2.10).
+
+#### P1.7 Deprecated web APIs — ✅ (partial)
+
+`webkitImageSmoothingEnabled` replaced with the standard `imageSmoothingEnabled`. `evt.which` was
+replaced with `evt.keyCode` as a tactical fix; full migration to `evt.code` is still pending
+(see P3.1).
+
+#### P1.8 Typos and license hygiene — ✅
+
+Typos (`'standart'` → `'standard'`, `'Unknow'`/`'Unknownn'` → `'Unknown'`) fixed across the project.
+The `dnd.js` Google/Apache-2.0 header was replaced with the project's GPL-3.0 header; the drag & drop
+implementation is independently written (only standard DOM API usage overlaps with the original
+sample), with a courtesy attribution kept in the README.
+
+#### P1.9 Grayscale formula in `screen.js` — ✅ (not a bug)
+
+`~~(p & 0x00ff0000 && GRAYSCALE_RED_WEIGHT) + …` uses logical `&&` rather than multiplication. This
+was investigated and confirmed to be an **intentional emulation feature**: it produces a brighter
+image resembling a real PC-01 black-and-white TV. Replacing it with correct weights makes the image
+too dark. The code is kept as is with an explanatory comment.
+
+### P2 — Structural improvements
+
+#### P2.7 Screen ↔ Viewport rendering refactor — ✅
+
+Screen previously mixed video-emulation logic with canvas operations. Now:
+- **Screen** is a data generator: `draw()` returns `ImageData` or `null`; it has no `context` and
+  does not take screenshots.
+- **Viewport** is the renderer: `render(image_data)`, screenshot handling, canvas context and
+  smoothing settings.
+- **Profile** coordinates: `screen.draw()` → `viewport.render()`.
+
+Benefits: Screen is testable without a canvas, renderers are swappable (e.g. WebGL), and each
+component has a single responsibility.
+
+#### P2.8 Rendering performance optimizations — ✅
+
+- Precomputed grayscale palette cache (`static cache_grayscale`), removing ~196,608 operations per
+  frame (12 ops/pixel × 16,384 pixels).
+- Conditional `putImageData()`: a `dirty` flag ensures the canvas is only updated when the image
+  actually changed.
