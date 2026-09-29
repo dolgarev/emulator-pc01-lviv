@@ -20,18 +20,21 @@ for (const [key, dump] of Object.entries(dumps)) {
   const filename = `dump-${key}.bin`;
   fs.writeFileSync(path.join(publicDataDir, filename), Buffer.from(data));
   console.log(`Saved ${filename} (${data.length} bytes)`);
-  
+
   manifest[key] = {
     name: dump.name,
     description: dump.description,
     type: dump.type,
     is_hidden: dump.is_hidden,
     profile: dump.profile,
-    file: filename
+    file: filename,
   };
 }
 
-fs.writeFileSync(path.join(publicDataDir, 'dumps-manifest.json'), JSON.stringify(manifest, null, 2));
+fs.writeFileSync(
+  path.join(publicDataDir, 'dumps-manifest.json'),
+  JSON.stringify(manifest, null, 2)
+);
 console.log('Saved dumps-manifest.json');
 
 // Extract ROMs

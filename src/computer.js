@@ -40,7 +40,7 @@ export class Computer {
   }
 
   async init() {
-    // Используем ComputerProfileBuilder для создания профиля
+    // Build the profile through ComputerProfileBuilder
     this.profile = ComputerProfileBuilder.createStandard(
       this.settings,
       this.profile_name === '*' ? undefined : this.profile_name,

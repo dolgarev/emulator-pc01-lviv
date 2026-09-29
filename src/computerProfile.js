@@ -19,6 +19,8 @@ import { Tape } from './tape.js';
 import { DnD } from './dnd.js';
 import { KeyboardBinding } from './keyboardBinding.js';
 import { UiBinding } from './uiBinding.js';
+import { validateFileHeader } from './utils/fileFormat.js';
+import { generateScreenshotFilename, getFileExtension } from './utils/screenshot.js';
 import { Dump } from './dump.js';
 import { Notify } from './notify.js';
 import { assertInstance } from './utils/assert.js';
@@ -45,7 +47,7 @@ const PROFILE_DEPENDENCIES = [
 
 export class ComputerProfile {
   /**
-   * Конструктор с внедрением зависимостей (DI)
+   * Constructor with dependency injection (DI)
    */
   constructor({
     settings,
@@ -214,7 +216,7 @@ export class ComputerProfile {
     this.is_suspended = false;
 
     this.cpu.idle(this.is_suspended);
-    //Уходим от залипания клавиш
+    // Clear the key states to avoid stuck keys
     this.keyboard.reset();
 
     this.ticker.setTimeout(this.run.bind(this), 0);
@@ -225,9 +227,8 @@ export class ComputerProfile {
 
     this.cpu.idle(this.is_suspended);
 
-    //Экран необходимо перерисовать, чтобы отобразить изменения,
-    //которые произошли до блокировки, поскольку
-    //запрос requestAnimationFrame будет остановлен.
+    // Redraw the screen so changes made before the suspension are visible,
+    // because the pending requestAnimationFrame will be cancelled.
     this.viewport.renderScreen(this.screen);
     this.beeper.play();
 
@@ -423,55 +424,3 @@ export class ComputerProfile {
     return this.attached_file instanceof DataView;
   }
 }
-
-const validateFileHeader = (data, magicString) => {
-  return (
-    new TextDecoder('utf-8').decode(new Uint8Array(data, 0, magicString.length - 1)) === magicString
-  );
-};
-
-const generateScreenshotFilename = (extension, prefix = 'screenshot') => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  const hours = String(now.getHours()).padStart(2, '0');
-  const minutes = String(now.getMinutes()).padStart(2, '0');
-  const seconds = String(now.getSeconds()).padStart(2, '0');
-  const timestamp = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
-
-  const filename = `${prefix}_${timestamp}.${extension}`;
-  return filename;
-};
-
-const getFileExtension = (mimeType) => {
-  // Определяем расширение файла на основе srctype
-  let extension = 'bin'; // Расширение по умолчанию
-  switch (mimeType) {
-    case 'image/png':
-      extension = 'png';
-      break;
-    case 'image/jpeg':
-      extension = 'jpg';
-      break;
-    case 'image/webp':
-      extension = 'webp';
-      break;
-    default: {
-      // Пытаемся извлечь расширение из MIME-типа, если оно не является одним из известных
-      const parts = mimeType.split('/');
-      if (parts.length > 1) {
-        extension = parts[1].split(';')[0]; // Извлекаем подтип и убираем параметры (например, ';base64')
-      }
-      if (!extension) {
-        extension = 'bin'; // Если не удалось извлечь, возвращаемся к 'bin'
-        console.warn(
-          `COMPUTER_PROFILE: Unknown screenshot type '${mimeType}', defaulting to '.bin' extension.`
-        );
-      }
-      break;
-    }
-  }
-
-  return extension;
-};

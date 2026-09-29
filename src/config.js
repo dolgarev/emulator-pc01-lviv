@@ -145,11 +145,7 @@ export class Config {
       settings.rom.image = emu_settings.rom.image;
     }
 
-    for (const prop in settings) {
-      Object.defineProperty(this, prop, {
-        enumerable: true,
-        value: settings[prop],
-      });
-    }
+    Object.assign(this, settings);
+    Object.freeze(this);
   }
 }

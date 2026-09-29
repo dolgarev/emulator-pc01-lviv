@@ -91,14 +91,14 @@ export class Storage {
     this.io.ports[0xc0] = data.getUint8(offset + 0x22);
     this.io.ports[0xc1] = data.getUint8(offset + 0x26);
     this.io.ports[0xc2] = data.getUint8(offset + 0x2a);
-    //В i8255A CWR доступен только для записи.
+    // The i8255A CWR is write-only.
     //this.io.ports[0xC3] = data.getUint8(offset + 0x34);
 
     //PPI2
     this.io.ports[0xd0] = data.getUint8(offset + 0x44);
     this.io.ports[0xd1] = data.getUint8(offset + 0x48);
     this.io.ports[0xd2] = data.getUint8(offset + 0x4c);
-    //В i8255A CWR доступен только для записи.
+    // The i8255A CWR is write-only.
     //this.io.ports[0xD3] = data.getUint8(offset + 0x56);
 
     this.cpu.restart();
@@ -130,9 +130,9 @@ export class Storage {
       this.io.output(port, data.getUint8(offset++));
     }
 
-    //Фикс проблемы с палитрами. Из-за того, что по умолчанию порт 0xC1
-    //доступен только на запись, вместо реального значения палитры
-    //сохраняется 0xFF. Чтобы это обойти, выставляем дефолтную палитру.
+    // Palette fix: because port 0xC1 is write-only by default, the snapshot
+    // stores 0xFF instead of the real palette value. Set the default palette
+    // to work around this.
     if (this.io.input(this.io.PALETTE_PORT) === 0xff) {
       this.io.output(this.io.PALETTE_PORT, 0x8f);
     }
@@ -153,7 +153,7 @@ export class Storage {
   }
 
   get_snapshot() {
-    //Заголовок вида: LVOV/DUMP/2.0/H+\0
+    // Header of the form: LVOV/DUMP/2.0/H+\0
     const data = [
       0x4c, 0x56, 0x4f, 0x56, 0x2f, 0x44, 0x55, 0x4d, 0x50, 0x2f, 0x32, 0x2e, 0x30, 0x2f, 0x48,
       0x2b, 0x00,

@@ -21,7 +21,8 @@ export class Notify {
   static instance = null;
 
   static create(node, delay) {
-    return new Notify(node, delay);
+    Notify.instance ??= new Notify(node, delay);
+    return Notify.instance;
   }
 
   static show(message) {
@@ -33,10 +34,6 @@ export class Notify {
   }
 
   constructor(node, delay = 5000) {
-    if (Notify.instance instanceof Notify) {
-      return Notify.instance;
-    }
-
     assertInstance(node, HTMLElement, 'NOTIFY: Invalid element');
 
     this.node = node;
@@ -76,6 +73,9 @@ export class Notify {
   terminate() {
     this.close();
     this.node.lastChild.removeEventListener('click', this.handlers.close);
-    Notify.instance = null;
+
+    if (Notify.instance === this) {
+      Notify.instance = null;
+    }
   }
 }

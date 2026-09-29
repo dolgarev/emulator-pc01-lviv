@@ -299,15 +299,6 @@ loops back (re-verify on a modern engine).
 - `viewport.js:22,24` — `_ASPECT_RATIO_1_1` and `_ASPECT_RATIO_16_9` are declared but unused.
 - `local_load_button_handler` — removed with the P0.1 fix.
 
-#### P3.3 Consolidate utilities — ⏳
-
-- `validateFileHeader`, `generateScreenshotFilename`, `getFileExtension` live at the bottom of
-  `computerProfile.js` but are standalone utilities → move to `src/utils/`.
-- `Config` copies props via `Object.defineProperty` in a loop — simplify and freeze the result.
-- `Notify` is a singleton via a static field and `create()` returns the instance (return ignored) —
-  simplify.
-- Mixed RU/EN comments — pick one convention.
-
 #### P3.4 Typing and documentation — ⏳
 
 Add JSDoc/TypeScript types at least for public interfaces (`Settings`, `Memory`, `I8080`). The
@@ -568,3 +559,17 @@ component has a single responsibility.
 
 The `'settings,config,...'.split(',').forEach(...)` teardown in `ComputerProfile.terminate()` was
 replaced with an explicit `PROFILE_DEPENDENCIES` array iterated by a `for...of` loop.
+
+### P3 — Polish, features and rendering ideas
+
+#### P3.3 Consolidate utilities — ✅ done
+
+- `validateFileHeader` moved to `src/utils/fileFormat.js`; `generateScreenshotFilename` and
+  `getFileExtension` moved to `src/utils/screenshot.js` (English file names and JSDoc).
+- `Config` now uses `Object.assign(this, settings)` + `Object.freeze(this)` instead of an
+  `Object.defineProperty` loop.
+- `Notify` singleton simplified: `create()` initialises `Notify.instance` once, the constructor no
+  longer returns the existing instance, and `terminate()` clears the instance only if it owns it.
+- Comments are now in English across `src/`. The PC-01 key names in `keyboard.js` (`ЗБ`, `ТАБ`,
+  `ДИА`, `РУС`, `ЛАТ`, …) are kept verbatim because they are the key labels shown in the UI help
+  dialog.

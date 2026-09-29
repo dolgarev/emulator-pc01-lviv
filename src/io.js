@@ -38,8 +38,8 @@ export class IO {
     this.BLANK_SCREEN_BIT = 0x10; //1 - on, 0 - off
     this.INTERRUPT_BIT = 0x20; //1 - on, 0 - off
 
-    //порты 0xE0-0xE4 использовались работы с контроллером ГМД
-    //в Chameleon DOS и CP/M-80 версии Дмитрия Скачкова
+    // Ports 0xE0-0xE4 were used to work with the FDD controller in
+    // Chameleon DOS and Dmitry Skachkov's CP/M-80.
 
     //port 0xC0
     //[http://lvovpc.cu.cc/article.shtml?id=2]
@@ -48,12 +48,12 @@ export class IO {
 
     //port 0xC1 (b)
     this.PALETTE_PORT = 0xc1;
-    this.BEEPER_MODE_BIT = 0x80; // 1 - вывод звука на бипер разрешен
+    this.BEEPER_MODE_BIT = 0x80; // 1 - sound output to the beeper is enabled
 
     //port 0xC2 (c)
     this.MEDIA_PORT = 0xc2;
     this.BEEPER_BIT = 0x1; //1 - on, 0 - off
-    this.VRAM_STATUS_BIT = 0x2; //0 - видеоОЗУ подключено
+    this.VRAM_STATUS_BIT = 0x2; // 0 - video RAM is connected
     this.PRINTER_SC_STROBE_BIT = 0x4;
     this.TAPE_READ_BIT = 0x10;
     this.PRINTER_AC_BUSY_BIT = 0x40;
@@ -78,7 +78,7 @@ export class IO {
   input(port) {
     port &= 0xff;
 
-    //В ПК-01 "Львов" реализована неполная дешифрация портов ввода-вывода
+    // The PC-01 "Lviv" implements partial I/O port address decoding
     //[http://lvovpc.ho.ua/forum/viewtopic.php?p=2219#p2219]
     port = 0xc0 + (port & this.decoding_mask);
 
@@ -87,12 +87,11 @@ export class IO {
     } else if (port === 0xd2) {
       this.ports[port] = this.keyboard.get(this.ports[0xd2], 0xd2);
     } else if ((port & 0x03) === 3) {
-      //Согласно документу i8255A/i8255A-5 datasheet мы имеем,
-      //что Control Word Register доступен только для записи:
-      //"The Control Word Register can Only be written into.
-      //No Read operation of the Control Word Register is allowed."
+      // Per the i8255A/i8255A-5 datasheet, the Control Word Register is
+      // write-only: "The Control Word Register can Only be written into.
+      // No Read operation of the Control Word Register is allowed."
       //[http://www.classiccmp.org/rtellason/chipdata/8255.pdf]
-      //Такие дела, котаны. Берегите себя, читайте мануалы.
+      // Read the datasheets, folks.
       return 0;
     }
 
@@ -102,7 +101,7 @@ export class IO {
   output(port, w8) {
     port &= 0xff;
 
-    //В ПК-01 "Львов" реализована неполная дешифрация портов ввода-вывода
+    // The PC-01 "Lviv" implements partial I/O port address decoding
     //[http://lvovpc.ho.ua/forum/viewtopic.php?p=2219#p2219]
     port = 0xc0 + (port & this.decoding_mask);
 

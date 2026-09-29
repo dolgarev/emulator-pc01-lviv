@@ -35,7 +35,7 @@ export class Keyboard {
 
     this.special_keys = 0;
 
-    // Инициализация main_map
+    // main_map initialization
     const keys = {
       8: { mask: 0x23ff }, // ЗБ
       9: { mask: 0x04ff }, // ТАБ
@@ -141,7 +141,7 @@ export class Keyboard {
     }
     this.main_map = keys;
 
-    // Инициализация alt_map
+    // alt_map initialization
     this.alt_map = {
       49: 112, //alt + 1       -> F1
       50: 113, //alt + 2       -> F2
@@ -198,32 +198,32 @@ export class Keyboard {
       }
     } else if (!is_pressed && is_ctrl) {
       switch (key_code) {
-        //ctrl + p - Пауза
+        // ctrl + p - pause
         case 80:
           this.special_keys = this.IS_PAUSE;
           break;
 
-        //ctrl + s - Скриншот
+        // ctrl + s - screenshot
         case 83:
           this.special_keys = this.IS_SHOOT;
           break;
 
-        //ctrl + r - Сброс
+        // ctrl + r - reset
         case 82:
           this.special_keys = this.IS_RESET;
           break;
 
-        //ctrl + g - Цвет
+        // ctrl + g - color mode
         case 71:
           this.special_keys = this.IS_COLOR;
           break;
 
-        //ctrl + + - Инкримент палитры
+        // ctrl + + - next palette
         case 187:
           this.special_keys = this.IS_INC_PALETTE;
           break;
 
-        //ctrl + - - Декримент палитры
+        // ctrl + - - previous palette
         case 189:
           this.special_keys = this.IS_DEC_PALETTE;
           break;
@@ -237,8 +237,8 @@ export class Keyboard {
 
     mask = ~mask;
 
-    //Развернул циклы, чтобы убрать в профайлере Chrome
-    //сообщение "Not optimized: optimized too many times".
+    // Loops are unrolled to silence the Chrome profiler message
+    // "Not optimized: optimized too many times".
     if (port === 0xd0) {
       if (mask & 0x01) {
         result |= state[0];

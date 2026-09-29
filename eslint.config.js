@@ -32,6 +32,14 @@ export default [
     },
   },
   {
+    files: ['scripts/**/*.js', '*.config.js'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+  {
     ignores: ['dist/**', 'node_modules/**', 'public/**'],
   },
 ];

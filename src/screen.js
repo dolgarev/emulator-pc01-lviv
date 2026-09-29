@@ -77,7 +77,7 @@ export class Screen {
   static cache_grayscale = [];
 
   init() {
-    //Переход на Uint32Array по результатам теста "Canvas Pixel Manipulation"
+    // Switched to Uint32Array based on the "Canvas Pixel Manipulation" benchmark
     //[http://jsperf.com/canvas-pixel-manipulation/98]
     this.ps32 = new Uint32Array(VRAM_SIZE * PIXELS_PER_BYTE);
 
@@ -128,7 +128,7 @@ export class Screen {
   }
 
   parse_color(byte) {
-    //Каждый байт из видеоОЗУ описывает цвета сразу для 4-х пикселов
+    // Each video-RAM byte describes the colors of 4 pixels at once
     let result = 0;
 
     if (byte & 0x80) {
@@ -205,10 +205,10 @@ export class Screen {
     return result;
   }
 
-  //Краеугольная статья по оптимизации кода для V8
+  // Cornerstone article on optimizing code for V8
   //[http://coding.smashingmagazine.com/2012/11/05/writing-fast-memory-efficient-javascript/]
-  //Для вывода картинки в оттенках серого пришлось отказаться от css filters, поскольку
-  //фильтр -webkit-grayscale выдает слишком темную картинку и ощутимо притормаживает.
+  // CSS filters were dropped for the grayscale output: the -webkit-grayscale
+  // filter produces a too-dark image and slows rendering down noticeably.
   draw() {
     const cache = this.cache;
     const cache_color = Screen.cache_color;

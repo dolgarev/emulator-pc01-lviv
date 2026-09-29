@@ -1,7 +1,7 @@
 const TRAP_PROFILES = {
   default: [
     {
-      addr: 0xdd94, //Подмена для BLOAD
+      addr: 0xdd94, // Hook for BLOAD
       handler() {
         const signalIoError = function () {
           this.cpu.execute(0xe5);
@@ -41,7 +41,7 @@ const TRAP_PROFILES = {
       },
     },
     {
-      addr: 0xe50b, //Подмена для CLOAD (1)
+      addr: 0xe50b, // Hook for CLOAD (1)
       handler() {
         const signalIoError = function () {
           this.cpu.execute(0xe5);
@@ -81,7 +81,7 @@ const TRAP_PROFILES = {
       },
     },
     {
-      addr: 0xe55e, //Подмена для CLOAD (2)
+      addr: 0xe55e, // Hook for CLOAD (2)
       handler() {
         return (this.cpu.jump(0xe561), this.cpu.getUndefOptcode());
       },
