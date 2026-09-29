@@ -22,6 +22,24 @@ import { Dump } from './dump.js';
 import { Notify } from './notify.js';
 import { assertInstance } from './utils/assert.js';
 
+// Dependencies nulled out on terminate().
+const PROFILE_DEPENDENCIES = [
+  'settings',
+  'config',
+  'beeper',
+  'keyboard',
+  'io',
+  'memory',
+  'rom',
+  'cpu',
+  'viewport',
+  'screen',
+  'tape',
+  'dnd',
+  'dom',
+  'storage',
+];
+
 export class ComputerProfile {
   /**
    * Конструктор с внедрением зависимостей (DI)
@@ -278,11 +296,9 @@ export class ComputerProfile {
       this.dnd.close();
     }
 
-    'settings,config,beeper,keyboard,io,memory,rom,cpu,viewport,screen,tape,dnd,dom,storage'
-      .split(',')
-      .forEach(function (prop) {
-        this[prop] = null;
-      }, this);
+    for (const dependency of PROFILE_DEPENDENCIES) {
+      this[dependency] = null;
+    }
 
     this.detach_file();
   }

@@ -295,18 +295,6 @@ The emulator is still coupled to the DOM (`Viewport`, `Keyboard`). Extracting pu
 without DOM dependencies would simplify testing and portability. (The config layer is already
 decoupled — see P2.2.)
 
-#### P2.9 `terminate()` property nulling via split string — ⏳
-
-```js
-// computerProfile.js
-'settings,config,beeper,...'.split(',').forEach(function (prop) {
-  this[prop] = null;
-}, this);
-```
-
-An unusual pattern — a comma-separated string split at runtime. Hard to read and brittle.
-**Suggested fix:** an explicit array or a typed teardown object.
-
 #### P2.10 `.editorconfig` and CI — ⏳
 
 Add `.editorconfig` and a GitHub Actions workflow for linting.
@@ -566,3 +554,8 @@ component has a single responsibility.
   frame (12 ops/pixel × 16,384 pixels).
 - Conditional `putImageData()`: a `dirty` flag ensures the canvas is only updated when the image
   actually changed.
+
+#### P2.9 `terminate()` property nulling via split string — ✅ fixed
+
+The `'settings,config,...'.split(',').forEach(...)` teardown in `ComputerProfile.terminate()` was
+replaced with an explicit `PROFILE_DEPENDENCIES` array iterated by a `for...of` loop.
