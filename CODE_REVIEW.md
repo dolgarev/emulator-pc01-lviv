@@ -415,12 +415,21 @@ via `fetch()`.
 Manifest v2 Chrome Packaged Apps were removed from Chrome in 2024. **Fix:** migrated to a Vite SPA
 (see the Roadmap).
 
+#### P0.9 `validateFileHeader()` rejected every user-selected file — ✅ fixed
+
+The check decoded `magicString.length - 1` bytes and compared them with the full magic, so it was
+**always false**: every `.sav`/`.e3` file picked through LOAD or drag & drop was answered with
+"Invalid file structure." The regression came from `01d31b3` ("Extract storage logic to separate
+class"); the original inline check compared exactly 16 (`LVOV/DUMP/2.0/H+`) and 13
+(`Emulator 3000`) bytes. The function now compares the full magic and returns `false` for a file
+shorter than it. Covered by `test/fileFormat.test.js`.
+
 ### P1 — Highest maintainability impact
 
 #### P1.1 No tests (largest gap) and no `test` script — ✅ fixed
 
-Added Vitest (`npm test` / `npm run test:watch`) and a headless suite, since grown to **61 tests
-across 9 files**. They run without a DOM against the decoupled core, using a shared `test/helpers.js`
+Added Vitest (`npm test` / `npm run test:watch`) and a headless suite, since grown to **65 tests
+across 10 files**. They run without a DOM against the decoupled core, using a shared `test/helpers.js`
 (`createCore()`):
 - `i8080` — instruction execution: immediates, register moves, arithmetic flags, `JMP`, `CALL`/`RET`,
   `PUSH`/`POP`, `run()` frame stepping, halt, plus the opcode-fetch/trap contract (P3.5);
@@ -430,6 +439,7 @@ across 9 files**. They run without a DOM against the decoupled core, using a sha
 - `Screen` — `parse_color` and color caches, palette index range, `draw()` dirty tracking;
 - `Keyboard` / `KeyboardBinding` — key matrix and the `evt.code` mapping;
 - `ComputerProfile` — the fixed-timestep loop via a fake ticker, including the real PC-01 clock speed;
+- `validateFileHeader` — the magic-string checks of the LVOV/DUMP and "Emulator 3000" headers;
 - `Clock`, `Config`.
 
 The full 8080 Exerciser ROM remains a possible future oracle for exhaustive CPU coverage.

@@ -18,15 +18,19 @@
 /**
  * Checks that `data` starts with the expected ASCII magic string.
  *
- * The trailing NUL byte of the magic is not part of the comparison, matching
- * the headers used by the LVOV/DUMP and "Emulator 3000" snapshot formats.
+ * The magic strings of the LVOV/DUMP and "Emulator 3000" snapshot formats are
+ * compared as-is (16 and 13 bytes); no trailing NUL is required.
  *
  * @param {ArrayBuffer} data - File contents.
- * @param {string} magicString - Expected magic string, including the trailing NUL.
+ * @param {string} magicString - Expected magic string.
  * @returns {boolean}
  */
 export const validateFileHeader = (data, magicString) => {
+  if (data.byteLength < magicString.length) {
+    return false;
+  }
+
   return (
-    new TextDecoder('utf-8').decode(new Uint8Array(data, 0, magicString.length - 1)) === magicString
+    new TextDecoder('utf-8').decode(new Uint8Array(data, 0, magicString.length)) === magicString
   );
 };
