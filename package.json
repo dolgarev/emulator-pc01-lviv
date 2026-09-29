@@ -18,8 +18,8 @@
     "type": "git",
     "url": "git+https://github.com/dolgarev/emulator-pc01-lviv.git"
   },
-  "author": "Oleg Dolgarev",
-  "license": "GPL-3.0",
+  "author": "Oleg Dolgarev <o.dolgarev@gmail.com>",
+  "license": "GPL-3.0-or-later",
   "bugs": {
     "url": "https://github.com/dolgarev/emulator-pc01-lviv/issues"
   },

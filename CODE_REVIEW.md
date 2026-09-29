@@ -481,6 +481,11 @@ The `dnd.js` Google/Apache-2.0 header was replaced with the project's GPL-3.0 he
 implementation is independently written (only standard DOM API usage overlaps with the original
 sample), with a courtesy attribution kept in the README.
 
+**Later** (`7aa178a`) the per-file GPL boilerplate was dropped from all 31 files that carried it, so the
+licence is now recorded in one place: `README.md` (copyright, `GPL-3.0-or-later`, warranty disclaimer,
+third-party assets) plus `package.json` and `gpl-3.0.txt`. `src/i8080.js` keeps its header because it
+also carries the upstream copyright of Alexander Demin (2012).
+
 #### P1.9 Grayscale formula in `screen.js` — ✅ (not a bug)
 
 `~~(p & 0x00ff0000 && GRAYSCALE_RED_WEIGHT) + …` uses logical `&&` rather than multiplication. This

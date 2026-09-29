@@ -137,9 +137,25 @@ public/data/                  ROM and dump binaries (.bin)
 - "Aerocobra" game — Andrey Chistyakov.
 - Drag & drop handling inspired by Eric Bidelman's HTML5Rocks article *Reading files in JavaScript using the File APIs*.
 
+### Third-party assets
+
+- `public/assets/fontello/` — icon font generated with [Fontello](https://fontello.com) from Font Awesome
+  (Copyright (C) 2012 Dave Gandy, SIL OFL 1.1) and other icon sets; the full list is in
+  [`public/assets/fontello/LICENSE.txt`](public/assets/fontello/LICENSE.txt).
+- `public/assets/960gs/` — 960 Grid System (dual-licensed); this project uses the MIT option, see
+  [`public/assets/960gs/MIT_license.txt`](public/assets/960gs/MIT_license.txt).
+
 ## License
 
-GNU General Public License v3.0 — see [`gpl-3.0.txt`](gpl-3.0.txt).
+Copyright (C) 2014 Oleg Dolgarev <o.dolgarev@gmail.com>
+
+GNU General Public License v3.0 **or later** (`GPL-3.0-or-later`) — see [`gpl-3.0.txt`](gpl-3.0.txt).
+This program is distributed in the hope that it will be useful, but **without any warranty**; without
+even the implied warranty of merchantability or fitness for a particular purpose. See the GNU General
+Public License for more details.
+
+`src/i8080.js` is a modified port of Alexander Demin's i8080-js (see Credits) and keeps its own
+copyright notice; the changes to it are tracked in the repository history.
 
 ## Links
 
