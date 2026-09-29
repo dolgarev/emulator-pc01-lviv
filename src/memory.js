@@ -244,7 +244,7 @@ export class Memory {
         throw new RangeError('MEMORY: Offset is outside the bounds of the DataView');
       }
     } else {
-      offset = false;
+      throw new TypeError('MEMORY: Param DATA must be an Array or a DataView');
     }
 
     return offset;

@@ -284,12 +284,6 @@ number of CPU cycles per frame.
 **Suggested fix:** named constants (`MEM_MAP.STD_80`, `EXTENDED_MODE_BIT`, `PORT.MEDIA`, …); build
 the memory page layout with a loop instead of manual repetition.
 
-#### P2.4 `Memory.transfer()` returns `offset` or `false` — ⏳
-
-The method returns the new offset on success and `false` for an invalid data type; callers ignore
-the return value. **Suggested fix:** throw on invalid input (consistent with the rest of the
-codebase) and always return the offset.
-
 #### P2.5 Web Worker for CPU emulation — ⏳
 
 Move `I8080.run()` into a Web Worker so heavy computation does not block the main thread, improving
@@ -547,6 +541,12 @@ too dark. The code is kept as is with an explanatory comment.
 
 Side effect: the old `init()` mutated the shared nested `DEFAULT_SETTINGS` objects (leaking nodes
 across instances); that is gone.
+
+#### P2.4 `Memory.transfer()` returns `offset` or `false` — ✅ fixed
+
+`Memory.transfer()` no longer returns `false` for an invalid data type; it throws
+`TypeError('MEMORY: Param DATA must be an Array or a DataView')` and always returns the new offset
+(consistent with the `RangeError`s it already raised for bounds problems).
 
 #### P2.7 Screen ↔ Viewport rendering refactor — ✅
 
