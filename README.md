@@ -49,6 +49,7 @@ Other scripts:
 | --- | --- |
 | `npm run lint` | Lint the sources with ESLint |
 | `npm run format` | Format the sources with Prettier |
+| `npm test` | Run the unit tests (Vitest, headless) |
 | `npm run extract-data` | Regenerate the `.bin` ROM / dump files from the source data |
 
 ## Controls

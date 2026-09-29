@@ -238,18 +238,6 @@ Priority legend: **P0** critical, **P1** high maintainability impact, **P2** str
 
 ### P1 — Highest maintainability impact
 
-#### P1.1 No tests (largest gap) and no `test` script — ⏳
-
-The core — the 8080 CPU, memory paging, I/O ports, snapshot format — has **zero tests**, and there
-is no `"test"` script in `package.json`. Any refactoring is done blind.
-
-**Suggested fix:** add Vitest and write:
-- unit tests for `i8080` (the 8080 Exerciser ROM already credited in the file header is an ideal
-  oracle);
-- `Memory` tests (paging, VRAM/ROM, strict mode);
-- a round-trip test for `Storage.get_snapshot` ↔ `set_snapshot`;
-- `Screen.compute_color_index` palette tests.
-
 #### P1.2 `i8080.js` is an ES3-style monolith (1179 lines) — ⏳
 
 The only file still written as `function I8080` + `prototype`. It mixes responsibilities: register
@@ -397,10 +385,9 @@ adaptive scaling, fullscreen; **P3** WebGL, color filters, animations, statistic
 
 ## Recommended next steps
 
-1. **Add tests** (P1.1) — provides a safety net for everything that follows.
-2. **Convert `i8080.js` to a class and extract opcodes** (P1.2) — unlocks CPU testing.
-3. **Add a `test` script + Vitest**, starting with the CPU Exerciser ROM.
-4. Tidy the remaining P2/P3 items opportunistically as the code is touched.
+1. **Convert `i8080.js` to a class and extract opcodes** (P1.2) — builds on the new test suite.
+2. **Extend the test suite** with the 8080 Exerciser ROM and snapshot fixtures.
+3. Tidy the remaining P2/P3 items opportunistically as the code is touched.
 
 ---
 
@@ -462,6 +449,20 @@ Manifest v2 Chrome Packaged Apps were removed from Chrome in 2024. **Fix:** migr
 (see the Roadmap).
 
 ### P1 — Highest maintainability impact
+
+#### P1.1 No tests (largest gap) and no `test` script — ✅ fixed
+
+Added Vitest (`npm test` / `npm run test:watch`) and a first suite of **41 tests across 7 files**.
+They run headless (no DOM) against the decoupled core, using a shared `test/helpers.js`:
+- `i8080` — instruction execution: immediates, register moves, arithmetic flags, `JMP`, `CALL`/`RET`,
+  `PUSH`/`POP`, `run()` frame stepping, halt;
+- `Memory` — RAM read/write, ROM write protection, `restart()`, `transfer()` (Array/DataView, bounds,
+  unsupported type), `get_state()` size, video-memory page;
+- `Storage` — snapshot size and `get_snapshot()` ↔ `set_snapshot()` round-trip, `.e3` load, rejects;
+- `Screen` — `parse_color` and color caches, palette index range, `draw()` dirty tracking;
+- `Clock`, `Config`, `Keyboard`.
+
+The full 8080 Exerciser ROM remains a possible future oracle for exhaustive CPU coverage.
 
 #### P1.3 `Storage` methods invoked via `.call(this)` — ✅ fixed
 
