@@ -283,16 +283,6 @@ Add `.editorconfig` and a GitHub Actions workflow for linting.
 
 ### P3 — Polish, features and rendering ideas
 
-#### P3.1 `keyboard.js`: deprecated `evt.keyCode` + manually unrolled loops — ⏳
-
-- `evt.keyCode` is deprecated (migration to `evt.code` was already planned).
-- `get()` contains manually unrolled `if` blocks with a 2012-era Chrome-profiler comment — an
-  obsolete optimization that hurts readability.
-- The key map is a huge literal of magic masks.
-
-**Suggested fix:** use `evt.code`; move the key map into data (JSON/table); collapse the unrolled
-loops back (re-verify on a modern engine).
-
 #### P3.2 Dead code — ⏳
 
 - `store_flags()` — the `else f &= ~F_*` branches are no-ops (`f` starts at 0).
@@ -561,6 +551,17 @@ The `'settings,config,...'.split(',').forEach(...)` teardown in `ComputerProfile
 replaced with an explicit `PROFILE_DEPENDENCIES` array iterated by a `for...of` loop.
 
 ### P3 — Polish, features and rendering ideas
+
+#### P3.1 `keyboard.js`: deprecated `evt.keyCode` + manually unrolled loops — ✅ done
+
+- `KeyboardBinding` now forwards `KeyboardEvent.code` instead of the deprecated `evt.keyCode` (this
+  is also layout-independent).
+- `keyboard.js` was rewritten around an explicit matrix: `MATRIX` maps a key id to
+  `[port, column, row bit]`, replacing the packed `{ mask: 0x… }` literals; the ctrl shortcuts now
+  switch on `evt.code`.
+- The unrolled `get()` loops collapsed into one loop over `state.length` (the obsolete 2012-era
+  Chrome-profiler comment is gone).
+- Verified against the previous map: all 78 matrix entries and 21 Alt entries are identical.
 
 #### P3.3 Consolidate utilities — ✅ done
 

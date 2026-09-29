@@ -15,6 +15,132 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+// PC-01 keyboard matrix.
+//
+// The keyboard is read through two i8255A PPI ports: 0xd0 (8 columns) and
+// 0xd2 (4 columns). Each entry maps a key to its position on the matrix as
+// `[port, column, row bit]`.
+//
+// Keys are identified by the modern `KeyboardEvent.code` that presses them.
+// Keys that exist only on the PC-01 keyboard are reached with Alt and use a
+// synthetic `PC01.<name>` id; the trailing comment names the original key.
+const MATRIX = {
+  // --- port 0xd0 ---
+  Backspace: [0xd0, 2, 0x08], // ЗБ
+  Tab: [0xd0, 0, 0x10], // ТАБ
+  Enter: [0xd0, 1, 0x08], // ВК
+  ShiftLeft: [0xd0, 7, 0x01], // НР
+  ShiftRight: [0xd0, 7, 0x01], // НР
+  Escape: [0xd0, 6, 0x04], // СУ
+  Space: [0xd0, 3, 0x01], // ПРБ
+  Insert: [0xd0, 0, 0x08], // ГТ
+
+  Digit0: [0xd0, 0, 0x40], // 0
+  Digit1: [0xd0, 4, 0x80], // 1
+  Digit2: [0xd0, 4, 0x40], // 2
+  Digit3: [0xd0, 4, 0x20], // 3
+  Digit4: [0xd0, 4, 0x10], // 4
+  Digit5: [0xd0, 4, 0x08], // 5
+  Digit6: [0xd0, 0, 0x01], // 6
+  Digit7: [0xd0, 0, 0x02], // 7
+  Digit8: [0xd0, 0, 0x04], // 8
+  Digit9: [0xd0, 0, 0x80], // 9
+
+  KeyA: [0xd0, 6, 0x10], // A
+  KeyB: [0xd0, 3, 0x02], // B
+  KeyC: [0xd0, 5, 0x80], // C
+  KeyD: [0xd0, 2, 0x80], // D
+  KeyE: [0xd0, 5, 0x10], // E
+  KeyF: [0xd0, 6, 0x80], // F
+  KeyG: [0xd0, 1, 0x01], // G
+  KeyH: [0xd0, 1, 0x40], // H
+  KeyI: [0xd0, 7, 0x20], // I
+  KeyJ: [0xd0, 5, 0x04], // J
+  KeyK: [0xd0, 5, 0x20], // K
+  KeyL: [0xd0, 2, 0x04], // L
+  KeyM: [0xd0, 7, 0x40], // M
+  KeyN: [0xd0, 5, 0x08], // N
+  KeyO: [0xd0, 2, 0x02], // O
+  KeyP: [0xd0, 6, 0x08], // P
+  KeyQ: [0xd0, 7, 0x02], // Q
+  KeyR: [0xd0, 2, 0x01], // R
+  KeyS: [0xd0, 7, 0x80], // S
+  KeyT: [0xd0, 7, 0x10], // T
+  KeyU: [0xd0, 5, 0x40], // U
+  KeyV: [0xd0, 2, 0x40], // V
+  KeyW: [0xd0, 6, 0x20], // W
+  KeyX: [0xd0, 7, 0x08], // X
+  KeyY: [0xd0, 6, 0x40], // Y
+  KeyZ: [0xd0, 1, 0x80], // Z
+
+  Semicolon: [0xd0, 1, 0x20], // :/*
+  Equal: [0xd0, 6, 0x01], // +/;
+  Comma: [0xd0, 3, 0x80], // ,
+  Minus: [0xd0, 0, 0x20], // -/=
+  Period: [0xd0, 2, 0x10], // .
+  Slash: [0xd0, 3, 0x40], // /
+  Backquote: [0xd0, 3, 0x04], // @
+  BracketLeft: [0xd0, 1, 0x02], // [
+  Backslash: [0xd0, 2, 0x20], // \
+  BracketRight: [0xd0, 1, 0x04], // ]
+  Quote: [0xd0, 7, 0x04], // ^
+
+  // --- port 0xd2 ---
+  Home: [0xd2, 2, 0x01], // ДИА
+  ArrowLeft: [0xd2, 3, 0x04], // <-
+  ArrowUp: [0xd2, 3, 0x02], // UP
+  ArrowRight: [0xd2, 3, 0x01], // ->
+  ArrowDown: [0xd2, 3, 0x08], // DOWN
+
+  F1: [0xd2, 1, 0x04], // F1
+  F2: [0xd2, 1, 0x08], // F2
+  F3: [0xd2, 2, 0x08], // F3
+  F4: [0xd2, 2, 0x04], // F4
+  F5: [0xd2, 2, 0x02], // F5
+  F6: [0xd2, 0, 0x04], // ДИН
+  F7: [0xd2, 0, 0x02], // CD
+  F8: [0xd2, 0, 0x01], // ПЧ
+  F9: [0xd2, 1, 0x01], // П/Д
+  F10: [0xd2, 1, 0x02], // F0
+
+  // --- PC-01-only keys (reached with Alt) ---
+  'PC01.СТР': [0xd0, 4, 0x01], // СТР
+  'PC01.(G)': [0xd0, 4, 0x02], // (G)
+  'PC01.(B)': [0xd0, 4, 0x04], // (B)
+  'PC01.(R)': [0xd2, 0, 0x08], // (R)
+  'PC01.ПС': [0xd0, 1, 0x10], // ПС
+  'PC01.ВР': [0xd0, 3, 0x08], // ВР
+  'PC01.РУС': [0xd0, 6, 0x02], // РУС
+  'PC01.ЛАТ': [0xd0, 3, 0x20], // ЛАТ
+  'PC01._': [0xd0, 3, 0x10], // _
+};
+
+// `KeyboardEvent.code` -> key id produced while Alt is held.
+const ALT_MAP = {
+  Digit1: 'F1',
+  Digit2: 'F2',
+  Digit3: 'F3',
+  Digit4: 'F4',
+  Digit5: 'F5',
+  Digit6: 'F6', // ДИН
+  Digit7: 'F7', // CD
+  Digit8: 'F8', // ПЧ
+  Digit9: 'F9', // П/Д
+  Digit0: 'F10', // F0
+  Equal: 'Insert', // ГТ
+  KeyH: 'Home', // ДИА
+  KeyC: 'PC01.СТР',
+  KeyG: 'PC01.(G)',
+  KeyB: 'PC01.(B)',
+  KeyR: 'PC01.(R)',
+  Enter: 'PC01.ПС',
+  ShiftLeft: 'PC01.ВР',
+  ShiftRight: 'PC01.ВР',
+  KeyU: 'PC01.РУС',
+  KeyL: 'PC01.ЛАТ',
+  Minus: 'PC01._',
+};
+
 export class Keyboard {
   static IS_ALT = 0x01;
   static IS_CTRL = 0x02;
@@ -35,144 +161,13 @@ export class Keyboard {
 
     this.special_keys = 0;
 
-    // main_map initialization
-    const keys = {
-      8: { mask: 0x23ff }, // ЗБ
-      9: { mask: 0x04ff }, // ТАБ
-      13: { mask: 0x13ff }, // ВК
-      16: { mask: 0x70ff }, // НР
-      27: { mask: 0x62ff }, // СУ
-      32: { mask: 0x30ff }, // ПРБ
-      36: { mask: 0xff20 }, // ДИА
-
-      37: { mask: 0xff32 }, // <-
-      38: { mask: 0xff31 }, // UP
-      39: { mask: 0xff30 }, // ->
-      40: { mask: 0xff33 }, // DOWN
-
-      45: { mask: 0x03ff }, // ГТ
-      48: { mask: 0x06ff }, // 0
-      49: { mask: 0x47ff }, // 1
-      50: { mask: 0x46ff }, // 2
-      51: { mask: 0x45ff }, // 3
-      52: { mask: 0x44ff }, // 4
-      53: { mask: 0x43ff }, // 5
-      54: { mask: 0x00ff }, // 6
-      55: { mask: 0x01ff }, // 7
-      56: { mask: 0x02ff }, // 8
-      57: { mask: 0x07ff }, // 9
-
-      65: { mask: 0x64ff }, // A
-      66: { mask: 0x31ff }, // B
-      67: { mask: 0x57ff }, // C
-      68: { mask: 0x27ff }, // D
-      69: { mask: 0x54ff }, // E
-      70: { mask: 0x67ff }, // F
-      71: { mask: 0x10ff }, // G
-      72: { mask: 0x16ff }, // H
-      73: { mask: 0x75ff }, // I
-      74: { mask: 0x52ff }, // J
-      75: { mask: 0x55ff }, // K
-      76: { mask: 0x22ff }, // L
-      77: { mask: 0x76ff }, // M
-      78: { mask: 0x53ff }, // N
-      79: { mask: 0x21ff }, // O
-      80: { mask: 0x63ff }, // P
-      81: { mask: 0x71ff }, // Q
-      82: { mask: 0x20ff }, // R
-      83: { mask: 0x77ff }, // S
-      84: { mask: 0x74ff }, // T
-      85: { mask: 0x56ff }, // U
-      86: { mask: 0x26ff }, // V
-      87: { mask: 0x65ff }, // W
-      88: { mask: 0x73ff }, // X
-      89: { mask: 0x66ff }, // Y
-      90: { mask: 0x17ff }, // Z
-
-      112: { mask: 0xff12 }, // F1
-      113: { mask: 0xff13 }, // F2
-      114: { mask: 0xff23 }, // F3
-      115: { mask: 0xff22 }, // F4
-      116: { mask: 0xff21 }, // F5
-
-      117: { mask: 0xff02 }, // ДИН
-      118: { mask: 0xff01 }, // CD
-      119: { mask: 0xff00 }, // ПЧ
-      120: { mask: 0xff10 }, // П/Д
-      121: { mask: 0xff11 }, // F0
-
-      186: { mask: 0x15ff }, // :/*
-      187: { mask: 0x60ff }, // +/;
-      188: { mask: 0x37ff }, // ,
-      189: { mask: 0x05ff }, // -/=
-      190: { mask: 0x24ff }, // .
-      191: { mask: 0x36ff }, // /
-      192: { mask: 0x32ff }, // @
-      219: { mask: 0x11ff }, // [
-      220: { mask: 0x25ff }, // \
-      221: { mask: 0x12ff }, // ]
-      222: { mask: 0x72ff }, // ^
-
-      0x100: { mask: 0x40ff }, // СТР
-      0x101: { mask: 0x41ff }, // (G)
-      0x102: { mask: 0x42ff }, // (B)
-      0x103: { mask: 0xff03 }, // (R)
-      0x104: { mask: 0x14ff }, // ПС
-      0x105: { mask: 0x33ff }, // ВР
-      0x106: { mask: 0x61ff }, // РУС
-      0x107: { mask: 0x35ff }, // ЛАТ
-      0x108: { mask: 0x34ff }, // _
-    };
-
-    for (const key of Object.values(keys)) {
-      const mask = key.mask;
-      const col_D0 = (mask & 0xf000) >> 12;
-      const col_D2 = (mask & 0x00f0) >> 4;
-
-      if ((col_D0 & 0x08) === 0) {
-        key.port = 0xd0;
-        key.column = col_D0;
-        key.row_mask = 1 << ((mask & 0x0f00) >> 8);
-      } else if ((col_D2 & 0x08) === 0) {
-        key.port = 0xd2;
-        key.column = col_D2;
-        key.row_mask = 1 << (mask & 0x000f);
-      }
-    }
-    this.main_map = keys;
-
-    // alt_map initialization
-    this.alt_map = {
-      49: 112, //alt + 1       -> F1
-      50: 113, //alt + 2       -> F2
-      51: 114, //alt + 3       -> F3
-      52: 115, //alt + 4       -> F4
-      53: 116, //alt + 5       -> F5
-      54: 117, //alt + 6       -> ДИН
-      55: 118, //alt + 7       -> CD
-      56: 119, //alt + 8       -> ПЧ
-      57: 120, //alt + 9       -> П/Д
-      48: 121, //alt + 0       -> F0
-      187: 45, //alt + +       -> ГТ
-      72: 36, //alt + H       -> ДИА
-      67: 0x100, //alt + С       -> СТР
-      71: 0x101, //alt + G       -> (G)
-      66: 0x102, //alt + B       -> (B)
-      82: 0x103, //alt + R       -> (R)
-      13: 0x104, //alt + enter   -> ПС
-      16: 0x105, //alt + shift   -> ВР
-      85: 0x106, //alt + U       -> РУС
-      76: 0x107, //alt + L       -> ЛАТ
-      189: 0x108, //alt + -       -> _
-    };
-
     this.reset();
   }
 
   reset() {
-    [0xd0, 0xd2].forEach(function (port) {
-      this.key_states[port].fill(0);
-    }, this);
+    for (const state of Object.values(this.key_states)) {
+      state.fill(0);
+    }
 
     this.reset_special_keys();
   }
@@ -185,46 +180,49 @@ export class Keyboard {
     this.reset();
   }
 
-  press(key_code, is_pressed, modifier) {
-    const key =
-      this.main_map[modifier & Keyboard.IS_ALT ? this.alt_map[key_code] || key_code : key_code];
+  // `code` is a `KeyboardEvent.code`; `modifier` is a bit mask of
+  // Keyboard.IS_ALT / IS_CTRL / IS_SHIFT.
+  press(code, is_pressed, modifier) {
+    const key = MATRIX[modifier & Keyboard.IS_ALT ? (ALT_MAP[code] ?? code) : code];
     const is_ctrl = modifier & Keyboard.IS_CTRL;
 
     if (key && !is_ctrl) {
+      const [port, column, row_mask] = key;
+
       if (is_pressed) {
-        this.key_states[key.port][key.column] |= key.row_mask;
+        this.key_states[port][column] |= row_mask;
       } else {
-        this.key_states[key.port][key.column] &= ~key.row_mask;
+        this.key_states[port][column] &= ~row_mask;
       }
     } else if (!is_pressed && is_ctrl) {
-      switch (key_code) {
-        // ctrl + p - pause
-        case 80:
+      switch (code) {
+        // ctrl + P - pause
+        case 'KeyP':
           this.special_keys = this.IS_PAUSE;
           break;
 
-        // ctrl + s - screenshot
-        case 83:
+        // ctrl + S - screenshot
+        case 'KeyS':
           this.special_keys = this.IS_SHOOT;
           break;
 
-        // ctrl + r - reset
-        case 82:
+        // ctrl + R - reset
+        case 'KeyR':
           this.special_keys = this.IS_RESET;
           break;
 
-        // ctrl + g - color mode
-        case 71:
+        // ctrl + G - color mode
+        case 'KeyG':
           this.special_keys = this.IS_COLOR;
           break;
 
-        // ctrl + + - next palette
-        case 187:
+        // ctrl + = - next palette
+        case 'Equal':
           this.special_keys = this.IS_INC_PALETTE;
           break;
 
         // ctrl + - - previous palette
-        case 189:
+        case 'Minus':
           this.special_keys = this.IS_DEC_PALETTE;
           break;
       }
@@ -232,52 +230,20 @@ export class Keyboard {
   }
 
   get(mask, port) {
-    let result = 0;
     const state = this.key_states[port];
+    let result = 0;
 
     mask = ~mask;
 
-    // Loops are unrolled to silence the Chrome profiler message
-    // "Not optimized: optimized too many times".
-    if (port === 0xd0) {
-      if (mask & 0x01) {
-        result |= state[0];
+    if (state) {
+      for (let i = 0; i < state.length; i++) {
+        if (mask & (1 << i)) {
+          result |= state[i];
+        }
       }
-      if (mask & 0x02) {
-        result |= state[1];
-      }
-      if (mask & 0x04) {
-        result |= state[2];
-      }
-      if (mask & 0x08) {
-        result |= state[3];
-      }
-      if (mask & 0x10) {
-        result |= state[4];
-      }
-      if (mask & 0x20) {
-        result |= state[5];
-      }
-      if (mask & 0x40) {
-        result |= state[6];
-      }
-      if (mask & 0x80) {
-        result |= state[7];
-      }
-    } else if (port === 0xd2) {
-      if (mask & 0x01) {
-        result |= state[0];
-      }
-      if (mask & 0x02) {
-        result |= state[1];
-      }
-      if (mask & 0x04) {
-        result |= state[2];
-      }
-      if (mask & 0x08) {
-        result |= state[3];
-      }
+    }
 
+    if (port === 0xd2) {
       result = (result << 4) | (mask & 0x0f);
     }
 
