@@ -45,6 +45,10 @@ const PROFILE_DEPENDENCIES = [
   'storage',
 ];
 
+// Maximum number of emulated frames the main loop may catch up within a single
+// animation frame (guards against a spiral of death after a long stall).
+const MAX_FRAME_BACKLOG = 5;
+
 export class ComputerProfile {
   /**
    * Constructor with dependency injection (DI)
@@ -90,11 +94,7 @@ export class ComputerProfile {
 
     this.attached_file = void 0;
 
-    this.timers = {
-      interrupt: void 0,
-      animation: void 0,
-      restart: void 0,
-    };
+    this.animation_frame = void 0;
 
     this.is_paused = false;
     this.is_suspended = false;
@@ -143,16 +143,16 @@ export class ComputerProfile {
       keyboard = this.keyboard,
       screen = this.screen,
       ticker = this.ticker,
-      viewport = this.viewport,
-      timers = this.timers;
+      viewport = this.viewport;
 
     if (this.is_suspended) {
-      throw new Error('COMPUTER_PROFILE: MAIN LOOP suspended!');
-    } else {
-      ticker.setTimeout(main_loop, 0);
+      return;
     }
 
-    function main_loop() {
+    let prev_time = ticker.now();
+    let accumulator = 0;
+
+    function frame() {
       if (keyboard.special_keys) {
         switch (keyboard.special_keys) {
           case keyboard.IS_PAUSE:
@@ -182,28 +182,34 @@ export class ComputerProfile {
         keyboard.reset_special_keys();
       }
 
-      const t_start = ticker.now();
+      const now = ticker.now();
+      accumulator += now - prev_time;
+      prev_time = now;
 
-      if (!self.is_paused) {
-        cpu.run(f_cycles);
+      if (self.is_paused || self.is_suspended) {
+        accumulator = 0;
+      } else {
+        // Fixed timestep: run whole emulated frames and carry the remainder
+        // over to the next animation frame.
+        if (accumulator > f_duration * MAX_FRAME_BACKLOG) {
+          accumulator = f_duration * MAX_FRAME_BACKLOG;
+        }
+
+        while (accumulator >= f_duration) {
+          cpu.run(f_cycles);
+          accumulator -= f_duration;
+        }
       }
 
-      const t_end = ticker.now();
+      beeper.play();
+      viewport.renderScreen(screen);
 
       if (!self.is_suspended) {
-        const delay = f_duration - ~~(t_end - t_start);
-
-        timers.interrupt = ticker.setTimeout(interrupt_handler, delay > 0 ? delay : 0);
+        self.animation_frame = ticker.requestAnimationFrame(frame);
       }
     }
 
-    function interrupt_handler() {
-      beeper.play();
-      timers.animation = ticker.requestAnimationFrame(() => {
-        viewport.renderScreen(screen);
-        timers.restart = ticker.setTimeout(main_loop, 0);
-      });
-    }
+    this.animation_frame = ticker.requestAnimationFrame(frame);
   }
 
   pause(state = !this.is_paused) {
@@ -219,7 +225,7 @@ export class ComputerProfile {
     // Clear the key states to avoid stuck keys
     this.keyboard.reset();
 
-    this.ticker.setTimeout(this.run.bind(this), 0);
+    this.run();
   }
 
   suspend() {
@@ -232,9 +238,8 @@ export class ComputerProfile {
     this.viewport.renderScreen(this.screen);
     this.beeper.play();
 
-    this.ticker.clearTimeout(this.timers.interrupt);
-    this.ticker.cancelAnimationFrame(this.timers.animation);
-    this.ticker.clearTimeout(this.timers.restart);
+    this.ticker.cancelAnimationFrame(this.animation_frame);
+    this.animation_frame = void 0;
   }
 
   reset() {

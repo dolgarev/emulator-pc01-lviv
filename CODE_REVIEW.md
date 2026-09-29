@@ -124,9 +124,10 @@ export default defineConfig({
 "dev": "vite",
 "build": "vite build",
 "preview": "vite preview",
-"extract-data": "node scripts/extract-binaries.js",
-"lint": "eslint src",
-"format": "prettier --write \"src/**/*.js\""
+"lint": "eslint src test",
+"format": "prettier --write \"{src,test}/**/*.js\"",
+"test": "vitest run",
+"test:watch": "vitest"
 ```
 
 Data layout:
@@ -253,14 +254,6 @@ accessors (dozens of `get_b`/`set_b`/`get_af`/…), flag handling, lookup tables
    core becomes testable per-opcode.
 
 ### P2 — Structural improvements
-
-#### P2.1 Game loop: `setTimeout` → `requestAnimationFrame` → `setTimeout` — ⏳
-
-`computerProfile.js` chains three timers (`timers.interrupt` / `animation` / `restart`). It is
-fragile (drift, races on suspend/resume), and `run()` throws when suspended.
-
-**Suggested fix:** a single `requestAnimationFrame` with a fixed-timestep accumulator and a dynamic
-number of CPU cycles per frame.
 
 #### P2.3 Magic numbers and strings — ⏳
 
@@ -491,6 +484,18 @@ image resembling a real PC-01 black-and-white TV. Replacing it with correct weig
 too dark. The code is kept as is with an explanatory comment.
 
 ### P2 — Structural improvements
+
+#### P2.1 Game loop: `setTimeout` → `requestAnimationFrame` → `setTimeout` — ✅ done
+
+`ComputerProfile` now runs a **single `requestAnimationFrame` loop with a fixed timestep**: it
+accumulates the elapsed time and runs whole emulated frames (`cpu.run(frame_cycles)` every
+`frame_duration` ms), carrying the remainder over to the next animation frame. The three-timer chain
+(`timers.interrupt` / `animation` / `restart`) and `this.timers` are gone — only one
+`animation_frame` handle remains, cancelled on `suspend()`.
+
+Additional hardening: the backlog is capped (`MAX_FRAME_BACKLOG`) to avoid a spiral of death after a
+long stall, `run()` no longer throws when suspended (it is a no-op), and a frame already in flight no
+longer steps the CPU while suspended. Covered by a new `test/computerProfile.test.js` (fake ticker).
 
 #### P2.2 `Settings` mixes data and DOM — ✅ fixed
 
