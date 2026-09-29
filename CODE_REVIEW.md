@@ -481,6 +481,12 @@ Additional hardening: the backlog is capped (`MAX_FRAME_BACKLOG`) to avoid a spi
 long stall, `run()` no longer throws when suspended (it is a no-op), and a frame already in flight no
 longer steps the CPU while suspended. Covered by a new `test/computerProfile.test.js` (fake ticker).
 
+**Follow-up:** because the loop now honours `frame_duration` faithfully, `allow_turbo_mode` was
+switched off by default (`src/settings.js`) so the emulator keeps the real PC-01 clock speed
+(20 ms per frame -> 50 frames/s -> 2.24 M cycles/s). Previously the `requestAnimationFrame` inside the
+loop chain throttled the emulator to roughly the display refresh rate, so the turbo flag had no
+visible effect. Turbo still exists (it halves `frame_duration` twice -> 4x) as a future opt-in.
+
 #### P2.2 `Settings` mixes data and DOM — ✅ fixed
 
 `Settings` used to resolve DOM nodes in `init()` (`document.getElementById(...)`) and store them in

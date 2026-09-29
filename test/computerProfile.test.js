@@ -144,4 +144,19 @@ describe('ComputerProfile main loop', () => {
 
     expect(ticker.frames).toHaveLength(0);
   });
+
+  it('emulates the real PC-01 clock speed with the default frame timing', () => {
+    const { profile, ticker, cpu } = createProfile({ frame_duration: 20, frame_cycles: 44800 });
+
+    profile.run();
+
+    // One second of animation frames at a 20 ms fixed timestep -> 50 emulated
+    // frames, i.e. 50 x 44800 = 2.24 M cycles/s (the PC-01 clock speed).
+    for (let i = 0; i < 100; i++) {
+      ticker.time += 10;
+      step(ticker);
+    }
+
+    expect(cpu.cycles).toBe(50 * 44800);
+  });
 });

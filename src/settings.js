@@ -78,14 +78,16 @@ export class Settings {
       case 'standard':
         predefined_settings.computer = {
           profile: 'pc01_lvov_80',
-          allow_turbo_mode: true,
+          // Turbo mode runs the CPU 4x faster; off by default so the emulator keeps
+          // the real PC-01 clock speed.
+          allow_turbo_mode: false,
         };
         break;
 
       case 'standard_fixed':
         predefined_settings.computer = {
           profile: 'pc01_lvov_80_fixed',
-          allow_turbo_mode: true,
+          allow_turbo_mode: false,
         };
         break;
     }
