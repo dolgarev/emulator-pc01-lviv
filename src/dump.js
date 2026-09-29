@@ -76,19 +76,4 @@ export class Dump {
 
     return Object.freeze(dump);
   }
-
-  static list() {
-    const storage = Dump.storage,
-      list = {};
-
-    Object.keys(storage)
-      .sort()
-      .forEach((key) => {
-        if (!storage[key].is_hidden) {
-          list[key] = storage[key].name;
-        }
-      });
-
-    return list;
-  }
 }

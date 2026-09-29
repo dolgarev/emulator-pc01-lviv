@@ -76,18 +76,6 @@ export class Tape {
     }
   }
 
-  store(data, options = {}) {
-    const { name = 'untitled', ext = 'sav', mime = 'application/octet-stream' } = options;
-
-    const finalMime = ext === 'sav' || ext === 'lvt' ? 'application/octet-stream' : mime;
-
-    const buffer = data.buffer ? data.buffer : data;
-    const blob = new Blob([buffer], { type: finalMime });
-    const filename = `${name}.${ext}`;
-
-    return this.save(blob, filename);
-  }
-
   save(blob, filename = 'download.sav') {
     try {
       const url = URL.createObjectURL(blob);

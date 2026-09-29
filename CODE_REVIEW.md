@@ -266,11 +266,23 @@ Add `.editorconfig` and a GitHub Actions workflow for linting.
 
 ### P3 — Polish, features and rendering ideas
 
-#### P3.2 Dead code — ⏳
+#### P3.2 Dead code — ⏳ (partly done)
 
-- `store_flags()` — the `else f &= ~F_*` branches are no-ops (`f` starts at 0).
-- `viewport.js:22,24` — `_ASPECT_RATIO_1_1` and `_ASPECT_RATIO_16_9` are declared but unused.
-- `local_load_button_handler` — removed with the P0.1 fix.
+**Remaining:**
+- `i8080.js` — `store_flags()` has no-op `else f &= ~F_*` branches (deferred: the CPU core needs
+  separate work).
+
+**Removed:**
+- `viewport.js` — the unused `_ASPECT_RATIO_1_1` / `_ASPECT_RATIO_16_9` constants.
+- `Ticker.setTimeout()` / `clearTimeout()` — orphaned once P2.1 replaced the timer chain with a
+  single `requestAnimationFrame`.
+- Unused API: `Dump.list()`, `Tape.store()`, `Emulator.load_dump()`, `Computer.stop()` / `reset()` /
+  `terminate()` / `get_description()` (plus `ComputerProfile.get_description()` and
+  `Rom.get_description()`), `Notify.terminate()`.
+- `local_load_button_handler` — already removed with the P0.1 fix.
+
+**Kept on purpose:** `IO.interrupt()` (a documented no-op hook called by the CPU) and
+`MemPage.is_readable` (symmetry with `is_writable`).
 
 #### P3.4 Typing and documentation — ⏳
 

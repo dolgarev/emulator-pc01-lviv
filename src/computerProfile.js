@@ -303,16 +303,6 @@ export class ComputerProfile {
     this.detach_file();
   }
 
-  get_description() {
-    const computer = this.config.computer;
-
-    return {
-      model: computer.model,
-      description: computer.description,
-      profile: computer.profile,
-    };
-  }
-
   hasTape() {
     return this.tape instanceof Tape;
   }

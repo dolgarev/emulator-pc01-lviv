@@ -16,8 +16,7 @@
  */
 
 /**
- * Thin adapter over the browser timing primitives (timers,
- * `requestAnimationFrame` and the performance clock).
+ * Thin adapter over `requestAnimationFrame` and the performance clock.
  *
  * Injecting it keeps `ComputerProfile` free of direct `window` access and lets
  * the main loop be driven by a fake ticker in tests.
@@ -29,14 +28,6 @@ export class Ticker {
 
   now() {
     return this.target.performance.now();
-  }
-
-  setTimeout(handler, delay) {
-    return this.target.setTimeout(handler, delay);
-  }
-
-  clearTimeout(timeout_id) {
-    this.target.clearTimeout(timeout_id);
   }
 
   requestAnimationFrame(handler) {

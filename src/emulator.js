@@ -58,10 +58,6 @@ export class Emulator {
     }
   }
 
-  load_dump(dump_name) {
-    this.computer.load_dump(dump_name);
-  }
-
   run() {
     this.computer.run();
   }

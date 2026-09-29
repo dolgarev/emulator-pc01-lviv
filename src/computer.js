@@ -58,35 +58,9 @@ export class Computer {
     await this.init();
   }
 
-  terminate() {
-    if (this.profile instanceof ComputerProfile) {
-      this.profile.terminate();
-
-      this.profile = this.profile_name = this.settings = this.dom = null;
-    } else {
-      throw new Error('COMPUTER: Invalid ComputerProfile object');
-    }
-  }
-
-  reset() {
-    if (this.profile instanceof ComputerProfile) {
-      this.profile.reset();
-    } else {
-      throw new Error('COMPUTER: Invalid ComputerProfile object');
-    }
-  }
-
   run() {
     if (this.profile instanceof ComputerProfile) {
       this.profile.resume();
-    } else {
-      throw new Error('COMPUTER: Invalid ComputerProfile object');
-    }
-  }
-
-  stop() {
-    if (this.profile instanceof ComputerProfile) {
-      this.profile.suspend();
     } else {
       throw new Error('COMPUTER: Invalid ComputerProfile object');
     }
@@ -97,11 +71,5 @@ export class Computer {
 
     await this.restart(dump.profile);
     this.profile.load_dump(dump);
-  }
-
-  get_description() {
-    assertInstance(this.profile, ComputerProfile, 'COMPUTER: Invalid ComputerProfile object');
-
-    return this.profile.get_description();
   }
 }

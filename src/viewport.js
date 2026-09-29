@@ -17,14 +17,10 @@
 
 import { assertInstance } from './utils/assert.js';
 
-// Aspect ratio constants for screen scaling
-// Original PC-01 had non-square pixels, modern displays need correct aspect ratio
-const _ASPECT_RATIO_1_1 = 1.0; // Square pixels (current implementation)
-const ASPECT_RATIO_4_3 = 4 / 3; // Traditional CRT aspect ratio
-const _ASPECT_RATIO_16_9 = 16 / 9; // Widescreen aspect ratio
-
-// Current aspect ratio setting (can be changed to ASPECT_RATIO_4_3 or ASPECT_RATIO_16_9)
-const ASPECT_RATIO = ASPECT_RATIO_4_3;
+// The original PC-01 had non-square pixels; modern displays need the CRT 4:3
+// aspect ratio. Other ratios (1:1, 16:9) are listed as future work in
+// CODE_REVIEW.md (P3.8).
+const ASPECT_RATIO = 4 / 3;
 
 const IMAGE_RENDERING = 'crisp-edges'; // -webkit-optimize-contrast | pixelated | crisp-edges
 const IMAGE_SMOOTHING_ENABLED = false;

@@ -69,13 +69,4 @@ export class Notify {
     this.node.firstChild.textContent = '';
     this.node.classList.remove('notify_show');
   }
-
-  terminate() {
-    this.close();
-    this.node.lastChild.removeEventListener('click', this.handlers.close);
-
-    if (Notify.instance === this) {
-      Notify.instance = null;
-    }
-  }
 }

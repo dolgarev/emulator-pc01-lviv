@@ -68,20 +68,6 @@ export class Rom {
     }
   }
 
-  get_description(short_name) {
-    if (!(short_name in this.images)) {
-      throw new Error('ROM: Selected invalid ROM image');
-    }
-
-    const rom_image = this.images[short_name];
-
-    return {
-      name: rom_image.full_name,
-      description: rom_image.description,
-      version: rom_image.version,
-    };
-  }
-
   images = {
     1990: {
       full_name: '1990',
