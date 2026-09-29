@@ -89,4 +89,19 @@ describe('Memory', () => {
 
     expect(vram.read(0x4000)).toBe(0x5a);
   });
+
+  it('builds the page layout for every supported memory map', () => {
+    const { memory } = createCore();
+
+    // Three RAM banks + ROM + video RAM; extended maps add four pages per bank.
+    expect(memory.createMemoryPages(80)).toHaveLength(5);
+    expect(memory.createMemoryPages(144)).toHaveLength(9);
+    expect(memory.createMemoryPages(256)).toHaveLength(21);
+
+    // Legacy aliases resolve to the standard map.
+    expect(memory.createMemoryPages('default')).toHaveLength(5);
+    expect(memory.createMemoryPages('standard')).toHaveLength(5);
+
+    expect(() => memory.createMemoryPages(42)).toThrow();
+  });
 });

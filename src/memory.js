@@ -19,6 +19,41 @@ import { Config } from './config.js';
 import { IO } from './io.js';
 import { assertInstance } from './utils/assert.js';
 
+// Page geometry: the top two address bits select one of four 16 KiB pages.
+const PAGE_SHIFT = 14;
+const PAGE_MASK = 0xc000;
+const PAGE_SIZE = 0x4000;
+const PAGE_OFFSET_MASK = PAGE_SIZE - 1;
+
+// Bank indices (the value of the top two address bits).
+const BANK_0 = 0;
+const BANK_ROM = 3;
+
+// Page index the 0x0000-0x3fff window falls back to when bank 0 is hidden.
+const HIDDEN_BANK_PAGE = 2;
+
+// Supported memory maps (total RAM size in KiB).
+const MEM_MAP = {
+  STD_80: 80,
+  EXT_144: 144,
+  EXT_256: 256,
+};
+
+// Legacy string aliases accepted for the standard map.
+const MEM_MAP_ALIASES = {
+  standard: MEM_MAP.STD_80,
+  default: MEM_MAP.STD_80,
+};
+
+const normalizeMemMap = (mem_map) => MEM_MAP_ALIASES[mem_map] ?? mem_map;
+
+// Extended RAM decoding through port 0xf0: bits 0-2 select a page (4-7) and
+// bits 6-7 select the 16 KiB bank; each bank holds four pages.
+const EXTENDED_BANK_SHIFT = 6;
+const EXTENDED_PAGE_MASK = 0x07;
+const EXTENDED_PAGE_BASE = 4;
+const PAGES_PER_BANK_SHIFT = 2;
+
 export class Memory {
   constructor(config, io) {
     assertInstance(config, Config, 'MEMORY: Invalid CONFIG object');
@@ -27,160 +62,43 @@ export class Memory {
     assertInstance(io, IO, 'MEMORY: Invalid IO object');
     this.io = io;
 
-    this.mem_map = this.config.memory.map;
+    this.mem_map = normalizeMemMap(this.config.memory.map);
     this.pages = this.createMemoryPages(this.mem_map);
 
     this.init();
   }
 
   createMemoryPages(mem_map) {
-    let pages;
-    switch (mem_map) {
-      case 80:
-      case 'standard':
-      case 'default':
-        pages = [
-          new MemPage({
-            begin: 0x0000,
-          }),
-          new MemPage({
-            begin: 0x4000,
-          }),
-          new MemPage({
-            begin: 0x8000,
-          }),
-          //rom
-          new MemPage({
-            begin: 0xc000,
-            is_rom: true,
-            is_writable: false,
-          }),
-          //vram
-          new MemPage({
-            begin: 0x4000,
-            is_vram: true,
-          }),
-        ];
+    const map = normalizeMemMap(mem_map);
+
+    // Base layout: three RAM banks, the ROM and a video-RAM window.
+    const pages = [
+      new MemPage({ begin: 0x0000 }), // RAM bank 0
+      new MemPage({ begin: 0x4000 }), // RAM bank 1
+      new MemPage({ begin: 0x8000 }), // RAM bank 2
+      new MemPage({ begin: 0xc000, is_rom: true, is_writable: false }), // ROM
+      new MemPage({ begin: 0x4000, is_vram: true }), // video RAM
+    ];
+
+    switch (map) {
+      case MEM_MAP.STD_80:
         break;
 
-      case 144:
-        pages = [
-          new MemPage({
-            begin: 0x0000,
-          }),
-          new MemPage({
-            begin: 0x4000,
-          }),
-          new MemPage({
-            begin: 0x8000,
-          }),
-          //rom
-          new MemPage({
-            begin: 0xc000,
-            is_rom: true,
-            is_writable: false,
-          }),
-          //vram
-          new MemPage({
-            begin: 0x4000,
-            is_vram: true,
-          }),
-          //ext_mem_bank = 0
-          new MemPage({
-            begin: 0xc000,
-          }),
-          new MemPage({
-            begin: 0xc000,
-          }),
-          new MemPage({
-            begin: 0xc000,
-          }),
-          new MemPage({
-            begin: 0xc000,
-          }),
-        ];
-        break;
+      case MEM_MAP.EXT_144:
+      case MEM_MAP.EXT_256: {
+        // Extended RAM: four pages per bank, selected through port 0xf0.
+        const banks = map === MEM_MAP.EXT_256 ? 4 : 1;
 
-      case 256:
-        pages = [
-          new MemPage({
-            begin: 0x0000,
-          }),
-          new MemPage({
-            begin: 0x4000,
-          }),
-          new MemPage({
-            begin: 0x8000,
-          }),
-          //rom
-          new MemPage({
-            begin: 0xc000,
-            is_rom: true,
-            is_writable: false,
-          }),
-          //vram
-          new MemPage({
-            begin: 0x4000,
-            is_vram: true,
-          }),
-          //ext_mem_bank = 0
-          new MemPage({
-            begin: 0xc000,
-          }),
-          new MemPage({
-            begin: 0xc000,
-          }),
-          new MemPage({
-            begin: 0xc000,
-          }),
-          new MemPage({
-            begin: 0xc000,
-          }),
-          //ext_mem_bank = 1
-          new MemPage({
-            begin: 0xc000,
-          }),
-          new MemPage({
-            begin: 0xc000,
-          }),
-          new MemPage({
-            begin: 0xc000,
-          }),
-          new MemPage({
-            begin: 0xc000,
-          }),
-          //ext_mem_bank = 2
-          new MemPage({
-            begin: 0xc000,
-          }),
-          new MemPage({
-            begin: 0xc000,
-          }),
-          new MemPage({
-            begin: 0xc000,
-          }),
-          new MemPage({
-            begin: 0xc000,
-          }),
-          //ext_mem_bank = 3
-          new MemPage({
-            begin: 0xc000,
-          }),
-          new MemPage({
-            begin: 0xc000,
-          }),
-          new MemPage({
-            begin: 0xc000,
-          }),
-          new MemPage({
-            begin: 0xc000,
-          }),
-        ];
+        for (let i = 0; i < banks * 4; i++) {
+          pages.push(new MemPage({ begin: 0xc000 }));
+        }
         break;
+      }
 
       default:
         throw new Error('MEMORY: Unknown memory map');
     }
+
     return pages;
   }
 
@@ -202,7 +120,7 @@ export class Memory {
       pages[i].strict_mode = strict_mode;
     }
 
-    this.vram_page = (this.get_vram_page().begin & 0xc000) >>> 14;
+    this.vram_page = (this.get_vram_page().begin & PAGE_MASK) >>> PAGE_SHIFT;
     this.hide_0_bank = this.config.memory.hide_0_mem_bank;
   }
 
@@ -251,23 +169,29 @@ export class Memory {
   }
 
   get_mem_page_index(addr) {
-    const mem_page = (addr & 0xc000) >>> 14,
-      io = this.io;
+    const io = this.io;
+    const mem_page = (addr & PAGE_MASK) >>> PAGE_SHIFT;
     let mem_page_index = mem_page;
 
-    if (mem_page === 0 || mem_page === this.vram_page) {
+    if (mem_page === BANK_0 || mem_page === this.vram_page) {
+      // With video RAM disabled the window falls back to the hidden bank 0.
       if ((io.ports[io.MEDIA_PORT] & io.VRAM_STATUS_BIT) === 0) {
-        mem_page_index =
-          mem_page === this.vram_page ? this.vram_page_index : this.hide_0_bank ? 2 : 0;
+        if (mem_page === this.vram_page) {
+          mem_page_index = this.vram_page_index;
+        } else {
+          mem_page_index = this.hide_0_bank ? HIDDEN_BANK_PAGE : BANK_0;
+        }
       }
-    } else if (mem_page === 3) {
-      const mem_map = this.mem_map;
+    } else if (mem_page === BANK_ROM) {
+      const extended = io.ports[io.EXTENDED_MODE_PORT];
 
-      if ((mem_map === 144 || mem_map === 256) && io.ports[io.EXTENDED_MODE_PORT] & 0x04) {
+      if (this.mem_map !== MEM_MAP.STD_80 && extended & io.EXTENDED_MEMORY_BIT) {
+        const bank = this.mem_map === MEM_MAP.EXT_256 ? extended >>> EXTENDED_BANK_SHIFT : 0;
+
         mem_page_index =
           this.ext_page_index +
-          ((mem_map === 144 ? 0 : io.ports[io.EXTENDED_MODE_PORT] >>> 6) << 2) +
-          ((io.ports[io.EXTENDED_MODE_PORT] & 0x07) - 4);
+          (bank << PAGES_PER_BANK_SHIFT) +
+          ((extended & EXTENDED_PAGE_MASK) - EXTENDED_PAGE_BASE);
       }
     }
 
@@ -282,26 +206,20 @@ export class Memory {
     return this.pages[this.vram_page_index];
   }
 
-  get_state(mem_map = 'default') {
+  get_state(mem_map = MEM_MAP.STD_80) {
+    if (normalizeMemMap(mem_map) !== MEM_MAP.STD_80) {
+      throw new Error('MEMORY: Unknown memory map');
+    }
+
     const mem = [];
 
-    switch (mem_map) {
-      case 80:
-      case 'standard':
-      case 'default': {
-        for (let addr = 0x0000; addr <= 0xffff; addr++) {
-          mem.push(this.pages[(addr & 0xc000) >>> 14].read(addr));
-        }
+    for (let addr = 0x0000; addr <= 0xffff; addr++) {
+      mem.push(this.pages[(addr & PAGE_MASK) >>> PAGE_SHIFT].read(addr));
+    }
 
-        const vram_page = this.get_vram_page();
-        for (let addr = 0x4000; addr <= 0x7fff; addr++) {
-          mem.push(vram_page.read(addr));
-        }
-        break;
-      }
-
-      default:
-        throw new Error('MEMORY: Unknown memory map');
+    const vram_page = this.get_vram_page();
+    for (let addr = 0x4000; addr <= 0x7fff; addr++) {
+      mem.push(vram_page.read(addr));
     }
 
     return mem;
@@ -323,7 +241,7 @@ export class MemPage {
       this.is_ram = true;
     }
 
-    this.mem = new Uint8Array(0x4000);
+    this.mem = new Uint8Array(PAGE_SIZE);
 
     this.init();
   }
@@ -345,12 +263,12 @@ export class MemPage {
       }
     }
 
-    return this.mem[addr & 0x3fff];
+    return this.mem[addr & PAGE_OFFSET_MASK];
   }
 
   write(addr, w8) {
     if (this.is_writable) {
-      this.mem[addr & 0x3fff] = w8;
+      this.mem[addr & PAGE_OFFSET_MASK] = w8;
     } else {
       if (this.strict_mode) {
         throw new Error(`MEMORY: Write disabled at 0x${addr.toString(16)}`);
@@ -362,7 +280,7 @@ export class MemPage {
 
   burn(addr, w8) {
     if (this.is_rom) {
-      this.mem[addr & 0x3fff] = w8;
+      this.mem[addr & PAGE_OFFSET_MASK] = w8;
     } else {
       if (this.strict_mode) {
         throw new Error(`MEMORY: Burn disabled at 0x${addr.toString(16)}`);

@@ -20,6 +20,13 @@ import { Beeper } from './beeper.js';
 import { Keyboard } from './keyboard.js';
 import { assertInstance } from './utils/assert.js';
 
+// i8255A control-word bit set/reset (BSR) mode: bit 7 == 0 selects it, bits 1-3
+// pick the bit and bit 0 selects set (1) or reset (0).
+const PPI_MODE_BIT = 0x80;
+const BSR_BIT_MASK = 0x0e;
+const BSR_BIT_SHIFT = 1;
+const BSR_SET_BIT = 0x01;
+
 export class IO {
   constructor(config, beeper, keyboard) {
     assertInstance(config, Config, 'IO: Invalid CONFIG object');
@@ -34,6 +41,7 @@ export class IO {
     //port 0xF0
     //[http://lvovpc.cu.cc/article.shtml?id=6]
     this.EXTENDED_MODE_PORT = 0xf0;
+    this.EXTENDED_MEMORY_BIT = 0x4; //1 - extended RAM banks are enabled
     this.HIGH_RESOLUTION_BIT = 0x8; //0 - 256*256, 1 - 512*256
     this.BLANK_SCREEN_BIT = 0x10; //1 - on, 0 - off
     this.INTERRUPT_BIT = 0x20; //1 - on, 0 - off
@@ -44,7 +52,8 @@ export class IO {
     //port 0xC0
     //[http://lvovpc.cu.cc/article.shtml?id=2]
     //[http://lvovpc.cu.cc/article.shtml?id=5]
-    this.PRINTER_PORT = 0xc0;
+    this.PPI_BASE_PORT = 0xc0;
+    this.PRINTER_PORT = this.PPI_BASE_PORT;
 
     //port 0xC1 (b)
     this.PALETTE_PORT = 0xc1;
@@ -57,6 +66,15 @@ export class IO {
     this.PRINTER_SC_STROBE_BIT = 0x4;
     this.TAPE_READ_BIT = 0x10;
     this.PRINTER_AC_BUSY_BIT = 0x40;
+
+    //port 0xD0-0xD3
+    // PPI2: keyboard.
+    this.KEYBOARD_SELECT_PORT = 0xd0; // PPI2 port A (column select)
+    this.KEYBOARD_STATUS_PORT = 0xd1; // PPI2 port B (keyboard status)
+    this.KEYBOARD_DATA_PORT = 0xd2; // PPI2 port C (keyboard data)
+
+    // The 4th register of a PPI is the write-only Control Word Register.
+    this.PPI_CONTROL_REGISTER = 0x3;
 
     this.ports = new Uint8Array(0x100);
     this.init();
@@ -80,13 +98,19 @@ export class IO {
 
     // The PC-01 "Lviv" implements partial I/O port address decoding
     //[http://lvovpc.ho.ua/forum/viewtopic.php?p=2219#p2219]
-    port = 0xc0 + (port & this.decoding_mask);
+    port = this.PPI_BASE_PORT + (port & this.decoding_mask);
 
-    if (port === 0xd1) {
-      this.ports[port] = this.keyboard.get(this.ports[0xd0], 0xd0);
-    } else if (port === 0xd2) {
-      this.ports[port] = this.keyboard.get(this.ports[0xd2], 0xd2);
-    } else if ((port & 0x03) === 3) {
+    if (port === this.KEYBOARD_STATUS_PORT) {
+      this.ports[port] = this.keyboard.get(
+        this.ports[this.KEYBOARD_SELECT_PORT],
+        this.KEYBOARD_SELECT_PORT
+      );
+    } else if (port === this.KEYBOARD_DATA_PORT) {
+      this.ports[port] = this.keyboard.get(
+        this.ports[this.KEYBOARD_DATA_PORT],
+        this.KEYBOARD_DATA_PORT
+      );
+    } else if ((port & this.PPI_CONTROL_REGISTER) === this.PPI_CONTROL_REGISTER) {
       // Per the i8255A/i8255A-5 datasheet, the Control Word Register is
       // write-only: "The Control Word Register can Only be written into.
       // No Read operation of the Control Word Register is allowed."
@@ -103,13 +127,17 @@ export class IO {
 
     // The PC-01 "Lviv" implements partial I/O port address decoding
     //[http://lvovpc.ho.ua/forum/viewtopic.php?p=2219#p2219]
-    port = 0xc0 + (port & this.decoding_mask);
+    port = this.PPI_BASE_PORT + (port & this.decoding_mask);
 
-    if ((port & 0x03) === 3 && (w8 & 0x80) === 0) {
-      const mask = 0x01 << ((w8 & 0x0e) >> 1),
+    // Bit 7 == 0 selects the bit set/reset mode.
+    if (
+      (port & this.PPI_CONTROL_REGISTER) === this.PPI_CONTROL_REGISTER &&
+      (w8 & PPI_MODE_BIT) === 0
+    ) {
+      const mask = 0x01 << ((w8 & BSR_BIT_MASK) >> BSR_BIT_SHIFT),
         target = port - 1;
 
-      if (w8 & 0x01) {
+      if (w8 & BSR_SET_BIT) {
         this.output(target, this.input(target) | mask);
       } else {
         this.output(target, this.input(target) & ~mask);

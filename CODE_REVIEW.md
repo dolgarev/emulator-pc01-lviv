@@ -255,16 +255,6 @@ accessors (dozens of `get_b`/`set_b`/`get_af`/…), flag handling, lookup tables
 
 ### P2 — Structural improvements
 
-#### P2.3 Magic numbers and strings — ⏳
-
-- `memory.js`: memory maps `80/144/256`, string aliases `'standard'/'default'`, bit arithmetic like
-  `((... & 0x07) - 4)`; 16+ copy-pasted `new MemPage({ begin: 0xc000 })` blocks.
-- `keyboard.js`: masks such as `0x23ff` with no documented format.
-- `io.js`: port bits are partly named, but `0xd0/0xd1/0xd2` decoding is scattered.
-
-**Suggested fix:** named constants (`MEM_MAP.STD_80`, `EXTENDED_MODE_BIT`, `PORT.MEDIA`, …); build
-the memory page layout with a loop instead of manual repetition.
-
 #### P2.5 Web Worker for CPU emulation — ⏳
 
 Move `I8080.run()` into a Web Worker so heavy computation does not block the main thread, improving
@@ -510,6 +500,20 @@ longer steps the CPU while suspended. Covered by a new `test/computerProfile.tes
 
 Side effect: the old `init()` mutated the shared nested `DEFAULT_SETTINGS` objects (leaking nodes
 across instances); that is gone.
+
+#### P2.3 Magic numbers and strings — ✅ done
+
+- `memory.js`: the memory maps (80/144/256) and their legacy string aliases are now `MEM_MAP` +
+  `MEM_MAP_ALIASES`; page geometry (`PAGE_SHIFT` / `PAGE_MASK` / `PAGE_SIZE` / `PAGE_OFFSET_MASK`),
+  bank indices and the extended-RAM decoding constants (`EXTENDED_BANK_SHIFT`, `EXTENDED_PAGE_MASK`,
+  `EXTENDED_PAGE_BASE`, `PAGES_PER_BANK_SHIFT`) are named. The 16 copy-pasted
+  `new MemPage({ begin: 0xc000 })` blocks became a loop that pushes four pages per extended bank.
+- `io.js`: the keyboard ports are named (`KEYBOARD_SELECT_PORT` / `KEYBOARD_STATUS_PORT` /
+  `KEYBOARD_DATA_PORT`), plus `EXTENDED_MEMORY_BIT`, `PPI_BASE_PORT`, `PPI_CONTROL_REGISTER` and the
+  i8255A bit set/reset constants (`PPI_MODE_BIT`, `BSR_*`).
+- `keyboard.js`: the opaque `{ mask: 0x… }` literals were already replaced during P3.1.
+- Verified: `get_mem_page_index()` matches the previous implementation over 30,720 input
+  combinations, and the page layouts are 5 / 9 / 21 pages for 80 / 144 / 256 KiB.
 
 #### P2.4 `Memory.transfer()` returns `offset` or `false` — ✅ fixed
 
