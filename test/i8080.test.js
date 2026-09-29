@@ -130,4 +130,96 @@ describe('I8080', () => {
     expect(cpu.get_state().PC).toBe(0x0000);
     expect(cpu.get_state().AF >> 8).toBe(0x00);
   });
+
+  describe('opcode fetch and traps', () => {
+    const TRAP_ADDR = 0x4000; // RAM page, so tests can seed the shadowed byte
+
+    /** `Traps` keeps its handlers in a plain Map; there is no public setter. */
+    const installTrap = (traps, addr, handler) => traps.traps.set(addr, handler);
+
+    it('fetches the opcode from memory when no trap is installed', () => {
+      const { cpu, memory } = createCore();
+      memory.write(TRAP_ADDR, 0x3c); // INR A
+      cpu.pc = TRAP_ADDR;
+
+      expect(cpu.instruction()).toBe(5);
+      expect(cpu.a()).toBe(1);
+      expect(cpu.pc).toBe(TRAP_ADDR + 1);
+    });
+
+    it('executes the opcode supplied by a trap and ignores the memory byte', () => {
+      const { cpu, memory, traps } = createCore();
+      memory.write(TRAP_ADDR, 0x76); // HLT - must never run
+      installTrap(traps, TRAP_ADDR, () => 0x3c); // INR A
+      cpu.pc = TRAP_ADDR;
+
+      expect(cpu.instruction()).toBe(5);
+      expect(cpu.a()).toBe(1);
+      expect(cpu.pc).toBe(TRAP_ADDR + 1);
+      expect(cpu.is_halted).toBe(false);
+    });
+
+    it('executes NOP when a trap returns NOPE_OPTCODE (async file load pending)', () => {
+      const { cpu, memory, traps } = createCore();
+      memory.write(TRAP_ADDR, 0x76); // HLT - must never run
+      installTrap(traps, TRAP_ADDR, () => cpu.getNopeOptcode());
+      cpu.pc = TRAP_ADDR;
+
+      expect(cpu.instruction()).toBe(4); // NOP
+      expect(cpu.pc).toBe(TRAP_ADDR + 1);
+      expect(cpu.is_halted).toBe(false);
+    });
+
+    it('falls back to the memory byte when a trap returns UNDEF_OPTCODE', () => {
+      const { cpu, memory, traps } = createCore();
+      memory.write(TRAP_ADDR, 0x3c); // INR A
+      installTrap(traps, TRAP_ADDR, () => cpu.getUndefOptcode());
+      cpu.pc = TRAP_ADDR;
+
+      expect(cpu.instruction()).toBe(5);
+      expect(cpu.a()).toBe(1);
+      expect(cpu.pc).toBe(TRAP_ADDR + 1);
+    });
+
+    it('falls back to the memory byte when a trap returns no opcode at all', () => {
+      const { cpu, memory, traps } = createCore();
+      memory.write(TRAP_ADDR, 0x3c); // INR A
+      installTrap(traps, TRAP_ADDR, () => undefined);
+      cpu.pc = TRAP_ADDR;
+
+      expect(cpu.instruction()).toBe(5);
+      expect(cpu.a()).toBe(1);
+      expect(cpu.pc).toBe(TRAP_ADDR + 1);
+    });
+
+    it('can never fetch the 0x100 sentinel as an opcode', () => {
+      const { cpu, memory, traps } = createCore();
+      installTrap(traps, TRAP_ADDR, () => cpu.getUndefOptcode());
+
+      // The sentinel is 0x100, while a memory byte is always 0..255 (Uint8Array),
+      // so the fallback fetch always terminates with a real opcode.
+      expect(cpu.getUndefOptcode()).toBe(0x100);
+      memory.write(TRAP_ADDR, cpu.getUndefOptcode()); // stored as 0x00
+      expect(memory.read(TRAP_ADDR)).toBe(0x00);
+
+      cpu.pc = TRAP_ADDR;
+
+      expect(cpu.instruction()).toBe(4); // NOP
+      expect(cpu.pc).toBe(TRAP_ADDR + 1);
+    });
+
+    it('lets a real trap handler jump and delegate the fetch back to memory', () => {
+      const { cpu, traps } = createCore();
+      traps.activate('default', { cpu });
+
+      expect(traps.has(0xe55e)).toBe(true);
+
+      cpu.pc = 0xe55e; // CLOAD (2): jumps to 0xe561 and returns UNDEF_OPTCODE
+      cpu.instruction();
+
+      // The shortcut sets pc and delegates the fetch, so the byte at the jump
+      // target is fetched (unloaded ROM reads as NOP) and pc lands past it.
+      expect(cpu.pc).toBe(0xe562);
+    });
+  });
 });

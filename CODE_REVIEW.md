@@ -272,12 +272,6 @@ Add JSDoc/TypeScript types at least for public interfaces (`Settings`, `Memory`,
 README was rewritten for v2.0 (installation, controls, file formats, architecture, credits, license);
 an `ARCHITECTURE.md` is still missing. Adding screenshots to the README is also pending.
 
-#### P3.5 `get_optcode()` potential infinite loop — ⏳
-
-The loop continues while the fetched opcode equals `UNDEF_OPTCODE`. If `memory_read_byte` ever
-returned `0x100` (impossible for a `Uint8Array`, but the contract is undocumented), the loop would
-never terminate. Document the contract or add a guard.
-
 #### P3.6 PWA support — ⏳
 
 Add a Service Worker and Web App Manifest for offline use (this is Phase 2 of the Roadmap).
@@ -603,3 +597,30 @@ Kept on purpose:
 - Comments are now in English across `src/`. The PC-01 key names in `keyboard.js` (`ЗБ`, `ТАБ`,
   `ДИА`, `РУС`, `ЛАТ`, …) are kept verbatim because they are the key labels shown in the UI help
   dialog.
+
+#### P3.5 `get_optcode()` potential infinite loop — ✅ done (the loop was already gone)
+
+The item described the v1 `for` loop that kept fetching while the opcode equalled
+`I8080.UNDEF_OPTCODE` (`0x100`). That loop was replaced by an `if` in `e166909` ("Refactor i8080
+Traps to use Map"); `17da445` later renamed the constant to a module-level `UNDEF_OPTCODE` and added
+the `Number.isInteger()` guard. The current `get_optcode()` (`src/i8080.js:207`) contains no loop at
+all, so the risk described by this item no longer exists.
+
+The sentinel contract is now pinned by tests (`test/i8080.test.js`, "opcode fetch and traps"):
+
+- no trap, a trap returning `UNDEF_OPTCODE` (`getUndefOptcode()`), and a trap returning a non-integer
+  all fall back to the byte at `pc`;
+- a trap returning an opcode (`0x3c`, or `NOPE_OPTCODE` = `0x00` while an async file load is pending)
+  shadows the memory byte;
+- the sentinel can never be fetched: `MemPage.read()` returns a `Uint8Array` element (0..255), so
+  `0x100` is unreachable — and `execute()` would throw on an unknown opcode anyway (`default:`);
+- a real profile trap (`0xe55e`, CLOAD) sets `pc` and lets the fetch continue from the jump target.
+
+Where `0x100` is used: `src/i8080.js:44` (definition), `:208` (initial sentinel), `:220` (the only
+comparison), `:1173` (`getUndefOptcode()`), and the three trap handlers that return it
+(`src/traps.js:40`, `:80`, `:86`).
+
+Still open nearby (not part of this item): `gosub()` runs `do { … } while (this.pc !== ret_pc)` with
+no iteration limit, so a subroutine that never returns would freeze the UI thread. It is called from
+the tape traps (`src/traps.js`), and `i8080.js` is the upstream CPU core, so it needs a separate
+decision.
