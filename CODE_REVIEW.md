@@ -1,6 +1,7 @@
 # Emulator PC-01 Lviv — Review, Roadmap and Backlog
 
 > Date: 2026-09-26
+> Last updated: 2026-09-29
 > Branch: `dev-spa-version`
 > Scope: all modules in `src/`, `index.html`, project documentation
 > This document consolidates the former `CODE_REVIEW.md`, `IMPROVEMENTS.md` and
@@ -75,13 +76,16 @@ Migration option comparison:
 **Phase 3 (Code quality) — ⏳ IN PROGRESS:**
 - ✅ Rendering architecture refactored (Screen ↔ Viewport)
 - ✅ Known bugs closed
-- ⏳ Tests
-- ⏳ Architecture documentation
+- ✅ Game loop rebuilt: a single `requestAnimationFrame` with a fixed timestep, at the real PC-01
+  clock speed
+- ✅ DOM-free core + headless test suite (Vitest, 61 tests in 9 files)
+- ⏳ `ARCHITECTURE.md` and JSDoc types (P3.4)
+- ⏳ Web Worker for the CPU (P2.5), `.editorconfig` + CI (P2.10)
 
 **Next steps:**
-1. Finish Phase 3: add tests, move the CPU to a Web Worker, improve the game loop
-2. Start Phase 2: add PWA support
-3. Consider the rendering optimizations in P3 (by priority)
+1. Start Phase 2: add PWA support (P3.6) — the last migration phase
+2. Phase 3 leftovers: `ARCHITECTURE.md` (P3.4), tests for `io.js`, CI (P2.10)
+3. Opportunistically: `i8080.js` modernization (P1.2), Web Worker (P2.5), rendering (P3.7 / P3.8)
 
 ---
 
@@ -219,15 +223,16 @@ export default defineConfig({
 
 **3.3. Code modernization**
 - ✅ ES modules
-- ⏳ ES6+ classes — 18/19, `i8080.js` remains
-- ⏳ `evt.which` → `evt.code` (currently `evt.keyCode`)
+- ⏳ ES6+ classes — 18/19, `i8080.js` remains (P1.2)
+- ✅ `evt.which` → `evt.keyCode` → `evt.code` (P3.1)
 - ✅ `webkitImageSmoothingEnabled` → `imageSmoothingEnabled`
 - ✅ Typos (`standart`, `Unknownn`)
 
-**3.4. Tests — ⏳**
-- ⏳ Unit tests for I8080 (CPU exerciser)
-- ⏳ Tests for Memory, IO
-- ⏳ Integration test: snapshot load → correct CPU/memory state
+**3.4. Tests — ✅ done, still growing**
+- ✅ Unit tests for I8080, Memory, Storage, Screen, Keyboard, Clock, Config
+- ✅ Integration test: emulated frame timing and the real PC-01 clock speed
+- ✅ Snapshot round-trip (`get_snapshot()` ↔ `set_snapshot()`) and `.e3` load
+- ⏳ `io.js` has no test of its own; the 8080 Exerciser ROM remains a possible CPU oracle
 
 ---
 
@@ -239,13 +244,13 @@ Priority legend: **P0** critical, **P1** high maintainability impact, **P2** str
 
 ### P1 — Highest maintainability impact
 
-#### P1.2 `i8080.js` is an ES3-style monolith (1179 lines) — ⏳
+#### P1.2 `i8080.js` is an ES3-style monolith (1174 lines) — ⏳
 
 The only file still written as `function I8080` + `prototype`. It mixes responsibilities: register
 accessors (dozens of `get_b`/`set_b`/`get_af`/…), flag handling, lookup tables (`parity_table`,
 `half_carry_table`), opcode fetch, and a ~900-line `switch` in `execute()`. Related legacy style:
-`store_flags()` has no-op `else` branches; `var` declarations were re-scoped to `let`/`const` with
-`{}` blocks inside `case`.
+`store_flags()` has redundant `else` branches (reviewed in P3.2); `var` declarations were re-scoped
+to `let`/`const` with `{}` blocks inside `case`.
 
 **Suggested fix (incremental, without losing speed):**
 1. Convert to `class I8080`; move lookup tables to `static` fields or a separate module.
@@ -258,7 +263,9 @@ accessors (dozens of `get_b`/`set_b`/`get_af`/…), flag handling, lookup tables
 #### P2.5 Web Worker for CPU emulation — ⏳
 
 Move `I8080.run()` into a Web Worker so heavy computation does not block the main thread, improving
-UI responsiveness.
+UI responsiveness. Now unblocked: the core is DOM-free (P2.6) and can be instantiated inside a worker
+as is. The remaining work is the message protocol (start/pause/reset, key state, snapshot, frame
+buffer, PCM) and moving `Clock` and the `Screen` pixel buffer across the worker boundary.
 
 #### P2.10 `.editorconfig` and CI — ⏳
 
@@ -286,7 +293,7 @@ Notes for PC-01: resolution 256×256; video memory stores 4 pixels per byte → 
 coordinate system is non-standard and needs careful handling. **Gain:** largest for text editors,
 menus and static screens.
 
-#### P3.8 Rendering improvement ideas
+#### P3.8 Rendering improvement ideas (candidate list, not a single task)
 
 1. **Dirty rectangle tracking** — see P3.7.
 2. **WebGL rendering** — upload `ImageData` to a WebGL texture, render via a palette shader, add
@@ -309,7 +316,7 @@ menus and static screens.
 Priority within this list: **P1** dirty rectangle tracking, dynamic aspect ratio; **P2** HiDPI,
 adaptive scaling, fullscreen; **P3** WebGL, color filters, animations, statistics.
 
-#### P3.9 Feature backlog
+#### P3.9 Feature backlog (candidate list, not a single task)
 
 - **Gamepad support** (Gamepad API) for joysticks.
 - **Fullscreen mode** (see P3.8.8).
@@ -337,9 +344,17 @@ adaptive scaling, fullscreen; **P3** WebGL, color filters, animations, statistic
 
 ## Recommended next steps
 
-1. **Convert `i8080.js` to a class and extract opcodes** (P1.2) — builds on the new test suite.
-2. **Extend the test suite** with the 8080 Exerciser ROM and snapshot fixtures.
-3. Tidy the remaining P2/P3 items opportunistically as the code is touched.
+1. **Add PWA support** (Phase 2 / P3.6) — the last migration phase: Service Worker, Web App
+   Manifest, caching of `data/*.bin`.
+2. **Extend the test suite** — an `io.js` test, the 8080 Exerciser ROM as a CPU oracle, snapshot
+   fixtures.
+3. **Write `ARCHITECTURE.md`** (P3.4) — the module split (DOM-free core vs. browser shell) is now
+   stable enough to document.
+4. Work on the structural leftovers when the code is touched anyway: `i8080.js` modernization (P1.2),
+   Web Worker (P2.5), `.editorconfig` + CI (P2.10), rendering (P3.7 / P3.8).
+
+Only **P1.2, P2.5, P2.10, P3.4, P3.6 and P3.7** are open tasks. Everything else in the backlog is
+either done (see [Completed](#completed)) or a candidate list (P3.8, P3.9).
 
 ---
 
@@ -404,15 +419,18 @@ Manifest v2 Chrome Packaged Apps were removed from Chrome in 2024. **Fix:** migr
 
 #### P1.1 No tests (largest gap) and no `test` script — ✅ fixed
 
-Added Vitest (`npm test` / `npm run test:watch`) and a first suite of **41 tests across 7 files**.
-They run headless (no DOM) against the decoupled core, using a shared `test/helpers.js`:
+Added Vitest (`npm test` / `npm run test:watch`) and a headless suite, since grown to **61 tests
+across 9 files**. They run without a DOM against the decoupled core, using a shared `test/helpers.js`
+(`createCore()`):
 - `i8080` — instruction execution: immediates, register moves, arithmetic flags, `JMP`, `CALL`/`RET`,
-  `PUSH`/`POP`, `run()` frame stepping, halt;
+  `PUSH`/`POP`, `run()` frame stepping, halt, plus the opcode-fetch/trap contract (P3.5);
 - `Memory` — RAM read/write, ROM write protection, `restart()`, `transfer()` (Array/DataView, bounds,
   unsupported type), `get_state()` size, video-memory page;
 - `Storage` — snapshot size and `get_snapshot()` ↔ `set_snapshot()` round-trip, `.e3` load, rejects;
 - `Screen` — `parse_color` and color caches, palette index range, `draw()` dirty tracking;
-- `Clock`, `Config`, `Keyboard`.
+- `Keyboard` / `KeyboardBinding` — key matrix and the `evt.code` mapping;
+- `ComputerProfile` — the fixed-timestep loop via a fake ticker, including the real PC-01 clock speed;
+- `Clock`, `Config`.
 
 The full 8080 Exerciser ROM remains a possible future oracle for exhaustive CPU coverage.
 
@@ -441,11 +459,10 @@ tree-shaking and code splitting. (Supersedes the old ES3-style, manually-ordered
 `package.json`, ESLint (Flat Config), Prettier and husky/lint-staged are configured. CI/CD
 (GitHub Actions) is still missing (see P2.10).
 
-#### P1.7 Deprecated web APIs — ✅ (partial)
+#### P1.7 Deprecated web APIs — ✅
 
 `webkitImageSmoothingEnabled` replaced with the standard `imageSmoothingEnabled`. `evt.which` was
-replaced with `evt.keyCode` as a tactical fix; full migration to `evt.code` is still pending
-(see P3.1).
+first replaced with `evt.keyCode` as a tactical fix and later with `evt.code` (P3.1).
 
 #### P1.8 Typos and license hygiene — ✅
 
