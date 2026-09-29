@@ -18,8 +18,10 @@
 import { Config } from './config.js';
 import { IO } from './io.js';
 import { Memory } from './memory.js';
-import { Viewport } from './viewport.js';
 import { assertInstance } from './utils/assert.js';
+
+const VRAM_SIZE = 0x4000;
+const PIXELS_PER_BYTE = 4;
 
 const BLACK = 0;
 const BLUE = 1;
@@ -34,7 +36,7 @@ const GRAYSCALE_GREEN_WEIGHT = 0x96; // 150/255 ≈ 0.588 (BT.601 standard: 0.58
 const GRAYSCALE_BLUE_WEIGHT = 0x4c; // 76/255 ≈ 0.298 (BT.601 standard: 0.114)
 
 export class Screen {
-  constructor(config, io, memory, viewport) {
+  constructor(config, io, memory) {
     assertInstance(config, Config, 'SCREEN: Invalid CONFIG object');
     this.config = config;
 
@@ -44,12 +46,10 @@ export class Screen {
     assertInstance(memory, Memory, 'SCREEN: Invalid MEMORY object');
     this.vram_page = memory.get_vram_page();
 
-    assertInstance(viewport, Viewport, 'SCREEN: Invalid VIEWPORT object');
-    this.viewport = viewport;
     this.init();
 
     this.cache_palette = void 0;
-    this.cache = new Uint8Array(0x4000);
+    this.cache = new Uint8Array(VRAM_SIZE);
     this.reset_cache();
 
     this.allow_color_mode = config.screen.allow_color_mode;
@@ -77,22 +77,9 @@ export class Screen {
   static cache_grayscale = [];
 
   init() {
-    this.canvas = this.viewport.canvas;
-
-    // Get 2D context for creating ImageData (rendering is done by Viewport)
-    const context = this.canvas.getContext('2d');
-    if (!context) {
-      throw new Error('SCREEN: 2D context not supported');
-    }
-
-    this.image_data = context.createImageData(
-      this.viewport.CANVAS_WIDTH,
-      this.viewport.CANVAS_HEIGHT
-    );
-
     //Переход на Uint32Array по результатам теста "Canvas Pixel Manipulation"
     //[http://jsperf.com/canvas-pixel-manipulation/98]
-    this.ps32 = new Uint32Array(this.image_data.data.buffer, 0, this.image_data.data.length >> 2);
+    this.ps32 = new Uint32Array(VRAM_SIZE * PIXELS_PER_BYTE);
 
     this.ps32.fill(0xff000000);
 
@@ -234,7 +221,7 @@ export class Screen {
     const vram = this.vram_page;
     let dirty = this.dirty;
 
-    for (let i = 0, pos = 0; i < 0x4000; i++) {
+    for (let i = 0, pos = 0; i < VRAM_SIZE; i++) {
       const byte = vram.mem[i];
 
       if (is_valid && byte === cache[i]) {
@@ -264,7 +251,7 @@ export class Screen {
 
     if (dirty) {
       this.dirty = false;
-      return this.image_data;
+      return this.ps32;
     }
 
     return null;

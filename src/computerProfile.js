@@ -17,7 +17,7 @@
 
 import { Tape } from './tape.js';
 import { DnD } from './dnd.js';
-import { Keyboard } from './keyboard.js';
+import { KeyboardBinding } from './keyboardBinding.js';
 import { Dump } from './dump.js';
 import { Notify } from './notify.js';
 import { assertInstance } from './utils/assert.js';
@@ -28,6 +28,7 @@ const PROFILE_DEPENDENCIES = [
   'config',
   'beeper',
   'keyboard',
+  'keyboard_binding',
   'io',
   'memory',
   'rom',
@@ -50,6 +51,7 @@ export class ComputerProfile {
     config,
     beeper,
     keyboard,
+    keyboard_binding,
     io,
     memory,
     rom,
@@ -67,6 +69,7 @@ export class ComputerProfile {
     this.config = config;
     this.beeper = beeper;
     this.keyboard = keyboard;
+    this.keyboard_binding = keyboard_binding;
     this.io = io;
     this.memory = memory;
     this.rom = rom;
@@ -288,8 +291,8 @@ export class ComputerProfile {
     // Remove every listener registered by initAsync() in one call.
     this.listener_controller.abort();
 
-    if (this.keyboard instanceof Keyboard) {
-      this.keyboard.terminate();
+    if (this.keyboard_binding instanceof KeyboardBinding) {
+      this.keyboard_binding.terminate();
     }
 
     if (this.dnd instanceof DnD) {

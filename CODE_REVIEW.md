@@ -289,11 +289,14 @@ the memory page layout with a loop instead of manual repetition.
 Move `I8080.run()` into a Web Worker so heavy computation does not block the main thread, improving
 UI responsiveness.
 
-#### P2.6 Separate UI from emulation logic — ⏳
+#### P2.6 Separate UI from emulation logic — ⏳ (in progress)
 
-The emulator is still coupled to the DOM (`Viewport`, `Keyboard`). Extracting pure emulation modules
-without DOM dependencies would simplify testing and portability. (The config layer is already
-decoupled — see P2.2.)
+Extracting pure emulation modules without DOM dependencies simplifies testing and portability.
+
+**Done:** `Settings`/config (P2.2); `Screen` (produces a plain pixel buffer; `Viewport` wraps it into
+`ImageData` with zero copy); `Keyboard` (pure key-state logic, with DOM events moved to the new
+`KeyboardBinding`).
+**Remaining:** `Beeper` (Web Audio sink) and `ComputerProfile` (frame loop/timers and UI events).
 
 #### P2.10 `.editorconfig` and CI — ⏳
 

@@ -40,6 +40,7 @@ export class Viewport {
     this.CANVAS_WIDTH = 256;
     this.SCALE = 2;
     this.ASPECT_RATIO = ASPECT_RATIO;
+    this.image_data = void 0;
 
     this.init();
   }
@@ -53,7 +54,7 @@ export class Viewport {
   terminate() {
     if (this.canvas instanceof HTMLCanvasElement) {
       this.canvas.remove();
-      this.container = this.canvas = null;
+      this.container = this.canvas = this.image_data = null;
     }
   }
 
@@ -78,23 +79,29 @@ export class Viewport {
     this.canvas.style.height = `${scaledHeight}px`;
   }
 
-  render(image_data) {
-    if (!image_data) return;
+  render(pixels) {
+    if (!pixels) return;
 
     const context = this.canvas.getContext('2d');
     if (!context) {
       throw new Error('VIEWPORT: 2D context not available');
     }
 
+    // ImageData shares the Screen's pixel buffer (no copy).
+    this.image_data ??= new ImageData(
+      new Uint8ClampedArray(pixels.buffer),
+      this.CANVAS_WIDTH,
+      this.CANVAS_HEIGHT
+    );
+
     // Enable image smoothing for better visual quality
     context.imageSmoothingEnabled = IMAGE_SMOOTHING_ENABLED;
 
-    context.putImageData(image_data, 0, 0);
+    context.putImageData(this.image_data, 0, 0);
   }
 
   renderScreen(screen) {
-    const image_data = screen.draw();
-    this.render(image_data);
+    this.render(screen.draw());
   }
 
   takeScreenshoot(cb) {

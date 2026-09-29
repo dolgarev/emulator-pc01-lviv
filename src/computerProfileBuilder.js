@@ -20,6 +20,7 @@ import { Config } from './config.js';
 import { DomResolver } from './domResolver.js';
 import { Beeper } from './beeper.js';
 import { Keyboard } from './keyboard.js';
+import { KeyboardBinding } from './keyboardBinding.js';
 import { IO } from './io.js';
 import { Memory } from './memory.js';
 import { Rom } from './rom.js';
@@ -52,6 +53,7 @@ export class ComputerProfileBuilder {
     this._storage = null;
     this._beeper = null;
     this._keyboard = null;
+    this._keyboard_binding = null;
     this._io = null;
     this._memory = null;
     this._rom = null;
@@ -116,6 +118,21 @@ export class ComputerProfileBuilder {
   withKeyboard(keyboard) {
     assertInstance(keyboard, Keyboard, 'COMPUTER_PROFILE_BUILDER: Invalid Keyboard object');
     this._keyboard = keyboard;
+    return this;
+  }
+
+  /**
+   * Sets the keyboard DOM binding (created automatically if not provided).
+   * @param {KeyboardBinding} keyboard_binding - The keyboard binding.
+   * @returns {ComputerProfileBuilder}
+   */
+  withKeyboardBinding(keyboard_binding) {
+    assertInstance(
+      keyboard_binding,
+      KeyboardBinding,
+      'COMPUTER_PROFILE_BUILDER: Invalid KeyboardBinding object'
+    );
+    this._keyboard_binding = keyboard_binding;
     return this;
   }
 
@@ -285,6 +302,7 @@ export class ComputerProfileBuilder {
     this._dom ??= new DomResolver(this._settings);
     this._beeper ??= new Beeper(this._config, this._clock);
     this._keyboard ??= new Keyboard();
+    this._keyboard_binding ??= new KeyboardBinding(this._keyboard);
     this._io ??= new IO(this._config, this._beeper, this._keyboard);
     this._memory ??= new Memory(this._config, this._io);
     this._rom ??= new Rom(this._config, this._memory);
@@ -292,7 +310,7 @@ export class ComputerProfileBuilder {
     this._cpu ??= new I8080(this._config, this._memory, this._io, this._traps, this._clock);
     this._storage ??= new Storage(this._cpu, this._memory, this._io);
     this._viewport ??= new Viewport(this._dom.viewport_container);
-    this._screen ??= new Screen(this._config, this._io, this._memory, this._viewport);
+    this._screen ??= new Screen(this._config, this._io, this._memory);
     this._tape ??= new Tape(this._config);
     this._dnd ??= new DnD(this._config, this._dom.dnd_container);
 
@@ -303,6 +321,7 @@ export class ComputerProfileBuilder {
       config: this._config,
       beeper: this._beeper,
       keyboard: this._keyboard,
+      keyboard_binding: this._keyboard_binding,
       io: this._io,
       memory: this._memory,
       rom: this._rom,
