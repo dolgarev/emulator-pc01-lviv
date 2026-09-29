@@ -19,6 +19,7 @@ import { Config } from './config.js';
 import { IO } from './io.js';
 import { Memory } from './memory.js';
 import { Viewport } from './viewport.js';
+import { assertInstance } from './utils/assert.js';
 
 const BLACK = 0;
 const BLUE = 1;
@@ -34,24 +35,16 @@ const GRAYSCALE_BLUE_WEIGHT = 0x4c; // 76/255 ≈ 0.298 (BT.601 standard: 0.114)
 
 export class Screen {
   constructor(config, io, memory, viewport) {
-    if (!(config instanceof Config)) {
-      throw new Error('SCREEN: Invalid CONFIG object');
-    }
+    assertInstance(config, Config, 'SCREEN: Invalid CONFIG object');
     this.config = config;
 
-    if (!(io instanceof IO)) {
-      throw new Error('SCREEN: Invalid IO object');
-    }
+    assertInstance(io, IO, 'SCREEN: Invalid IO object');
     this.io = io;
 
-    if (!(memory instanceof Memory)) {
-      throw new Error('SCREEN: Invalid MEMORY object');
-    }
+    assertInstance(memory, Memory, 'SCREEN: Invalid MEMORY object');
     this.vram_page = memory.get_vram_page();
 
-    if (!(viewport instanceof Viewport)) {
-      throw new Error('SCREEN: Invalid VIEWPORT object');
-    }
+    assertInstance(viewport, Viewport, 'SCREEN: Invalid VIEWPORT object');
     this.viewport = viewport;
     this.init();
 

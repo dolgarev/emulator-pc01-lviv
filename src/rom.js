@@ -16,12 +16,11 @@
  */
 
 import { Config } from './config.js';
+import { assertInstance } from './utils/assert.js';
 
 export class Rom {
   constructor(config, memory) {
-    if (!(config instanceof Config)) {
-      throw new Error('ROM: Invalid CONFIG object');
-    }
+    assertInstance(config, Config, 'ROM: Invalid CONFIG object');
     this.config = config;
 
     if (typeof memory?.get_rom_page !== 'function') {

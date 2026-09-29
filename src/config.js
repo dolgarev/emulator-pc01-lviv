@@ -16,12 +16,11 @@
  */
 
 import { Settings } from './settings.js';
+import { assertInstance } from './utils/assert.js';
 
 export class Config {
   constructor(emu_settings, profile) {
-    if (!(emu_settings instanceof Settings)) {
-      throw new Error('CONFIG: Invalid emulator settings');
-    }
+    assertInstance(emu_settings, Settings, 'CONFIG: Invalid emulator settings');
 
     let settings;
     switch (profile || emu_settings.computer.profile) {

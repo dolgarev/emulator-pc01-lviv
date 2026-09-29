@@ -19,12 +19,11 @@ import { Settings } from './settings.js';
 import { ComputerProfile } from './computerProfile.js';
 import { ComputerProfileBuilder } from './computerProfileBuilder.js';
 import { Dump } from './dump.js';
+import { assertInstance } from './utils/assert.js';
 
 export class Computer {
   constructor(emu_settings, dom) {
-    if (!(emu_settings instanceof Settings)) {
-      throw new Error('COMPUTER: Invalid emulator settings');
-    }
+    assertInstance(emu_settings, Settings, 'COMPUTER: Invalid emulator settings');
     this.settings = emu_settings;
     this.dom = dom;
 
@@ -101,9 +100,7 @@ export class Computer {
   }
 
   get_description() {
-    if (!(this.profile instanceof ComputerProfile)) {
-      throw new Error('COMPUTER: Invalid ComputerProfile object');
-    }
+    assertInstance(this.profile, ComputerProfile, 'COMPUTER: Invalid ComputerProfile object');
 
     return this.profile.get_description();
   }

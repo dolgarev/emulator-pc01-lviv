@@ -17,12 +17,11 @@
 
 import { Config } from './config.js';
 import { Notify } from './notify.js';
+import { assertInstance } from './utils/assert.js';
 
 export class Tape {
   constructor(config) {
-    if (!(config instanceof Config)) {
-      throw new Error('TAPE: Invalid CONFIG object');
-    }
+    assertInstance(config, Config, 'TAPE: Invalid CONFIG object');
     this.config = config;
   }
 

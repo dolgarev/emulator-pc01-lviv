@@ -18,22 +18,17 @@
 import { Config } from './config.js';
 import { Beeper } from './beeper.js';
 import { Keyboard } from './keyboard.js';
+import { assertInstance } from './utils/assert.js';
 
 export class IO {
   constructor(config, beeper, keyboard) {
-    if (!(config instanceof Config)) {
-      throw new Error('IO: Invalid CONFIG object');
-    }
+    assertInstance(config, Config, 'IO: Invalid CONFIG object');
     this.config = config;
 
-    if (!(beeper instanceof Beeper)) {
-      throw new Error('IO: Invalid BEEPER object');
-    }
+    assertInstance(beeper, Beeper, 'IO: Invalid BEEPER object');
     this.beeper = beeper;
 
-    if (!(keyboard instanceof Keyboard)) {
-      throw new Error('IO: Invalid KEYBOARD object');
-    }
+    assertInstance(keyboard, Keyboard, 'IO: Invalid KEYBOARD object');
     this.keyboard = keyboard;
 
     //port 0xF0

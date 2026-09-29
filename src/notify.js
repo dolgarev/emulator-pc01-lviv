@@ -15,6 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import { assertInstance } from './utils/assert.js';
+
 export class Notify {
   static instance = null;
 
@@ -35,9 +37,7 @@ export class Notify {
       return Notify.instance;
     }
 
-    if (!(node instanceof HTMLElement)) {
-      throw new Error('NOTIFY: Invalid element');
-    }
+    assertInstance(node, HTMLElement, 'NOTIFY: Invalid element');
 
     this.node = node;
     this.delay = delay;

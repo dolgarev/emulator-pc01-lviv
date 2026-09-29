@@ -21,6 +21,7 @@ import { Keyboard } from './keyboard.js';
 import { Dump } from './dump.js';
 import { Notify } from './notify.js';
 import { Storage } from './storage.js';
+import { assertInstance } from './utils/assert.js';
 
 export class ComputerProfile {
   /**
@@ -300,9 +301,7 @@ export class ComputerProfile {
   }
 
   async load(data) {
-    if (!(data instanceof DataView)) {
-      throw new Error('PROFILE: Param DATA is not DataView');
-    }
+    assertInstance(data, DataView, 'PROFILE: Param DATA is not DataView');
 
     switch (data.getUint8(0x09)) {
       case 0x2f:
@@ -351,9 +350,7 @@ export class ComputerProfile {
   }
 
   async load_dump(dump) {
-    if (!(dump instanceof Dump)) {
-      throw new Error('PROFILE: Received invalid DUMP object');
-    }
+    assertInstance(dump, Dump, 'PROFILE: Received invalid DUMP object');
 
     switch (dump.type) {
       case 'lvt':
@@ -402,9 +399,7 @@ export class ComputerProfile {
   }
 
   attach_file(file) {
-    if (!(file instanceof DataView)) {
-      throw new Error('PROFILE: Param FILE is not DataView');
-    }
+    assertInstance(file, DataView, 'PROFILE: Param FILE is not DataView');
 
     this.attached_file = file;
   }

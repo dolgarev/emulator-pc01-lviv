@@ -17,6 +17,7 @@
 
 import { Config } from './config.js';
 import { Clock } from './clock.js';
+import { assertInstance } from './utils/assert.js';
 
 export class Beeper {
   constructor(config, clock) {
@@ -27,14 +28,10 @@ export class Beeper {
     //[https://github.com/jeromeetienne/webaudiox]
     //[http://blog.jetienne.com/blog/2014/02/18/webaudiox-a-dry-library-for-webaudio-api/]
 
-    if (!(config instanceof Config)) {
-      throw new Error('BEEPER: Invalid CONFIG object');
-    }
+    assertInstance(config, Config, 'BEEPER: Invalid CONFIG object');
     this.config = config;
 
-    if (!(clock instanceof Clock)) {
-      throw new Error('BEEPER: Invalid CLOCK object');
-    }
+    assertInstance(clock, Clock, 'BEEPER: Invalid CLOCK object');
     this.clock = clock;
 
     this.SAMPLE_RATE = 44100;

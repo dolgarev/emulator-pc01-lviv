@@ -1,8 +1,8 @@
+import { assertInstance } from './utils/assert.js';
+
 export class Storage {
   static bload(data) {
-    if (!(data instanceof DataView)) {
-      throw new Error('STORAGE: Param DATA is not DataView');
-    }
+    assertInstance(data, DataView, 'STORAGE: Param DATA is not DataView');
 
     const type = data.getUint8(0x09),
       offset = this.cpu.memory_read_word(0xbeab),
@@ -27,9 +27,7 @@ export class Storage {
   }
 
   static cload(data) {
-    if (!(data instanceof DataView)) {
-      throw new Error('STORAGE: Param DATA is not DataView');
-    }
+    assertInstance(data, DataView, 'STORAGE: Param DATA is not DataView');
 
     const type = data.getUint8(0x09),
       begin = this.cpu.memory_read_word(0x0243),
@@ -50,9 +48,7 @@ export class Storage {
   }
 
   static set_e3_snapshot(data) {
-    if (!(data instanceof DataView)) {
-      throw new Error('PROFILE: Param DATA is not DataView');
-    }
+    assertInstance(data, DataView, 'PROFILE: Param DATA is not DataView');
 
     let offset = 0x240;
 
@@ -91,9 +87,7 @@ export class Storage {
   }
 
   static set_snapshot(data) {
-    if (!(data instanceof DataView)) {
-      throw new Error('PROFILE: Param DATA is not DataView');
-    }
+    assertInstance(data, DataView, 'PROFILE: Param DATA is not DataView');
 
     let offset = 0x11;
 

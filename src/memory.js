@@ -17,17 +17,14 @@
 
 import { Config } from './config.js';
 import { IO } from './io.js';
+import { assertInstance } from './utils/assert.js';
 
 export class Memory {
   constructor(config, io) {
-    if (!(config instanceof Config)) {
-      throw new Error('MEMORY: Invalid CONFIG object');
-    }
+    assertInstance(config, Config, 'MEMORY: Invalid CONFIG object');
     this.config = config;
 
-    if (!(io instanceof IO)) {
-      throw new Error('MEMORY: Invalid IO object');
-    }
+    assertInstance(io, IO, 'MEMORY: Invalid IO object');
     this.io = io;
 
     this.mem_map = this.config.memory.map;

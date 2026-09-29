@@ -17,15 +17,12 @@
 
 import { Config } from './config.js';
 import { Notify } from './notify.js';
+import { assertInstance } from './utils/assert.js';
 
 export class DnD {
   constructor(config, container) {
-    if (!(config instanceof Config)) {
-      throw new Error('DnD: Invalid CONFIG object');
-    }
-    if (!(container instanceof HTMLElement)) {
-      throw new Error('DnD: Invalid container element');
-    }
+    assertInstance(config, Config, 'DnD: Invalid CONFIG object');
+    assertInstance(container, HTMLElement, 'DnD: Invalid container element');
     this.config = config;
 
     this.node = container;

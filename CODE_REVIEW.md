@@ -273,14 +273,6 @@ code smell that is fragile to refactor.
 **Suggested fix:** turn them into plain functions with explicit arguments `(profile, data)` or into
 `ComputerProfile` instance methods; remove `.call`.
 
-#### P1.4 Duplicated type-check boilerplate — ⏳
-
-The pattern `if (!(x instanceof Config)) throw new Error(...)` is repeated **9+ times** for `Config`
-alone (plus many more for other types), in virtually every constructor.
-
-**Suggested fix:** a single `assertInstance(value, Type, label)` helper in `src/utils/assert.js`, or
-a step toward JSDoc/TypeScript typing.
-
 ### P2 — Structural improvements
 
 #### P2.1 Game loop: `setTimeout` → `requestAnimationFrame` → `setTimeout` — ⏳
@@ -503,6 +495,12 @@ Manifest v2 Chrome Packaged Apps were removed from Chrome in 2024. **Fix:** migr
 (see the Roadmap).
 
 ### P1 — Highest maintainability impact
+
+#### P1.4 Duplicated type-check boilerplate — ✅ fixed
+
+The repeated `if (!(x instanceof Y)) throw new Error(...)` block (52 occurrences across 16 modules)
+was replaced with a single `assertInstance(value, Type, message)` helper in `src/utils/assert.js`.
+Error messages are preserved verbatim, so behavior is unchanged.
 
 #### P1.5 ES modules and bundler — ✅
 

@@ -33,6 +33,7 @@ import { Traps } from './traps.js';
 import { Dump } from './dump.js';
 import { Notify } from './notify.js';
 import { ComputerProfile } from './computerProfile.js';
+import { assertInstance } from './utils/assert.js';
 
 /**
  * ComputerProfileBuilder - Fluent interface for creating a ComputerProfile with dependency injection.
@@ -68,9 +69,7 @@ export class ComputerProfileBuilder {
    * @returns {ComputerProfileBuilder}
    */
   withSettings(settings) {
-    if (!(settings instanceof Settings)) {
-      throw new Error('COMPUTER_PROFILE_BUILDER: Invalid Settings object');
-    }
+    assertInstance(settings, Settings, 'COMPUTER_PROFILE_BUILDER: Invalid Settings object');
     this._settings = settings;
     return this;
   }
@@ -91,9 +90,7 @@ export class ComputerProfileBuilder {
    * @returns {ComputerProfileBuilder}
    */
   withConfig(config) {
-    if (!(config instanceof Config)) {
-      throw new Error('COMPUTER_PROFILE_BUILDER: Invalid Config object');
-    }
+    assertInstance(config, Config, 'COMPUTER_PROFILE_BUILDER: Invalid Config object');
     this._config = config;
     return this;
   }
@@ -104,9 +101,7 @@ export class ComputerProfileBuilder {
    * @returns {ComputerProfileBuilder}
    */
   withBeeper(beeper) {
-    if (!(beeper instanceof Beeper)) {
-      throw new Error('COMPUTER_PROFILE_BUILDER: Invalid Beeper object');
-    }
+    assertInstance(beeper, Beeper, 'COMPUTER_PROFILE_BUILDER: Invalid Beeper object');
     this._beeper = beeper;
     return this;
   }
@@ -117,9 +112,7 @@ export class ComputerProfileBuilder {
    * @returns {ComputerProfileBuilder}
    */
   withKeyboard(keyboard) {
-    if (!(keyboard instanceof Keyboard)) {
-      throw new Error('COMPUTER_PROFILE_BUILDER: Invalid Keyboard object');
-    }
+    assertInstance(keyboard, Keyboard, 'COMPUTER_PROFILE_BUILDER: Invalid Keyboard object');
     this._keyboard = keyboard;
     return this;
   }
@@ -130,9 +123,7 @@ export class ComputerProfileBuilder {
    * @returns {ComputerProfileBuilder}
    */
   withIO(io) {
-    if (!(io instanceof IO)) {
-      throw new Error('COMPUTER_PROFILE_BUILDER: Invalid IO object');
-    }
+    assertInstance(io, IO, 'COMPUTER_PROFILE_BUILDER: Invalid IO object');
     this._io = io;
     return this;
   }
@@ -143,9 +134,7 @@ export class ComputerProfileBuilder {
    * @returns {ComputerProfileBuilder}
    */
   withMemory(memory) {
-    if (!(memory instanceof Memory)) {
-      throw new Error('COMPUTER_PROFILE_BUILDER: Invalid Memory object');
-    }
+    assertInstance(memory, Memory, 'COMPUTER_PROFILE_BUILDER: Invalid Memory object');
     this._memory = memory;
     return this;
   }
@@ -156,9 +145,7 @@ export class ComputerProfileBuilder {
    * @returns {ComputerProfileBuilder}
    */
   withRom(rom) {
-    if (!(rom instanceof Rom)) {
-      throw new Error('COMPUTER_PROFILE_BUILDER: Invalid Rom object');
-    }
+    assertInstance(rom, Rom, 'COMPUTER_PROFILE_BUILDER: Invalid Rom object');
     this._rom = rom;
     return this;
   }
@@ -169,9 +156,7 @@ export class ComputerProfileBuilder {
    * @returns {ComputerProfileBuilder}
    */
   withCPU(cpu) {
-    if (!(cpu instanceof I8080)) {
-      throw new Error('COMPUTER_PROFILE_BUILDER: Invalid I8080 object');
-    }
+    assertInstance(cpu, I8080, 'COMPUTER_PROFILE_BUILDER: Invalid I8080 object');
     this._cpu = cpu;
     return this;
   }
@@ -182,9 +167,7 @@ export class ComputerProfileBuilder {
    * @returns {ComputerProfileBuilder}
    */
   withViewport(viewport) {
-    if (!(viewport instanceof Viewport)) {
-      throw new Error('COMPUTER_PROFILE_BUILDER: Invalid Viewport object');
-    }
+    assertInstance(viewport, Viewport, 'COMPUTER_PROFILE_BUILDER: Invalid Viewport object');
     this._viewport = viewport;
     return this;
   }
@@ -195,9 +178,7 @@ export class ComputerProfileBuilder {
    * @returns {ComputerProfileBuilder}
    */
   withScreen(screen) {
-    if (!(screen instanceof Screen)) {
-      throw new Error('COMPUTER_PROFILE_BUILDER: Invalid Screen object');
-    }
+    assertInstance(screen, Screen, 'COMPUTER_PROFILE_BUILDER: Invalid Screen object');
     this._screen = screen;
     return this;
   }
@@ -208,9 +189,7 @@ export class ComputerProfileBuilder {
    * @returns {ComputerProfileBuilder}
    */
   withTape(tape) {
-    if (!(tape instanceof Tape)) {
-      throw new Error('COMPUTER_PROFILE_BUILDER: Invalid Tape object');
-    }
+    assertInstance(tape, Tape, 'COMPUTER_PROFILE_BUILDER: Invalid Tape object');
     this._tape = tape;
     return this;
   }
@@ -221,17 +200,13 @@ export class ComputerProfileBuilder {
    * @returns {ComputerProfileBuilder}
    */
   withDnD(dnd) {
-    if (!(dnd instanceof DnD)) {
-      throw new Error('COMPUTER_PROFILE_BUILDER: Invalid DnD object');
-    }
+    assertInstance(dnd, DnD, 'COMPUTER_PROFILE_BUILDER: Invalid DnD object');
     this._dnd = dnd;
     return this;
   }
 
   withTraps(traps) {
-    if (!(traps instanceof Traps)) {
-      throw new Error('COMPUTER_PROFILE_BUILDER: Invalid Traps object');
-    }
+    assertInstance(traps, Traps, 'COMPUTER_PROFILE_BUILDER: Invalid Traps object');
     this._traps = traps;
     return this;
   }
@@ -242,9 +217,7 @@ export class ComputerProfileBuilder {
    * @returns {ComputerProfileBuilder}
    */
   withDump(dump) {
-    if (!(dump instanceof Dump)) {
-      throw new Error('COMPUTER_PROFILE_BUILDER: Invalid Dump object');
-    }
+    assertInstance(dump, Dump, 'COMPUTER_PROFILE_BUILDER: Invalid Dump object');
     this._dump = dump;
     return this;
   }
@@ -255,9 +228,7 @@ export class ComputerProfileBuilder {
    * @returns {ComputerProfileBuilder}
    */
   withNotify(notify) {
-    if (!(notify instanceof Notify)) {
-      throw new Error('COMPUTER_PROFILE_BUILDER: Invalid Notify object');
-    }
+    assertInstance(notify, Notify, 'COMPUTER_PROFILE_BUILDER: Invalid Notify object');
     this._notify = notify;
     return this;
   }
@@ -268,9 +239,7 @@ export class ComputerProfileBuilder {
    * @returns {ComputerProfileBuilder}
    */
   withClock(clock) {
-    if (!(clock instanceof Clock)) {
-      throw new Error('COMPUTER_PROFILE_BUILDER: Invalid Clock object');
-    }
+    assertInstance(clock, Clock, 'COMPUTER_PROFILE_BUILDER: Invalid Clock object');
     this._clock = clock;
     return this;
   }
@@ -281,9 +250,7 @@ export class ComputerProfileBuilder {
    * @returns {ComputerProfileBuilder}
    */
   withDomResolver(dom) {
-    if (!(dom instanceof DomResolver)) {
-      throw new Error('COMPUTER_PROFILE_BUILDER: Invalid DomResolver object');
-    }
+    assertInstance(dom, DomResolver, 'COMPUTER_PROFILE_BUILDER: Invalid DomResolver object');
     this._dom = dom;
     return this;
   }
@@ -293,9 +260,7 @@ export class ComputerProfileBuilder {
    * @returns {ComputerProfile}
    */
   buildStandard() {
-    if (!(this._settings instanceof Settings)) {
-      throw new Error('COMPUTER_PROFILE_BUILDER: Settings is required');
-    }
+    assertInstance(this._settings, Settings, 'COMPUTER_PROFILE_BUILDER: Settings is required');
 
     if (typeof this._profile !== 'string') {
       throw new Error('COMPUTER_PROFILE_BUILDER: Profile is required');

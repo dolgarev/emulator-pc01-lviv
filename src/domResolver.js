@@ -16,6 +16,7 @@
  */
 
 import { Settings } from './settings.js';
+import { assertInstance } from './utils/assert.js';
 
 /**
  * Resolves the DOM elements referenced by `Settings` and exposes them to the
@@ -24,9 +25,7 @@ import { Settings } from './settings.js';
  */
 export class DomResolver {
   constructor(settings) {
-    if (!(settings instanceof Settings)) {
-      throw new Error('DOM_RESOLVER: Invalid Settings object');
-    }
+    assertInstance(settings, Settings, 'DOM_RESOLVER: Invalid Settings object');
 
     this.viewport_container = DomResolver.resolve(
       settings.viewport.container.id,
@@ -54,9 +53,7 @@ export class DomResolver {
   static resolve(id, Type, label) {
     const node = document.getElementById(id);
 
-    if (!(node instanceof Type)) {
-      throw new Error(`DOM_RESOLVER: Element ${label} not found`);
-    }
+    assertInstance(node, Type, `DOM_RESOLVER: Element ${label} not found`);
 
     return node;
   }

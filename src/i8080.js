@@ -38,34 +38,25 @@ import { Memory } from './memory.js';
 import { IO } from './io.js';
 import { Traps } from './traps.js';
 import { Clock } from './clock.js';
+import { assertInstance } from './utils/assert.js';
 
 const NOPE_OPTCODE = 0x00;
 const UNDEF_OPTCODE = 0x100;
 
 export function I8080(config, memory, io, traps, clock) {
-  if (!(config instanceof Config)) {
-    throw new Error('CPU: Invalid CONFIG object');
-  }
+  assertInstance(config, Config, 'CPU: Invalid CONFIG object');
   this.config = config;
 
-  if (!(memory instanceof Memory)) {
-    throw new Error('CPU: Invalid MEMORY object');
-  }
+  assertInstance(memory, Memory, 'CPU: Invalid MEMORY object');
   this.memory = memory;
 
-  if (!(io instanceof IO)) {
-    throw new Error('CPU: Invalid IO object');
-  }
+  assertInstance(io, IO, 'CPU: Invalid IO object');
   this.io = io;
 
-  if (!(traps instanceof Traps)) {
-    throw new Error('CPU: Invalid TRAPS object');
-  }
+  assertInstance(traps, Traps, 'CPU: Invalid TRAPS object');
   this.traps = traps;
 
-  if (!(clock instanceof Clock)) {
-    throw new Error('CPU: Invalid CLOCK object');
-  }
+  assertInstance(clock, Clock, 'CPU: Invalid CLOCK object');
   this.clock = clock;
 
   // Registers: b, c, d, e, h, l, m, a
