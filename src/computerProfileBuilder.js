@@ -19,6 +19,7 @@ import { Settings } from './settings.js';
 import { Config } from './config.js';
 import { DomResolver } from './domResolver.js';
 import { Beeper } from './beeper.js';
+import { AudioSink } from './audioSink.js';
 import { Keyboard } from './keyboard.js';
 import { KeyboardBinding } from './keyboardBinding.js';
 import { IO } from './io.js';
@@ -51,6 +52,7 @@ export class ComputerProfileBuilder {
     this._clock = null;
     this._dom = null;
     this._storage = null;
+    this._audio_sink = null;
     this._beeper = null;
     this._keyboard = null;
     this._keyboard_binding = null;
@@ -107,6 +109,17 @@ export class ComputerProfileBuilder {
   withBeeper(beeper) {
     assertInstance(beeper, Beeper, 'COMPUTER_PROFILE_BUILDER: Invalid Beeper object');
     this._beeper = beeper;
+    return this;
+  }
+
+  /**
+   * Sets the audio output sink (created automatically if not provided).
+   * @param {AudioSink} audio_sink - The audio sink.
+   * @returns {ComputerProfileBuilder}
+   */
+  withAudioSink(audio_sink) {
+    assertInstance(audio_sink, AudioSink, 'COMPUTER_PROFILE_BUILDER: Invalid AudioSink object');
+    this._audio_sink = audio_sink;
     return this;
   }
 
@@ -300,7 +313,8 @@ export class ComputerProfileBuilder {
     this._config ??= new Config(this._settings, this._profile);
     this._clock ??= new Clock();
     this._dom ??= new DomResolver(this._settings);
-    this._beeper ??= new Beeper(this._config, this._clock);
+    this._audio_sink ??= new AudioSink(this._config);
+    this._beeper ??= new Beeper(this._config, this._clock, this._audio_sink);
     this._keyboard ??= new Keyboard();
     this._keyboard_binding ??= new KeyboardBinding(this._keyboard);
     this._io ??= new IO(this._config, this._beeper, this._keyboard);

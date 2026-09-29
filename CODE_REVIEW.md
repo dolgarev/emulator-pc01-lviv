@@ -295,8 +295,9 @@ Extracting pure emulation modules without DOM dependencies simplifies testing an
 
 **Done:** `Settings`/config (P2.2); `Screen` (produces a plain pixel buffer; `Viewport` wraps it into
 `ImageData` with zero copy); `Keyboard` (pure key-state logic, with DOM events moved to the new
-`KeyboardBinding`).
-**Remaining:** `Beeper` (Web Audio sink) and `ComputerProfile` (frame loop/timers and UI events).
+`KeyboardBinding`); `Beeper` (pure segment/PCM generation, with Web Audio output moved to the new
+`AudioSink` and injected as a sink).
+**Remaining:** `ComputerProfile` (frame loop/timers and UI events).
 
 #### P2.10 `.editorconfig` and CI — ⏳
 

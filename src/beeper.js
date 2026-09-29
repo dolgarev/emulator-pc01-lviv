@@ -20,19 +20,16 @@ import { Clock } from './clock.js';
 import { assertInstance } from './utils/assert.js';
 
 export class Beeper {
-  constructor(config, clock) {
-    //[http://middleearmedia.com/web-audio-api-basics/]
-    //[https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode]
-    //http://www.html5rocks.com/en/tutorials/webaudio/games/
-    //TODO
-    //[https://github.com/jeromeetienne/webaudiox]
-    //[http://blog.jetienne.com/blog/2014/02/18/webaudiox-a-dry-library-for-webaudio-api/]
-
+  constructor(config, clock, sink) {
     assertInstance(config, Config, 'BEEPER: Invalid CONFIG object');
     this.config = config;
 
     assertInstance(clock, Clock, 'BEEPER: Invalid CLOCK object');
     this.clock = clock;
+
+    // Audio output is an injected sink (e.g. AudioSink), so the beeper itself
+    // stays free of Web Audio / DOM dependencies.
+    this.sink = sink;
 
     this.SAMPLE_RATE = 44100;
     this.SAMPLE_CPU_CYCLES = Math.round(config.cpu.clock_speed / this.SAMPLE_RATE);
@@ -47,28 +44,8 @@ export class Beeper {
     this.init();
   }
 
-  static activate() {
-    try {
-      Beeper.ctx ??= new window.AudioContext();
-      return Beeper.ctx;
-    } catch (error) {
-      console.error('BEEPER: Failed to create AudioContext:', error);
-      return null;
-    }
-  }
-
   init() {
     this.restart();
-
-    if (this.allow_sound) {
-      if (this.config.beeper.allow_highpass_filter) {
-        this.filter = Beeper.ctx.createBiquadFilter();
-        this.filter.type = 'highpass';
-        this.filter.frequency.value = 440;
-        this.filter.Q.value = 0;
-        this.filter.gain.value = 0;
-      }
-    }
   }
 
   restart() {
@@ -78,56 +55,20 @@ export class Beeper {
     this.prev_beeper_state = 0;
   }
 
-  get allow_sound() {
-    return this.config.beeper.allow_sound && !!Beeper.ctx;
-  }
-
   play() {
-    if (!this.allow_sound || this.buffer_index === 0) return;
+    if (!this.config.beeper.allow_sound || this.buffer_index === 0) return;
 
-    const ctx = Beeper.ctx;
-    if (!ctx) return;
+    const data = new Float32Array(this.SAMPLE_BUFFER_SIZE);
 
-    // Auto-resume context with error handling
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch((err) => {
-        console.warn('BEEPER: Failed to resume AudioContext:', err);
-        return;
-      });
-    }
-
-    if (ctx.state !== 'running') {
-      console.warn('BEEPER: AudioContext not running, state:', ctx.state);
-      return;
-    }
-
-    try {
-      const source = ctx.createBufferSource();
-      const buffer = ctx.createBuffer(1, this.SAMPLE_BUFFER_SIZE, this.SAMPLE_RATE);
-      const data = buffer.getChannelData(0);
-      const sample_cpu_cycles = this.SAMPLE_CPU_CYCLES;
-      const volume = this.VOLUME;
-
-      // Generate square wave with sample accumulation
-      this.generateSquareWave(data, sample_cpu_cycles, volume);
-
-      if (this.filter) {
-        source.connect(this.filter);
-        this.filter.connect(ctx.destination);
-      } else {
-        source.connect(ctx.destination);
-      }
-
-      source.buffer = buffer;
-      source.start(0);
-    } catch (error) {
-      console.error('BEEPER: Failed to play sound:', error);
-    }
+    // Generate square wave with sample accumulation
+    this.generateSquareWave(data, this.SAMPLE_CPU_CYCLES, this.VOLUME);
 
     // Reset buffer
     this.buffer_index = 0;
     this.prev_frame_offset = 0;
     this.sample_accumulator = 0;
+
+    this.sink?.play(data, this.SAMPLE_RATE);
   }
 
   // Optimized square wave generation
