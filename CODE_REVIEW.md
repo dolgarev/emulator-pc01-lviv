@@ -264,15 +264,6 @@ accessors (dozens of `get_b`/`set_b`/`get_af`/…), flag handling, lookup tables
 3. Extract the opcode dispatcher into a separate `opcodes.js` module (or table-driven form) so the
    core becomes testable per-opcode.
 
-#### P1.3 `Storage` methods invoked via `.call(this)` — ⏳
-
-`Storage.get_snapshot.call(this)`, `Storage.bload.call(this, data)`, etc. (5 call sites). These
-static methods require `this` to be a `ComputerProfile` with `cpu`/`memory`/`io` fields — a classic
-code smell that is fragile to refactor.
-
-**Suggested fix:** turn them into plain functions with explicit arguments `(profile, data)` or into
-`ComputerProfile` instance methods; remove `.call`.
-
 ### P2 — Structural improvements
 
 #### P2.1 Game loop: `setTimeout` → `requestAnimationFrame` → `setTimeout` — ⏳
@@ -495,6 +486,15 @@ Manifest v2 Chrome Packaged Apps were removed from Chrome in 2024. **Fix:** migr
 (see the Roadmap).
 
 ### P1 — Highest maintainability impact
+
+#### P1.3 `Storage` methods invoked via `.call(this)` — ✅ fixed
+
+`Storage` is now an instance service with injected dependencies (`new Storage(cpu, memory, io)`)
+instead of a set of static methods driven through `.call(this)`. `ComputerProfile` receives it via DI
+and delegates (`this.storage.get_snapshot()`). This also fixed a latent bug: `set_e3_snapshot()`
+called `this.get_rom_page()`/`this.get_vram_page()`, which do not exist on `ComputerProfile`, so
+loading an `.e3` snapshot would throw `TypeError`; it now uses `this.memory.get_rom_page()` /
+`get_vram_page()`.
 
 #### P1.4 Duplicated type-check boilerplate — ✅ fixed
 

@@ -25,6 +25,7 @@ import { Memory } from './memory.js';
 import { Rom } from './rom.js';
 import { I8080 } from './i8080.js';
 import { Clock } from './clock.js';
+import { Storage } from './storage.js';
 import { Viewport } from './viewport.js';
 import { Screen } from './screen.js';
 import { Tape } from './tape.js';
@@ -48,6 +49,7 @@ export class ComputerProfileBuilder {
     this._config = null;
     this._clock = null;
     this._dom = null;
+    this._storage = null;
     this._beeper = null;
     this._keyboard = null;
     this._io = null;
@@ -256,6 +258,17 @@ export class ComputerProfileBuilder {
   }
 
   /**
+   * Sets the storage service (created automatically if not provided).
+   * @param {Storage} storage - The storage service.
+   * @returns {ComputerProfileBuilder}
+   */
+  withStorage(storage) {
+    assertInstance(storage, Storage, 'COMPUTER_PROFILE_BUILDER: Invalid Storage object');
+    this._storage = storage;
+    return this;
+  }
+
+  /**
    * Creates a standard configuration (all components are created automatically).
    * @returns {ComputerProfile}
    */
@@ -277,6 +290,7 @@ export class ComputerProfileBuilder {
     this._rom ??= new Rom(this._config, this._memory);
     this._traps ??= new Traps();
     this._cpu ??= new I8080(this._config, this._memory, this._io, this._traps, this._clock);
+    this._storage ??= new Storage(this._cpu, this._memory, this._io);
     this._viewport ??= new Viewport(this._dom.viewport_container);
     this._screen ??= new Screen(this._config, this._io, this._memory, this._viewport);
     this._tape ??= new Tape(this._config);
@@ -299,6 +313,7 @@ export class ComputerProfileBuilder {
       tape: this._tape,
       dnd: this._dnd,
       dom: this._dom,
+      storage: this._storage,
     });
   }
 

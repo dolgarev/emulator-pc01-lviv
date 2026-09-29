@@ -20,7 +20,6 @@ import { DnD } from './dnd.js';
 import { Keyboard } from './keyboard.js';
 import { Dump } from './dump.js';
 import { Notify } from './notify.js';
-import { Storage } from './storage.js';
 import { assertInstance } from './utils/assert.js';
 
 export class ComputerProfile {
@@ -43,6 +42,7 @@ export class ComputerProfile {
     tape,
     dnd,
     dom,
+    storage,
   }) {
     this.settings = settings;
     this.profile = profile;
@@ -59,6 +59,7 @@ export class ComputerProfile {
     this.tape = tape;
     this.dnd = dnd;
     this.dom = dom;
+    this.storage = storage;
 
     this.attached_file = void 0;
 
@@ -277,7 +278,7 @@ export class ComputerProfile {
       this.dnd.close();
     }
 
-    'settings,config,beeper,keyboard,io,memory,rom,cpu,viewport,screen,tape,dnd,dom'
+    'settings,config,beeper,keyboard,io,memory,rom,cpu,viewport,screen,tape,dnd,dom,storage'
       .split(',')
       .forEach(function (prop) {
         this[prop] = null;
@@ -338,15 +339,15 @@ export class ComputerProfile {
   }
 
   get_snapshot() {
-    return Storage.get_snapshot.call(this);
+    return this.storage.get_snapshot();
   }
 
   set_snapshot(data) {
-    return Storage.set_snapshot.call(this, data);
+    return this.storage.set_snapshot(data);
   }
 
   set_e3_snapshot(data) {
-    return Storage.set_e3_snapshot.call(this, data);
+    return this.storage.set_e3_snapshot(data);
   }
 
   async load_dump(dump) {
@@ -383,11 +384,11 @@ export class ComputerProfile {
   }
 
   bload(data) {
-    return Storage.bload.call(this, data);
+    return this.storage.bload(data);
   }
 
   cload(data) {
-    return Storage.cload.call(this, data);
+    return this.storage.cload(data);
   }
 
   get_file() {

@@ -1,7 +1,37 @@
+/*
+ * Copyright (C) 2014 Oleg Dolgarev <o.dolgarev@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 import { assertInstance } from './utils/assert.js';
+import { Memory } from './memory.js';
+import { IO } from './io.js';
+import { I8080 } from './i8080.js';
 
 export class Storage {
-  static bload(data) {
+  constructor(cpu, memory, io) {
+    assertInstance(cpu, I8080, 'STORAGE: Invalid CPU object');
+    assertInstance(memory, Memory, 'STORAGE: Invalid MEMORY object');
+    assertInstance(io, IO, 'STORAGE: Invalid IO object');
+
+    this.cpu = cpu;
+    this.memory = memory;
+    this.io = io;
+  }
+
+  bload(data) {
     assertInstance(data, DataView, 'STORAGE: Param DATA is not DataView');
 
     const type = data.getUint8(0x09),
@@ -26,7 +56,7 @@ export class Storage {
     }
   }
 
-  static cload(data) {
+  cload(data) {
     assertInstance(data, DataView, 'STORAGE: Param DATA is not DataView');
 
     const type = data.getUint8(0x09),
@@ -47,15 +77,15 @@ export class Storage {
     }
   }
 
-  static set_e3_snapshot(data) {
+  set_e3_snapshot(data) {
     assertInstance(data, DataView, 'PROFILE: Param DATA is not DataView');
 
     let offset = 0x240;
 
     this.io.restart();
     offset = this.memory.transfer(0x0000, 0xbfff, data, offset);
-    offset = this.memory.transfer(0xc000, 0xffff, data, offset, this.get_rom_page(), 'burn');
-    offset = this.memory.transfer(0x4000, 0x7fff, data, offset + 0x29, this.get_vram_page());
+    offset = this.memory.transfer(0xc000, 0xffff, data, offset, this.memory.get_rom_page(), 'burn');
+    offset = this.memory.transfer(0x4000, 0x7fff, data, offset + 0x29, this.memory.get_vram_page());
 
     //PPI1
     this.io.ports[0xc0] = data.getUint8(offset + 0x22);
@@ -86,7 +116,7 @@ export class Storage {
     });
   }
 
-  static set_snapshot(data) {
+  set_snapshot(data) {
     assertInstance(data, DataView, 'PROFILE: Param DATA is not DataView');
 
     let offset = 0x11;
@@ -122,7 +152,7 @@ export class Storage {
     });
   }
 
-  static get_snapshot() {
+  get_snapshot() {
     //Заголовок вида: LVOV/DUMP/2.0/H+\0
     const data = [
       0x4c, 0x56, 0x4f, 0x56, 0x2f, 0x44, 0x55, 0x4d, 0x50, 0x2f, 0x32, 0x2e, 0x30, 0x2f, 0x48,
