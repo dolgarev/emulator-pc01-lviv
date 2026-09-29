@@ -21,11 +21,12 @@ import { ComputerProfileBuilder } from './computerProfileBuilder.js';
 import { Dump } from './dump.js';
 
 export class Computer {
-  constructor(emu_settings) {
+  constructor(emu_settings, dom) {
     if (!(emu_settings instanceof Settings)) {
       throw new Error('COMPUTER: Invalid emulator settings');
     }
     this.settings = emu_settings;
+    this.dom = dom;
 
     this.profile = undefined;
     this.profile_name = 'default';
@@ -43,7 +44,8 @@ export class Computer {
     // Используем ComputerProfileBuilder для создания профиля
     this.profile = ComputerProfileBuilder.createStandard(
       this.settings,
-      this.profile_name === '*' ? undefined : this.profile_name
+      this.profile_name === '*' ? undefined : this.profile_name,
+      this.dom
     );
     await this.profile.initAsync();
   }
@@ -61,7 +63,7 @@ export class Computer {
     if (this.profile instanceof ComputerProfile) {
       this.profile.terminate();
 
-      this.profile = this.profile_name = this.settings = null;
+      this.profile = this.profile_name = this.settings = this.dom = null;
     } else {
       throw new Error('COMPUTER: Invalid ComputerProfile object');
     }

@@ -17,6 +17,7 @@
 
 import { Settings } from './settings.js';
 import { Config } from './config.js';
+import { DomResolver } from './domResolver.js';
 import { Beeper } from './beeper.js';
 import { Keyboard } from './keyboard.js';
 import { IO } from './io.js';
@@ -45,6 +46,7 @@ export class ComputerProfileBuilder {
     this._profile = null;
     this._config = null;
     this._clock = null;
+    this._dom = null;
     this._beeper = null;
     this._keyboard = null;
     this._io = null;
@@ -274,6 +276,19 @@ export class ComputerProfileBuilder {
   }
 
   /**
+   * Sets the DOM resolver (created automatically if not provided).
+   * @param {DomResolver} dom - The DOM resolver.
+   * @returns {ComputerProfileBuilder}
+   */
+  withDomResolver(dom) {
+    if (!(dom instanceof DomResolver)) {
+      throw new Error('COMPUTER_PROFILE_BUILDER: Invalid DomResolver object');
+    }
+    this._dom = dom;
+    return this;
+  }
+
+  /**
    * Creates a standard configuration (all components are created automatically).
    * @returns {ComputerProfile}
    */
@@ -289,6 +304,7 @@ export class ComputerProfileBuilder {
     // Create components if they were not explicitly set
     this._config ??= new Config(this._settings, this._profile);
     this._clock ??= new Clock();
+    this._dom ??= new DomResolver(this._settings);
     this._beeper ??= new Beeper(this._config, this._clock);
     this._keyboard ??= new Keyboard();
     this._io ??= new IO(this._config, this._beeper, this._keyboard);
@@ -296,10 +312,10 @@ export class ComputerProfileBuilder {
     this._rom ??= new Rom(this._config, this._memory);
     this._traps ??= new Traps();
     this._cpu ??= new I8080(this._config, this._memory, this._io, this._traps, this._clock);
-    this._viewport ??= new Viewport(this._settings);
+    this._viewport ??= new Viewport(this._dom.viewport_container);
     this._screen ??= new Screen(this._config, this._io, this._memory, this._viewport);
     this._tape ??= new Tape(this._config);
-    this._dnd ??= new DnD(this._config);
+    this._dnd ??= new DnD(this._config, this._dom.dnd_container);
 
     // Create ComputerProfile with injected dependencies
     return new ComputerProfile({
@@ -317,6 +333,7 @@ export class ComputerProfileBuilder {
       screen: this._screen,
       tape: this._tape,
       dnd: this._dnd,
+      dom: this._dom,
     });
   }
 
@@ -326,7 +343,13 @@ export class ComputerProfileBuilder {
    * @param {string|Object|undefined} profile - Configuration profile (string, object, or undefined).
    * @returns {ComputerProfile}
    */
-  static createStandard(settings, profile) {
-    return new ComputerProfileBuilder().withSettings(settings).withProfile(profile).buildStandard();
+  static createStandard(settings, profile, dom) {
+    const builder = new ComputerProfileBuilder().withSettings(settings).withProfile(profile);
+
+    if (dom !== undefined) {
+      builder.withDomResolver(dom);
+    }
+
+    return builder.buildStandard();
   }
 }

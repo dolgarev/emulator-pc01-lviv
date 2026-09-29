@@ -19,13 +19,16 @@ import { Config } from './config.js';
 import { Notify } from './notify.js';
 
 export class DnD {
-  constructor(config) {
+  constructor(config, container) {
     if (!(config instanceof Config)) {
       throw new Error('DnD: Invalid CONFIG object');
     }
+    if (!(container instanceof HTMLElement)) {
+      throw new Error('DnD: Invalid container element');
+    }
     this.config = config;
 
-    this.node = this.config.dnd.container.node;
+    this.node = container;
 
     this.handlers = {
       dragenter: this.dragenter.bind(this),

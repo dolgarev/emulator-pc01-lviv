@@ -16,16 +16,18 @@
  */
 
 import { Settings } from './settings.js';
+import { DomResolver } from './domResolver.js';
 import { Notify } from './notify.js';
 import { Computer } from './computer.js';
 
 export class Emulator {
   constructor(profile) {
     this.settings = new Settings(profile);
+    this.dom = new DomResolver(this.settings);
 
-    Notify.create(this.settings.notify.node, this.settings.notify.delay);
+    Notify.create(this.dom.notify, this.settings.notify.delay);
 
-    this.computer = new Computer(this.settings);
+    this.computer = new Computer(this.settings, this.dom);
   }
 
   async initAsync() {
@@ -34,8 +36,8 @@ export class Emulator {
   }
 
   init() {
-    if ('help_button' in this.settings.controls) {
-      const node = document.getElementById(this.settings.controls.help_button.node.dataset.target);
+    if (this.dom.help_button) {
+      const node = document.getElementById(this.dom.help_button.dataset.target);
       const clickOnHelpButtonHandler = () => {
         node.classList.add('lightbox_show');
 
@@ -49,7 +51,7 @@ export class Emulator {
       };
       document.addEventListener('ui:click:help_button', clickOnHelpButtonHandler);
 
-      this.settings.controls.help_button?.node?.addEventListener('click', (e) => {
+      this.dom.help_button.addEventListener('click', (e) => {
         e.preventDefault();
         document.dispatchEvent(new CustomEvent('ui:click:help_button'));
       });

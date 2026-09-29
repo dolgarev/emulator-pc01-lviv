@@ -41,6 +41,7 @@ export class ComputerProfile {
     traps,
     tape,
     dnd,
+    dom,
   }) {
     this.settings = settings;
     this.profile = profile;
@@ -56,6 +57,7 @@ export class ComputerProfile {
     this.screen = screen;
     this.tape = tape;
     this.dnd = dnd;
+    this.dom = dom;
 
     this.attached_file = void 0;
 
@@ -93,7 +95,7 @@ export class ComputerProfile {
 
       document.addEventListener('ui:click:load_button', clickOnLoadButtonHandler, { signal });
 
-      this.settings.controls.local_load_button?.node?.addEventListener(
+      this.dom.local_load_button?.addEventListener(
         'click',
         (e) => {
           e.preventDefault();
@@ -274,7 +276,7 @@ export class ComputerProfile {
       this.dnd.close();
     }
 
-    'settings,config,beeper,keyboard,io,memory,rom,cpu,viewport,screen,tape,dnd'
+    'settings,config,beeper,keyboard,io,memory,rom,cpu,viewport,screen,tape,dnd,dom'
       .split(',')
       .forEach(function (prop) {
         this[prop] = null;

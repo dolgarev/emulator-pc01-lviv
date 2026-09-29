@@ -291,15 +291,6 @@ fragile (drift, races on suspend/resume), and `run()` throws when suspended.
 **Suggested fix:** a single `requestAnimationFrame` with a fixed-timestep accumulator and a dynamic
 number of CPU cycles per frame.
 
-#### P2.2 `Settings` mixes data and DOM — ⏳
-
-`Settings` stores configuration but `init()` calls `document.getElementById(...)` and mutates `node`
-fields, throwing when elements are missing. As a result it cannot be instantiated outside a browser
-or unit-tested. Related: the emulator is generally tightly coupled to the DOM (see P2.6).
-
-**Suggested fix:** split into a pure config object plus a `DomResolver`/`UI` bootstrap that locates
-elements and passes them into components.
-
 #### P2.3 Magic numbers and strings — ⏳
 
 - `memory.js`: memory maps `80/144/256`, string aliases `'standard'/'default'`, bit arithmetic like
@@ -323,8 +314,9 @@ UI responsiveness.
 
 #### P2.6 Separate UI from emulation logic — ⏳
 
-The emulator is tightly coupled to the DOM (via `Settings`, `Viewport`, `Keyboard`). Extracting pure
-emulation modules without DOM dependencies would simplify testing and portability.
+The emulator is still coupled to the DOM (`Viewport`, `Keyboard`). Extracting pure emulation modules
+without DOM dependencies would simplify testing and portability. (The config layer is already
+decoupled — see P2.2.)
 
 #### P2.9 `terminate()` property nulling via split string — ⏳
 
@@ -543,6 +535,20 @@ image resembling a real PC-01 black-and-white TV. Replacing it with correct weig
 too dark. The code is kept as is with an explanatory comment.
 
 ### P2 — Structural improvements
+
+#### P2.2 `Settings` mixes data and DOM — ✅ fixed
+
+`Settings` used to resolve DOM nodes in `init()` (`document.getElementById(...)`) and store them in
+`node` fields, so it could not be instantiated outside a browser. Now:
+- `Settings` is pure, frozen configuration data only (`src/settings.js` no longer touches the DOM and
+  is constructible in Node/tests);
+- a new `DomResolver` (`src/domResolver.js`) is the only place that resolves elements by id, with
+  clear errors when an element is missing;
+- `Viewport` and `DnD` receive their container element explicitly, and the resolver is injected
+  through `Emulator` → `Computer` → `ComputerProfileBuilder` → `ComputerProfile`.
+
+Side effect: the old `init()` mutated the shared nested `DEFAULT_SETTINGS` objects (leaking nodes
+across instances); that is gone.
 
 #### P2.7 Screen ↔ Viewport rendering refactor — ✅
 

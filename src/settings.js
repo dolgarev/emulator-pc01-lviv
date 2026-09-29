@@ -24,16 +24,13 @@ const DEFAULT_SETTINGS = {
   controls: {
     local_load_button: {
       id: 'load_button',
-      node: undefined,
     },
     help_button: {
       id: 'help_button',
-      node: undefined,
     },
   },
   notify: {
     id: 'notify',
-    node: undefined,
     delay: 3000,
   },
   beeper: {
@@ -68,7 +65,6 @@ const DEFAULT_SETTINGS = {
     is_connected: true,
     container: {
       id: 'body_container',
-      node: undefined,
     },
     file_extensions: /\.(lv(t|r|[0-9]{1,2})|sav|e3)$/i,
   },
@@ -99,46 +95,6 @@ export class Settings {
       Object.defineProperty(this, prop, { value, enumerable: true });
     }
 
-    this.init();
-
     Object.freeze(this);
-  }
-
-  init() {
-    this.viewport.container.node = document.getElementById(this.viewport.container.id);
-
-    if (!(this.viewport.container.node instanceof HTMLDivElement)) {
-      throw new Error('SETTINGS: Element VIEWPORT not found');
-    }
-
-    this.dnd.container.node = document.getElementById(this.dnd.container.id);
-
-    if (!(this.dnd.container.node instanceof HTMLElement)) {
-      throw new Error('SETTINGS: Element DND not found');
-    }
-
-    if (this.controls.local_load_button) {
-      this.controls.local_load_button.node = document.getElementById(
-        this.controls.local_load_button.id
-      );
-
-      if (!(this.controls.local_load_button.node instanceof HTMLButtonElement)) {
-        throw new Error('SETTINGS: Element LOCAL_LOAD_BUTTON not found');
-      }
-    }
-
-    if (this.controls.help_button) {
-      this.controls.help_button.node = document.getElementById(this.controls.help_button.id);
-
-      if (!(this.controls.help_button.node instanceof HTMLButtonElement)) {
-        throw new Error('SETTINGS: Element HELP_BUTTON not found');
-      }
-    }
-
-    this.notify.node = document.getElementById(this.notify.id);
-
-    if (!(this.notify.node instanceof HTMLElement)) {
-      throw new Error('SETTINGS: Element NOTIFY not found');
-    }
   }
 }

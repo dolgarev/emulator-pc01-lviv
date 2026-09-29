@@ -15,8 +15,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { Settings } from './settings.js';
-
 // Aspect ratio constants for screen scaling
 // Original PC-01 had non-square pixels, modern displays need correct aspect ratio
 const _ASPECT_RATIO_1_1 = 1.0; // Square pixels (current implementation)
@@ -30,13 +28,13 @@ const IMAGE_RENDERING = 'crisp-edges'; // -webkit-optimize-contrast | pixelated 
 const IMAGE_SMOOTHING_ENABLED = false;
 
 export class Viewport {
-  constructor(emu_settings) {
-    if (!(emu_settings instanceof Settings)) {
-      throw new Error('VIEWPORT: Invalid emulator settings');
+  constructor(container) {
+    if (!(container instanceof HTMLDivElement)) {
+      throw new Error('VIEWPORT: Invalid container element');
     }
 
     this.canvas = document.createElement('canvas');
-    this.container = emu_settings.viewport.container.node;
+    this.container = container;
 
     this.CANVAS_HEIGHT = 256;
     this.CANVAS_WIDTH = 256;
