@@ -266,24 +266,6 @@ Add `.editorconfig` and a GitHub Actions workflow for linting.
 
 ### P3 — Polish, features and rendering ideas
 
-#### P3.2 Dead code — ⏳ (partly done)
-
-**Remaining:**
-- `i8080.js` — `store_flags()` has no-op `else f &= ~F_*` branches (deferred: the CPU core needs
-  separate work).
-
-**Removed:**
-- `viewport.js` — the unused `_ASPECT_RATIO_1_1` / `_ASPECT_RATIO_16_9` constants.
-- `Ticker.setTimeout()` / `clearTimeout()` — orphaned once P2.1 replaced the timer chain with a
-  single `requestAnimationFrame`.
-- Unused API: `Dump.list()`, `Tape.store()`, `Emulator.load_dump()`, `Computer.stop()` / `reset()` /
-  `terminate()` / `get_description()` (plus `ComputerProfile.get_description()` and
-  `Rom.get_description()`), `Notify.terminate()`.
-- `local_load_button_handler` — already removed with the P0.1 fix.
-
-**Kept on purpose:** `IO.interrupt()` (a documented no-op hook called by the CPU) and
-`MemPage.is_readable` (symmetry with `is_writable`).
-
 #### P3.4 Typing and documentation — ⏳
 
 Add JSDoc/TypeScript types at least for public interfaces (`Settings`, `Memory`, `I8080`). The
@@ -583,6 +565,26 @@ replaced with an explicit `PROFILE_DEPENDENCIES` array iterated by a `for...of` 
 - The unrolled `get()` loops collapsed into one loop over `state.length` (the obsolete 2012-era
   Chrome-profiler comment is gone).
 - Verified against the previous map: all 78 matrix entries and 21 Alt entries are identical.
+
+#### P3.2 Dead code — ✅ done
+
+Removed:
+- `viewport.js` — the unused `_ASPECT_RATIO_1_1` / `_ASPECT_RATIO_16_9` constants.
+- `Ticker.setTimeout()` / `clearTimeout()` — orphaned once P2.1 replaced the timer chain with a
+  single `requestAnimationFrame`.
+- Unused API: `Dump.list()`, `Tape.store()`, `Emulator.load_dump()`, `Computer.stop()` / `reset()` /
+  `terminate()` / `get_description()` (plus `ComputerProfile.get_description()` and
+  `Rom.get_description()`), `Notify.terminate()`.
+- `local_load_button_handler` — already removed with the P0.1 fix.
+
+Kept on purpose:
+- `IO.interrupt()` — a documented no-op hook called by the CPU.
+- `MemPage.is_readable` — symmetry with `is_writable`.
+- `i8080.js` `store_flags()` — reviewed and left as-is. Its `else f &= ~F_*` branches are reachable
+  (they run when a flag is false) but redundant, because `f` starts at 0 and each flag owns a
+  distinct bit that only its own branch writes. The construct is inherited verbatim from the
+  upstream core (begoon/i8080-js), so it is kept for fidelity. Verified over all 256 flag values:
+  stripping the `else` branches changes nothing.
 
 #### P3.3 Consolidate utilities — ✅ done
 
