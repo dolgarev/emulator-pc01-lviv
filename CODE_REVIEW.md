@@ -289,16 +289,6 @@ the memory page layout with a loop instead of manual repetition.
 Move `I8080.run()` into a Web Worker so heavy computation does not block the main thread, improving
 UI responsiveness.
 
-#### P2.6 Separate UI from emulation logic — ⏳ (in progress)
-
-Extracting pure emulation modules without DOM dependencies simplifies testing and portability.
-
-**Done:** `Settings`/config (P2.2); `Screen` (produces a plain pixel buffer; `Viewport` wraps it into
-`ImageData` with zero copy); `Keyboard` (pure key-state logic, with DOM events moved to the new
-`KeyboardBinding`); `Beeper` (pure segment/PCM generation, with Web Audio output moved to the new
-`AudioSink` and injected as a sink).
-**Remaining:** `ComputerProfile` (frame loop/timers and UI events).
-
 #### P2.10 `.editorconfig` and CI — ⏳
 
 Add `.editorconfig` and a GitHub Actions workflow for linting.
@@ -539,6 +529,20 @@ across instances); that is gone.
 `Memory.transfer()` no longer returns `false` for an invalid data type; it throws
 `TypeError('MEMORY: Param DATA must be an Array or a DataView')` and always returns the new offset
 (consistent with the `RangeError`s it already raised for bounds problems).
+
+#### P2.6 Separate UI from emulation logic — ✅ done
+
+The emulation core is now free of the DOM and browser APIs and can be constructed and tested outside
+a browser: `settings`, `config`, `clock`, `i8080`, `io`, `memory`, `rom`, `dump`, `traps`, `storage`,
+`screen` (plain pixel buffer), `keyboard` (pure key state), `beeper` (pure PCM generation).
+
+The browser parts live in dedicated shell components: `DomResolver`, `KeyboardBinding`, `AudioSink`,
+`UiBinding`, `Ticker`, `Viewport`, `Dnd`, `Notify`, `Tape`, plus `Emulator`/`Computer`.
+
+`ComputerProfile` is now the shell coordinator: it no longer uses `document`/`window` directly and
+drives the machine through injected components — timers/`requestAnimationFrame`/`performance` via
+`Ticker`, and the LOAD button via `UiBinding`. (`Notify` remains a shell singleton used to display
+error messages.)
 
 #### P2.7 Screen ↔ Viewport rendering refactor — ✅
 

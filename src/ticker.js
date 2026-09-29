@@ -1,0 +1,49 @@
+/*
+ * Copyright (C) 2014 Oleg Dolgarev <o.dolgarev@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * Thin adapter over the browser timing primitives (timers,
+ * `requestAnimationFrame` and the performance clock).
+ *
+ * Injecting it keeps `ComputerProfile` free of direct `window` access and lets
+ * the main loop be driven by a fake ticker in tests.
+ */
+export class Ticker {
+  constructor(target = window) {
+    this.target = target;
+  }
+
+  now() {
+    return this.target.performance.now();
+  }
+
+  setTimeout(handler, delay) {
+    return this.target.setTimeout(handler, delay);
+  }
+
+  clearTimeout(timeout_id) {
+    this.target.clearTimeout(timeout_id);
+  }
+
+  requestAnimationFrame(handler) {
+    return this.target.requestAnimationFrame(handler);
+  }
+
+  cancelAnimationFrame(frame_id) {
+    this.target.cancelAnimationFrame(frame_id);
+  }
+}

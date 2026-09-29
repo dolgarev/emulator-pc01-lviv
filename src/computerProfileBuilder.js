@@ -28,6 +28,8 @@ import { Rom } from './rom.js';
 import { I8080 } from './i8080.js';
 import { Clock } from './clock.js';
 import { Storage } from './storage.js';
+import { Ticker } from './ticker.js';
+import { UiBinding } from './uiBinding.js';
 import { Viewport } from './viewport.js';
 import { Screen } from './screen.js';
 import { Tape } from './tape.js';
@@ -67,6 +69,8 @@ export class ComputerProfileBuilder {
     this._traps = null;
     this._dump = null;
     this._notify = null;
+    this._ticker = null;
+    this._ui = null;
   }
 
   /**
@@ -299,6 +303,28 @@ export class ComputerProfileBuilder {
   }
 
   /**
+   * Sets the ticker (created automatically if not provided).
+   * @param {Ticker} ticker - The ticker.
+   * @returns {ComputerProfileBuilder}
+   */
+  withTicker(ticker) {
+    assertInstance(ticker, Ticker, 'COMPUTER_PROFILE_BUILDER: Invalid Ticker object');
+    this._ticker = ticker;
+    return this;
+  }
+
+  /**
+   * Sets the UI binding (created automatically if not provided).
+   * @param {UiBinding} ui - The UI binding.
+   * @returns {ComputerProfileBuilder}
+   */
+  withUiBinding(ui) {
+    assertInstance(ui, UiBinding, 'COMPUTER_PROFILE_BUILDER: Invalid UiBinding object');
+    this._ui = ui;
+    return this;
+  }
+
+  /**
    * Creates a standard configuration (all components are created automatically).
    * @returns {ComputerProfile}
    */
@@ -313,6 +339,8 @@ export class ComputerProfileBuilder {
     this._config ??= new Config(this._settings, this._profile);
     this._clock ??= new Clock();
     this._dom ??= new DomResolver(this._settings);
+    this._ticker ??= new Ticker();
+    this._ui ??= new UiBinding({ load_button: this._dom.local_load_button });
     this._audio_sink ??= new AudioSink(this._config);
     this._beeper ??= new Beeper(this._config, this._clock, this._audio_sink);
     this._keyboard ??= new Keyboard();
@@ -345,7 +373,8 @@ export class ComputerProfileBuilder {
       screen: this._screen,
       tape: this._tape,
       dnd: this._dnd,
-      dom: this._dom,
+      ticker: this._ticker,
+      ui: this._ui,
       storage: this._storage,
     });
   }

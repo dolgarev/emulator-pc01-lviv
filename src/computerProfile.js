@@ -18,6 +18,7 @@
 import { Tape } from './tape.js';
 import { DnD } from './dnd.js';
 import { KeyboardBinding } from './keyboardBinding.js';
+import { UiBinding } from './uiBinding.js';
 import { Dump } from './dump.js';
 import { Notify } from './notify.js';
 import { assertInstance } from './utils/assert.js';
@@ -37,7 +38,8 @@ const PROFILE_DEPENDENCIES = [
   'screen',
   'tape',
   'dnd',
-  'dom',
+  'ticker',
+  'ui',
   'storage',
 ];
 
@@ -61,7 +63,8 @@ export class ComputerProfile {
     traps,
     tape,
     dnd,
-    dom,
+    ticker,
+    ui,
     storage,
   }) {
     this.settings = settings;
@@ -79,7 +82,8 @@ export class ComputerProfile {
     this.screen = screen;
     this.tape = tape;
     this.dnd = dnd;
-    this.dom = dom;
+    this.ticker = ticker;
+    this.ui = ui;
     this.storage = storage;
 
     this.attached_file = void 0;
@@ -92,9 +96,6 @@ export class ComputerProfile {
 
     this.is_paused = false;
     this.is_suspended = false;
-
-    // Groups all profile-scoped event listeners so they can be removed at once.
-    this.listener_controller = new AbortController();
   }
 
   async initAsync() {
@@ -103,9 +104,9 @@ export class ComputerProfile {
     this.traps.activate(this.config.traps.profile, this);
 
     if (this.settings.tape.is_connected) {
-      const clickOnLoadButtonHandler = async (e) => {
-        e.stopPropagation();
+      this.ui.onLoad(async () => {
         if (this.is_suspended) return;
+
         this.suspend();
         try {
           const file = await this.tape.load();
@@ -113,19 +114,7 @@ export class ComputerProfile {
         } finally {
           this.resume();
         }
-      };
-      const { signal } = this.listener_controller;
-
-      document.addEventListener('ui:click:load_button', clickOnLoadButtonHandler, { signal });
-
-      this.dom.local_load_button?.addEventListener(
-        'click',
-        (e) => {
-          e.preventDefault();
-          document.dispatchEvent(new CustomEvent('ui:click:load_button'));
-        },
-        { signal }
-      );
+      });
     }
 
     if (this.settings.dnd.is_connected) {
@@ -151,13 +140,14 @@ export class ComputerProfile {
       f_cycles = this.config.cpu.frame_cycles,
       keyboard = this.keyboard,
       screen = this.screen,
+      ticker = this.ticker,
       viewport = this.viewport,
       timers = this.timers;
 
     if (this.is_suspended) {
       throw new Error('COMPUTER_PROFILE: MAIN LOOP suspended!');
     } else {
-      window.setTimeout(main_loop, 0);
+      ticker.setTimeout(main_loop, 0);
     }
 
     function main_loop() {
@@ -190,26 +180,26 @@ export class ComputerProfile {
         keyboard.reset_special_keys();
       }
 
-      const t_start = window.performance.now();
+      const t_start = ticker.now();
 
       if (!self.is_paused) {
         cpu.run(f_cycles);
       }
 
-      const t_end = window.performance.now();
+      const t_end = ticker.now();
 
       if (!self.is_suspended) {
         const delay = f_duration - ~~(t_end - t_start);
 
-        timers.interrupt = window.setTimeout(interrupt_handler, delay > 0 ? delay : 0);
+        timers.interrupt = ticker.setTimeout(interrupt_handler, delay > 0 ? delay : 0);
       }
     }
 
     function interrupt_handler() {
       beeper.play();
-      timers.animation = window.requestAnimationFrame(() => {
+      timers.animation = ticker.requestAnimationFrame(() => {
         viewport.renderScreen(screen);
-        timers.restart = window.setTimeout(main_loop, 0);
+        timers.restart = ticker.setTimeout(main_loop, 0);
       });
     }
   }
@@ -227,7 +217,7 @@ export class ComputerProfile {
     //Уходим от залипания клавиш
     this.keyboard.reset();
 
-    window.setTimeout(this.run.bind(this), 0);
+    this.ticker.setTimeout(this.run.bind(this), 0);
   }
 
   suspend() {
@@ -241,9 +231,9 @@ export class ComputerProfile {
     this.viewport.renderScreen(this.screen);
     this.beeper.play();
 
-    window.clearTimeout(this.timers.interrupt);
-    window.cancelAnimationFrame(this.timers.animation);
-    window.clearTimeout(this.timers.restart);
+    this.ticker.clearTimeout(this.timers.interrupt);
+    this.ticker.cancelAnimationFrame(this.timers.animation);
+    this.ticker.clearTimeout(this.timers.restart);
   }
 
   reset() {
@@ -288,8 +278,9 @@ export class ComputerProfile {
       this.tape.terminate();
     }
 
-    // Remove every listener registered by initAsync() in one call.
-    this.listener_controller.abort();
+    if (this.ui instanceof UiBinding) {
+      this.ui.terminate();
+    }
 
     if (this.keyboard_binding instanceof KeyboardBinding) {
       this.keyboard_binding.terminate();
