@@ -78,7 +78,7 @@ Migration option comparison:
 - ✅ Known bugs closed
 - ✅ Game loop rebuilt: a single `requestAnimationFrame` with a fixed timestep, at the real PC-01
   clock speed
-- ✅ DOM-free core + headless test suite (Vitest, 72 tests in 11 files)
+- ✅ DOM-free core + headless test suite (Vitest, 82 tests in 12 files)
 - ⏳ `ARCHITECTURE.md` and JSDoc types (P3.4)
 - ⏳ Web Worker for the CPU (P2.5), `.editorconfig` + CI (P2.10)
 
@@ -355,7 +355,8 @@ adaptive scaling, fullscreen; **P3** WebGL, color filters, animations, statistic
   Chrome file system.
 - **Responsive design** for different screen sizes, including mobile.
 - **Improved audio subsystem** — AudioWorklet instead of `ScriptProcessorNode`/`createBufferSource`;
-  volume control; mute.
+  volume control; mute. One remaining beeper limitation: the 1-bit output is not band-limited, so
+  very fast toggles alias into the audible band (the real machine fed a TV speaker instead).
 - **Loading ROM/dumps from the network** (by URL), not only local files.
 - **Snapshot round-trip** — already covered by the tests in P1.1.
 
@@ -712,3 +713,46 @@ Still open nearby (not part of this item): `gosub()` runs `do { … } while (thi
 no iteration limit, so a subroutine that never returns would freeze the UI thread. It is called from
 the tape traps (`src/traps.js`), and `i8080.js` is the upstream CPU core, so it needs a separate
 decision.
+
+#### P3.10 Beeper and audio output fixes — ✅ done
+
+The beeper was still the 2014 implementation (added in `cc0ebc5` as `js/beeper.js`); the 2026
+refactors had only changed its plumbing (`Clock` injection in P0.2, `AudioSink` extraction in P2.6).
+An audit found five defects, all of them audible, three of them original:
+
+1. **No scheduling on the audio clock.** `AudioSink` used `source.start(0)`, so every buffer began
+   whenever the animation frame happened to run and rAF jitter (±several ms under load) spliced the
+   sound. Buffers are now queued at `max(currentTime, next_start_time)`, and the queue is
+   resynchronised after an underrun or when it runs more than 0.5 s ahead of the clock.
+2. **The wave restarted every frame.** `generateSquareWave()` started from a local `state = 0`, so the
+   first segment of each frame was rendered as a low level whatever the beeper was really doing: about
+   0.5 ms of forced silence plus a phase jump, 50 times per second. The level is now carried across
+   frames, and the run that the frame boundary cuts is finished by the tail of the frame.
+3. **A frame was not exactly one frame long.** `round(clock_speed / 44100)` cycles per sample plus
+   `ceil()` on the buffer gave −0.23 % at the nominal clock and +1.70 % at `speed_factor` 0.6, and a
+   1000 Hz tone measured 983 Hz (about −30 cents). Samples now come from a continuous resampler with a
+   fractional carry across frames, and exactly `frame_duration × sample_rate` samples are emitted.
+4. **DC offset instead of a bipolar wave.** The wave was generated as `0…VOLUME`, i.e. with a DC offset
+   of half the amplitude, and the only remedy was the optional 440 Hz highpass, which cuts the
+   fundamentals of low notes. The wave is bipolar now (±`VOLUME/2`: same loudness, no DC) and the
+   optional filter is a 20 Hz DC blocker. It is also created on demand — it used to be built in the
+   constructor, when no `AudioContext` exists yet, so the option silently did nothing.
+5. **Overflow flushed a partial frame.** The segment buffer was `2 × SAMPLE_BUFFER_SIZE` (a guess: at
+   the nominal clock a fast beeper produced ~1792 level changes against 1794 slots) and overflow called
+   `play()` in the middle of a frame, dropping the rest of it and warning every time. The buffer is now
+   sized from the worst case (one change per 8 cycles) and excess changes are dropped instead: above
+   the audible band they cannot be heard.
+
+Also: the beeper asks the sink for its `sample_rate` (the output device rate, e.g. 48 kHz) instead of
+hard-coding 44100, so the browser no longer resamples every buffer; a suspended `AudioContext` warns
+once instead of 50 times per second; and `process()` no longer merges a repeated write into the
+previous run (which fused two runs and distorted the waveform) — a run is now measured from the last
+level change or from the frame boundary.
+
+Tests: `test/beeper.test.js` (frame length and rate, level continuity across frames, run length from
+the frame boundary, tone frequency, bipolar output, overflow) and `test/audioSink.test.js` (queueing
+on the audio clock, underrun resync, device sample rate, lazy DC blocker, warn-once, no context).
+
+Measured over 100 frames of a 1000 Hz tone: the audio per frame is exactly 20.000 ms at every speed
+factor, the tone measures 1000 Hz, the DC offset is 0 and no frame starts with a forced low level
+(before: 19.955/20.340 ms, 983 Hz, DC 0.075, 0.5 ms).
