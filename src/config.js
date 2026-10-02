@@ -142,6 +142,15 @@ export class Config {
       settings.beeper.ignore_control_bit = emu_settings.beeper.ignore_control_bit;
     }
 
+    // The emitter the beeper drives: a piezo model or the raw square wave.
+    const speaker_model = emu_settings.beeper.speaker_model ?? 'flat';
+
+    if (!['flat', 'piezo'].includes(speaker_model)) {
+      throw new RangeError('CONFIG: Unknown speaker model');
+    }
+
+    settings.beeper.speaker_model = speaker_model;
+
     if ('image' in emu_settings.rom) {
       settings.rom.image = emu_settings.rom.image;
     }

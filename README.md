@@ -26,7 +26,8 @@ The project began in 2014 as the author's first step into the world of Open Sour
 - Paged memory (maps: 80, 144, 256 KiB) with RAM / ROM / VRAM
 - i8255A programmable peripheral interface (I/O ports, partial address decoding)
 - Video output to `<canvas>` (256×256, color and grayscale modes, switchable palettes)
-- Sound via the Web Audio API (beeper)
+- Sound via the Web Audio API: the beeper through a model of the built-in piezo emitter, or the raw
+  1-bit square wave (`beeper.speaker_model` in `src/settings.js`)
 - Keyboard input, drag & drop, and file loading
 - Snapshot save / load
 

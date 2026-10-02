@@ -78,7 +78,7 @@ Migration option comparison:
 - ✅ Known bugs closed
 - ✅ Game loop rebuilt: a single `requestAnimationFrame` with a fixed timestep, at the real PC-01
   clock speed
-- ✅ DOM-free core + headless test suite (Vitest, 82 tests in 12 files)
+- ✅ DOM-free core + headless test suite (Vitest, 86 tests in 12 files)
 - ⏳ `ARCHITECTURE.md` and JSDoc types (P3.4)
 - ⏳ Web Worker for the CPU (P2.5), `.editorconfig` + CI (P2.10)
 
@@ -355,12 +355,9 @@ adaptive scaling, fullscreen; **P3** WebGL, color filters, animations, statistic
   Chrome file system.
 - **Responsive design** for different screen sizes, including mobile.
 - **Improved audio subsystem** — AudioWorklet instead of `ScriptProcessorNode`/`createBufferSource`;
-  volume control; mute; a model of the built-in **piezo emitter** the beeper drives (the PC-01 used the
-  same kind of membrane as push-button telephones and the handheld LCD games of that era). It is a
-  resonant load with a peak in the low kHz range and very little low end, so the raw 1-bit square wave
-  is only an approximation of the real timbre — and, being unfiltered, it also lets very fast toggles
-  alias into the audible band. Note that a piezo element is capacitive, so it blocks DC by itself: the
-  real machine never had the offset problem the emulator had before P3.10.
+  volume control; mute. The 1-bit output is still not band-limited when it is generated, so very fast
+  toggles alias into the audible band: the piezo model of P3.11 makes that less audible, but it cannot
+  undo aliasing that has already happened at the sample rate.
 - **Loading ROM/dumps from the network** (by URL), not only local files.
 - **Snapshot round-trip** — already covered by the tests in P1.1.
 
@@ -761,6 +758,57 @@ Measured over 100 frames of a 1000 Hz tone: the audio per frame is exactly 20.00
 factor, the tone measures 1000 Hz, the DC offset is 0 and no frame starts with a forced low level
 (before: 19.955/20.340 ms, 983 Hz, DC 0.075, 0.5 ms).
 
-What the beeper does *not* model yet is the emitter itself: the samples go into the Web Audio graph as
-raw square waves, while the real machine drove a built-in piezo emitter with a strongly frequency
-dependent response (see P3.9).
+What the beeper did not model at that point was the emitter itself: the samples went into the Web Audio
+graph as raw square waves. That is what P3.11 adds.
+
+#### P3.11 Piezo emitter model — ✅ done
+
+The beeper fed its raw 1-bit square wave straight into the Web Audio graph, i.e. the emulator had no
+emitter at all. The real PC-01 does **not** drive the TV speaker (an earlier note in this document
+said so and was wrong): the sound leaves the mainboard through an **open-collector gate** (D29,
+К155ЛА8/7401) on the **PB7** bit of the main PPI and reaches the emitter via the **BUZZER** pin (16) of
+the keyboard connector — so the emitter sits on the keyboard PCB, and it is a built-in **piezo
+emitter** (the manual speaks of «динамик (капсуль)», and a piezo disc is exactly what an
+open-collector gate with a series resistor drives).
+
+Evidence collected for this item:
+
+- [codepainters/lvov](https://github.com/codepainters/lvov): `docs/cpu_pio.md` («`PB7` controls a
+  speaker»), `docs/connectors.md` (the `BUZZER` row of the keyboard connector) and the rebuilt
+  schematic (`sch/pio.kicad_sch`, `sch/pdf/lviv_sch.pdf`, the `SPKR` net).
+- The ROM settles the data path: the BEEP entry point at `0xDE94` toggles port `0xC2` between `0xFF`
+  and `0xFE`, i.e. **PC0** — the same bit that goes to the tape recorder, which is why the tape
+  load/save sound comes out of the built-in emitter. This matches `src/io.js` (`BEEPER_MODE_BIT` = PB7
+  as the enable, `BEEPER_BIT` = PC0 as the level).
+- `roms/Lvov1.rom` there is byte-identical to our `public/data/rom-1990.bin`.
+- The keyboard layout scan (`orig/keyboard_pcb.jpg`) shows a single round emitter with a centre pad
+  next to R14, its silkscreen labels mirrored (`ВА1`/`ЗП…`).
+
+What could **not** be established is the emitter's type and resonance: the surviving parts list
+(`orig/partlist.djvu`) and the keyboard schematic are DjVu scans and no DjVu tooling is available on
+this machine (`ddjvu`/`djvutxt` from djvulibre are absent), so the numbers below are a plausible
+approximation, not data for the real part. Whoever reads that scan can pin them down.
+
+Implementation (`src/audioSink.js`) — a chain of biquads in front of the output:
+
+| Stage | Type | Frequency | Notes |
+| --- | --- | --- | --- |
+| DC blocker (optional, `allow_highpass_filter`) | highpass | 20 Hz | only needed in `flat` mode: a piezo is capacitive and blocks DC by itself |
+| Low end | highpass | 400 Hz | the disc moves almost no air below this |
+| Resonance | peaking | 3000 Hz, +9 dB, Q 1 | mechanical resonance of a small disc |
+| Top end | lowpass | 10 kHz | rolls off instead of ringing |
+
+`beeper.speaker_model` in `src/settings.js` switches between `'piezo'` (default) and `'flat'` (the
+previous behaviour, the raw square wave); an unknown value throws `RangeError` in `Config`.
+
+Measured by rendering tones through the real chain in an `OfflineAudioContext` (level relative to
+`flat`, which is flat by definition):
+
+| 100 Hz | 200 Hz | 400 Hz | 1 kHz | 2 kHz | 3 kHz | 6 kHz | 10 kHz | 15 kHz |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| −23.8 dB | −11.1 dB | +0.2 dB | +1.9 dB | +5.4 dB | +9.3 dB | +3.6 dB | +0.7 dB | −12.0 dB |
+
+Low beeper notes therefore become much quieter and the low-kHz notes louder — the thin, sharp
+character of the real machine, which the emulator never had. Tests (`test/audioSink.test.js`): the
+chain of each model, that it is built once, that `flat` builds no nodes, and that the DC blocker stays
+independent of the model.

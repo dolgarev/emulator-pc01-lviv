@@ -57,6 +57,22 @@ describe('Config', () => {
     expect(config.cpu.effective_clock_speed).toBe(5376000);
   });
 
+  it('models the piezo emitter of the real machine by default', () => {
+    const config = new Config(new Settings('default'), 'pc01_lvov_80');
+
+    expect(config.beeper.speaker_model).toBe('piezo');
+  });
+
+  it('accepts the flat speaker model and rejects unknown ones', () => {
+    const settings = new Settings('default');
+
+    settings.beeper.speaker_model = 'flat';
+    expect(new Config(settings, 'pc01_lvov_80').beeper.speaker_model).toBe('flat');
+
+    settings.beeper.speaker_model = 'bass-reflex';
+    expect(() => new Config(settings, 'pc01_lvov_80')).toThrow(RangeError);
+  });
+
   it('exposes the memory map and ROM image', () => {
     const config = new Config(new Settings('default'), 'pc01_lvov_80');
 

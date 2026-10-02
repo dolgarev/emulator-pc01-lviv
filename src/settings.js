@@ -19,6 +19,9 @@ const DEFAULT_SETTINGS = {
   beeper: {
     allow_sound: true,
     allow_highpass_filter: false,
+    // Emitter model of the real machine: 'piezo' (the built-in piezo emitter -
+    // resonant, almost no low end) or 'flat' (the raw 1-bit square wave).
+    speaker_model: 'piezo',
   },
   cpu: {
     // Emulated CPU speed relative to the documented clock of the machine:
