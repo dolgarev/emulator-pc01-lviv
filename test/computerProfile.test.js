@@ -186,6 +186,42 @@ describe('ComputerProfile main loop', () => {
     expect(ticker.frames).toHaveLength(0);
   });
 
+  it('keeps a single loop when the machine resumes from inside a frame', () => {
+    const { profile, ticker, cpu } = createProfile({ frame_duration: 10, frame_cycles: 1000 });
+
+    // Loading an attached tape file resumes the machine from the trap, i.e. from
+    // inside the frame that is executing.
+    let resumed = false;
+    const run = cpu.run.bind(cpu);
+    cpu.run = (cycles) => {
+      if (!resumed) {
+        resumed = true;
+        profile.suspend();
+        profile.resume();
+      }
+      run(cycles);
+    };
+
+    profile.run();
+    expect(ticker.frames).toHaveLength(1);
+
+    ticker.time = 10;
+    step(ticker); // this frame resumes the machine
+
+    expect(resumed).toBe(true);
+    expect(profile.is_suspended).toBe(false);
+    // The frame that was interrupted must not schedule a second loop.
+    expect(ticker.frames).toHaveLength(1);
+
+    // Two loops would run two emulated frames where the fixed timestep allows one.
+    for (let i = 0; i < 10; i++) {
+      ticker.time += 10;
+      step(ticker);
+    }
+
+    expect(cpu.cycles).toBe(11 * 1000);
+  });
+
   it('emulates the real PC-01 clock speed with the default frame timing', () => {
     const { profile, ticker, cpu } = createProfile({ frame_duration: 20, frame_cycles: 44800 });
 

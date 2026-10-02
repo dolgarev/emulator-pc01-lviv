@@ -78,6 +78,7 @@ export class ComputerProfile {
     this.attached_file = void 0;
 
     this.animation_frame = void 0;
+    this.loop_token = void 0;
 
     this.is_paused = false;
     this.is_suspended = false;
@@ -132,10 +133,22 @@ export class ComputerProfile {
       return;
     }
 
+    // A trap handler can resume the machine from inside the frame that is executing
+    // (loading an attached tape file does exactly that), and resume() starts a new
+    // loop then. The token marks the loop that is allowed to keep running: without
+    // it the frame that was interrupted would queue itself again as well and two
+    // loops would run in parallel, doubling the emulated frame rate and the amount
+    // of sound produced per second.
+    const loop = (this.loop_token = {});
+
     let prev_time = ticker.now();
     let accumulator = 0;
 
     function frame() {
+      if (self.loop_token !== loop) {
+        return;
+      }
+
       if (keyboard.special_keys) {
         switch (keyboard.special_keys) {
           case keyboard.IS_PAUSE:
@@ -191,7 +204,7 @@ export class ComputerProfile {
 
       viewport.renderScreen(screen);
 
-      if (!self.is_suspended) {
+      if (!self.is_suspended && self.loop_token === loop) {
         self.animation_frame = ticker.requestAnimationFrame(frame);
       }
     }

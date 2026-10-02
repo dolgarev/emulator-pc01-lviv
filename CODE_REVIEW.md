@@ -78,7 +78,7 @@ Migration option comparison:
 - ✅ Known bugs closed
 - ✅ Game loop rebuilt: a single `requestAnimationFrame` with a fixed timestep, at the real PC-01
   clock speed
-- ✅ DOM-free core + headless test suite (Vitest, 89 tests in 13 files)
+- ✅ DOM-free core + headless test suite (Vitest, 90 tests in 13 files)
 - ⏳ `ARCHITECTURE.md` and JSDoc types (P3.4)
 - ⏳ Web Worker for the CPU (P2.5), `.editorconfig` + CI (P2.10)
 
@@ -461,8 +461,8 @@ shorter than it. Covered by `test/fileFormat.test.js`.
 
 #### P1.1 No tests (largest gap) and no `test` script — ✅ fixed
 
-Added Vitest (`npm test` / `npm run test:watch`) and a headless suite, since grown to **65 tests
-across 10 files**. They run without a DOM against the decoupled core, using a shared `test/helpers.js`
+Added Vitest (`npm test` / `npm run test:watch`) and a headless suite, since grown to **90 tests
+across 13 files**. They run without a DOM against the decoupled core, using a shared `test/helpers.js`
 (`createCore()`):
 - `i8080` — instruction execution: immediates, register moves, arithmetic flags, `JMP`, `CALL`/`RET`,
   `PUSH`/`POP`, `run()` frame stepping, halt, plus the opcode-fetch/trap contract (P3.5);
@@ -863,3 +863,63 @@ and for the profile that ignores PB7.
 For P3.11: the gate has an open-collector output, so the rising edge is set by the pull-up charging the
 capacitance of the emitter (sharp falling edge, exponential rising edge), while the model there still
 uses a plain square wave. The pull-up is not on this sheet.
+
+#### P3.13 Duplicated animation loop after a synchronous resume — ✅ fixed
+
+**Symptom.** With a `.lvt` application (`public/data/apps/almazy_lviv.lvt`, the melody on its splash
+screen) the sound was rough - the tone sounded doubled - and the machine itself ran about 1.66x too
+fast. The same defect had earlier been reported as notes overlapping from time to time.
+
+**Cause.** The BLOAD trap resumes the machine from *inside* the frame that is executing: for a `.lvt`
+dump `load_dump()` attaches the file, so the trap finds `exists_attached_file()` true and runs
+`install()` synchronously, which ends with `this.resume()` -> `run()`. `suspend()` had cancelled the
+pending animation frame, but the interrupted `frame()` was still on the stack and at its tail
+`is_suspended` was already `false` again, so it queued *itself* as well. Two loops then ran in
+parallel, each with its own accumulator: 99.7 emulated frames per second instead of 50, and two
+pending `requestAnimationFrame` callbacks instead of one.
+
+Two audible consequences:
+
+- The machine produced 1.66x the audio per second: a 20 ms buffer arrived every ~12 ms of wall time, so
+  neighbouring buffers always overlapped by a few milliseconds and the tone doubled itself. Measured
+  3706-3886 ms of overlap per 10 s of melody, up to 9 sources at once when animation frames were
+  dropped.
+- With the audio-clock queue of P3.10 still in place the lead grew twice as fast as wall time and hit
+  its 500 ms cap every few seconds. The resynchronisation then restarted the schedule 50 ms ahead of
+  the audio clock, i.e. on top of audio that was still queued: up to **25 sources simultaneously** -
+  the "notes overlapping every few seconds" that started this investigation, and the reason the queue
+  looked guilty and was reverted.
+
+**Why it stayed hidden.** Only the attached-file path resumes synchronously. A `.sav` dump and a plain
+boot read the file asynchronously (`tape.load().then(...)`), so the interrupted frame sees itself
+suspended and does not queue a second loop. The speed check made after the turbo work therefore
+measured 1.02x on Moon Tracker (a `.sav` dump) and missed it.
+
+**Fix.** `ComputerProfile.run()` stores a generation token (`loop_token`); `frame()` returns at once
+when it is no longer the current loop and re-queues itself only while it still owns it
+(`src/computerProfile.js`, 14 lines).
+
+**Evidence.** A headless reproduction of the real load path (bload snapshot plus attached `.lvt`, ROM
+BLOAD trap, animation frames driven by hand, every sink buffer recorded with its wall clock):
+
+| | before | after |
+|---|---|---|
+| emulated frames | 99.7/s | 49.9/s |
+| pending rAF callbacks | 2 | 1 |
+| overlap per 10 s of melody | 3706-3886 ms | 341-389 ms |
+| longest overlap / sources at once | 20 ms / up to 9 | 20 ms / up to 5 |
+| audio-clock queue (P3.10) | 3 resyncs per 12 s, up to 25 sources | none, peak lead 63-120 ms |
+
+**Tests.** `test/computerProfile.test.js` gains the regression: a fake CPU resumes the machine from
+inside `cpu.run()`, then exactly one frame must be queued and 11 fixed steps must produce 11 emulated
+frames. Without the token it fails with `expected [ [Function frame], [Function frame] ] to have a
+length of 1 but got 2`. Suite: 90 tests in 13 files.
+
+**Remaining.** `start(0)` (P3.10) still overlaps for at most one buffer when several emulated frames are
+caught up in a single animation frame after a stall (bounded by `MAX_FRAME_BACKLOG`; measured 20 ms,
+up to 5 sources). With a correct loop the audio-clock queue measures **0** overlap and a peak lead of
+63-120 ms, so the candidate is to bring it back with an overflow policy that *drops* instead of
+rewinding the schedule. Not scheduled.
+
+The reproduction harness behind the table is a throwaway script; it is a candidate for `P2.10` if a
+headless smoke check is wanted in CI.
