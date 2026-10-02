@@ -62,26 +62,14 @@ function createSink({ highpass = false, speaker_model = 'flat', sample_rate = 44
 const frame = () => new Float32Array(882); // 20 ms at 44.1 kHz
 
 describe('AudioSink', () => {
-  it('queues buffers back to back on the audio clock', () => {
+  it('plays each buffer as soon as it is handed over', () => {
     const { sink, context } = createSink();
 
     sink.play(frame(), 44100);
-    context.time = 0.005; // the caller is early: the queue has to wait, not splice
+    context.time = 0.005; // the audio clock keeps running between frames
     sink.play(frame(), 44100);
 
-    expect(context.starts).toHaveLength(2);
-    expect(context.starts[0]).toBeCloseTo(0.05, 6); // a lead over the audio clock...
-    expect(context.starts[1] - context.starts[0]).toBeCloseTo(0.02, 6); // ...but no overlap
-  });
-
-  it('restores the lead after an underrun instead of overlapping', () => {
-    const { sink, context } = createSink();
-
-    sink.play(frame(), 44100);
-    context.time = 5; // the tab was throttled for a while
-    sink.play(frame(), 44100);
-
-    expect(context.starts[1]).toBeCloseTo(5.05, 6);
+    expect(context.starts).toEqual([0, 0]);
   });
 
   it('reports the sample rate of the output device', () => {

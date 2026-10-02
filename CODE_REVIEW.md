@@ -78,7 +78,7 @@ Migration option comparison:
 - ✅ Known bugs closed
 - ✅ Game loop rebuilt: a single `requestAnimationFrame` with a fixed timestep, at the real PC-01
   clock speed
-- ✅ DOM-free core + headless test suite (Vitest, 90 tests in 13 files)
+- ✅ DOM-free core + headless test suite (Vitest, 89 tests in 13 files)
 - ⏳ `ARCHITECTURE.md` and JSDoc types (P3.4)
 - ⏳ Web Worker for the CPU (P2.5), `.editorconfig` + CI (P2.10)
 
@@ -758,16 +758,20 @@ Measured over 100 frames of a 1000 Hz tone: the audio per frame is exactly 20.00
 factor, the tone measures 1000 Hz, the DC offset is 0 and no frame starts with a forced low level
 (before: 19.955/20.340 ms, 983 Hz, DC 0.075, 0.5 ms).
 
-**Follow-up — notes overlapping (found by ear, after the change above).** The new queueing exposed a
-long-standing flaw: `beeper.play()` was called once per *animation* frame (60 Hz on a typical display)
-instead of once per *emulated* frame (50 Hz), so the emulator produced about 1.2 s of audio per second.
-With the old `start(0)` that merely made the sound rough; with a queue it meant a lead that grew until
-the resynchronisation ran on top of audio that was still playing — audible as notes overlapping every
-few seconds. Fixed by moving the buffer production into the frame loop (`computerProfile.js`) and by
-keeping a small lead (50 ms) over the audio clock in the sink, so the jitter of the animation frame is
-absorbed by the queue instead of splicing the sound. Measured in the running app: 50.4 emulated frames
-per second, at most 0.14 s of audio per second of real time for a beep pattern, queue lead within
-70 ms, no resynchronisation warnings.
+**Follow-up — notes overlapping (found by ear, after the change above).** Two things were tried. First the
+new queueing exposed a long-standing flaw: `beeper.play()` was called once per *animation* frame (60 Hz
+on a typical display) instead of once per *emulated* frame (50 Hz), so the emulator produced about
+1.2 s of audio per second; that was fixed by producing the buffer inside the frame loop. The
+scheduling itself (queuing buffers on the audio clock with a 50 ms lead) was then **reverted**: the
+overlapping was still audible, and although the queue is monotonic by construction — a buffer never
+starts before the previous one ends — the cause could not be pinned down, so the code went back to
+playing every buffer as soon as it is handed over (`source.start(0)`), which is what it did for the
+previous twelve years. Everything else in P3.10 was kept, because none of it can superimpose two
+sounds: the frame-exact buffer, the phase and fractional carry, the bipolar wave, the buffer sizing,
+the device sample rate, and one buffer per emulated frame.
+
+If the overlap shows up again, the next step is to *capture and analyse the PCM* of the exact melody
+that reproduces it (buffer contents plus the audio clock) instead of reasoning about the schedule.
 
 What the beeper did not model at that point was the emitter itself: the samples went into the Web Audio
 graph as raw square waves. That is what P3.11 adds.

@@ -6,16 +6,6 @@
 import { Config } from './config.js';
 import { assertInstance } from './utils/assert.js';
 
-// The beeper hands over exactly one frame of samples per emulated frame, so the queue
-// stays around one frame. A much larger lead means something went wrong (a long
-// catch-up burst) and the queue is resynchronised instead of letting the latency grow.
-const MAX_LEAD_SECONDS = 0.5;
-
-// Audio is scheduled slightly ahead of the audio clock: the variation of the
-// animation frame (0, 1 or 2 emulated frames per callback) is then absorbed by the
-// queue instead of splicing the sound.
-const MIN_LEAD_SECONDS = 0.05;
-
 // Removes the DC offset that a constant beeper level leaves in the output.
 const DC_BLOCKER_FREQUENCY = 20;
 
@@ -46,9 +36,7 @@ export class AudioSink {
     this.context = context;
     this.chain = undefined;
     this.chain_built = false;
-    this.next_start_time = 0;
     this.warned_suspended = false;
-    this.warned_lead = false;
   }
 
   static activate() {
@@ -71,11 +59,6 @@ export class AudioSink {
 
   get sample_rate() {
     return this.audio_context?.sampleRate;
-  }
-
-  reset() {
-    this.next_start_time = 0;
-    this.warned_lead = false;
   }
 
   // Filters between the buffers and the output. Built on demand, because the context
@@ -155,27 +138,12 @@ export class AudioSink {
       source.buffer = buffer;
       source.connect(this.chain ?? context.destination);
 
-      // Buffers are queued on the audio clock instead of starting whenever the
-      // animation frame happens to run: frame jitter then only affects the latency
-      // instead of splicing the sound. If the queue fell behind (a stall), the lead
-      // is restored instead of starting on top of the buffer that is still playing.
-      const now = context.currentTime;
-
-      this.next_start_time = Math.max(this.next_start_time, now + MIN_LEAD_SECONDS);
-
-      if (this.next_start_time - now > MAX_LEAD_SECONDS) {
-        this.next_start_time = now + MIN_LEAD_SECONDS;
-        if (!this.warned_lead) {
-          this.warned_lead = true;
-          console.warn('AUDIO_SINK: Audio queue ahead of the audio clock, resynchronising');
-        }
-      } else {
-        this.warned_lead = false;
-      }
-
-      const start = this.next_start_time;
-      source.start(start);
-      this.next_start_time = start + buffer.duration;
+      // Each buffer is played as soon as it is handed over. Scheduling the buffers
+      // on the audio clock (a queue with a lead over currentTime) was tried and
+      // reverted: to the ear it produced notes overlapping, and the cause could not
+      // be pinned down. The beeper hands over exactly one frame of audio per emulated
+      // frame, so the production and the consumption stay balanced anyway.
+      source.start(0);
     } catch (error) {
       console.error('AUDIO_SINK: Failed to play sound:', error);
     }

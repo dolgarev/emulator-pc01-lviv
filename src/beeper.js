@@ -50,8 +50,6 @@ export class Beeper {
     this.prev_change_offset = 0;
     this.prev_beeper_state = 0;
     this.overflow_warned = false;
-
-    this.sink?.reset?.();
   }
 
   get sample_rate() {
