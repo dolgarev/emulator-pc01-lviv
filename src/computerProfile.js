@@ -181,10 +181,14 @@ export class ComputerProfile {
         while (accumulator >= f_duration) {
           cpu.run(f_cycles);
           accumulator -= f_duration;
+
+          // One buffer of audio per emulated frame. The animation frame rate (60 Hz
+          // on a typical display) is not the frame rate of the emulated machine
+          // (50 Hz); the sound has to follow the emulation, not the display.
+          beeper.play();
         }
       }
 
-      beeper.play();
       viewport.renderScreen(screen);
 
       if (!self.is_suspended) {

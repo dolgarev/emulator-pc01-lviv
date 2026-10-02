@@ -78,7 +78,7 @@ Migration option comparison:
 - ✅ Known bugs closed
 - ✅ Game loop rebuilt: a single `requestAnimationFrame` with a fixed timestep, at the real PC-01
   clock speed
-- ✅ DOM-free core + headless test suite (Vitest, 86 tests in 12 files)
+- ✅ DOM-free core + headless test suite (Vitest, 90 tests in 13 files)
 - ⏳ `ARCHITECTURE.md` and JSDoc types (P3.4)
 - ⏳ Web Worker for the CPU (P2.5), `.editorconfig` + CI (P2.10)
 
@@ -758,6 +758,17 @@ Measured over 100 frames of a 1000 Hz tone: the audio per frame is exactly 20.00
 factor, the tone measures 1000 Hz, the DC offset is 0 and no frame starts with a forced low level
 (before: 19.955/20.340 ms, 983 Hz, DC 0.075, 0.5 ms).
 
+**Follow-up — notes overlapping (found by ear, after the change above).** The new queueing exposed a
+long-standing flaw: `beeper.play()` was called once per *animation* frame (60 Hz on a typical display)
+instead of once per *emulated* frame (50 Hz), so the emulator produced about 1.2 s of audio per second.
+With the old `start(0)` that merely made the sound rough; with a queue it meant a lead that grew until
+the resynchronisation ran on top of audio that was still playing — audible as notes overlapping every
+few seconds. Fixed by moving the buffer production into the frame loop (`computerProfile.js`) and by
+keeping a small lead (50 ms) over the audio clock in the sink, so the jitter of the animation frame is
+absorbed by the queue instead of splicing the sound. Measured in the running app: 50.4 emulated frames
+per second, at most 0.14 s of audio per second of real time for a beep pattern, queue lead within
+70 ms, no resynchronisation warnings.
+
 What the beeper did not model at that point was the emitter itself: the samples went into the Web Audio
 graph as raw square waves. That is what P3.11 adds.
 
@@ -798,8 +809,11 @@ Implementation (`src/audioSink.js`) — a chain of biquads in front of the outpu
 | Resonance | peaking | 3000 Hz, +9 dB, Q 1 | mechanical resonance of a small disc |
 | Top end | lowpass | 10 kHz | rolls off instead of ringing |
 
-`beeper.speaker_model` in `src/settings.js` switches between `'piezo'` (default) and `'flat'` (the
-previous behaviour, the raw square wave); an unknown value throws `RangeError` in `Config`.
+`beeper.speaker_model` in `src/settings.js` switches between `'flat'` (**the default**: the raw square
+wave, matching Emu80 v4, which mixes its beeper source into the 48 kHz output without any speaker
+filtering) and `'piezo'` (the model above, opt-in); an unknown value throws `RangeError` in `Config`.
+The model was kept instead of dropped because the emitter is real, but the reference for accuracy is
+Emu80 v4: with the actual parameters of the part unknown, no filtering is the honest default.
 
 Measured by rendering tones through the real chain in an `OfflineAudioContext` (level relative to
 `flat`, which is flat by definition):
@@ -812,3 +826,15 @@ Low beeper notes therefore become much quieter and the low-kHz notes louder — 
 character of the real machine, which the emulator never had. Tests (`test/audioSink.test.js`): the
 chain of each model, that it is built once, that `flat` builds no nodes, and that the DC blocker stays
 independent of the model.
+
+#### P3.12 Speaker level: `PC0 OR NOT PB7` — ✅ done
+
+`src/io.js` treated PB7 as a plain enable: PC0 was handed to the beeper only while PB7 was set, and a
+PB7 falling edge changed nothing. Emu80 v4 (`src/Lvov.cpp`) derives the speaker value as
+`pc0 || !pb7` and recomputes it whenever *either* port is written, i.e. PB7 low forces the output high
+and PB7 high lets PC0 through. That matters for programs which leave PB7 low (no sound at all unless
+`ignore_control_bit` is set, as the `*_fixed` profile does) and for the edges themselves.
+
+`IO.output()` now stores the port value and calls `updateSound()`, which computes the derived level and
+hands it to the beeper only when it changes. Tests: the new `test/io.test.js` pins the level sequence
+for PC0 writes, for a PB7 falling/rising edge, and for the profile that ignores PB7.

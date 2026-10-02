@@ -74,6 +74,23 @@ export class IO {
     this.ignore_cntrl_bit = this.config.beeper.ignore_control_bit;
     this.ports[this.PALETTE_PORT] = 0x8f;
     this.ports[this.MEDIA_PORT] = 0xff;
+
+    this.beeper_level = undefined;
+    this.updateSound();
+  }
+
+  // The speaker level is PC0 OR NOT PB7: PB7 low forces the output high, PB7 high
+  // lets PC0 through. This is how Emu80 v4 (vpyk/emu80v4) models the same circuit,
+  // and it keeps the level in step whichever of the two ports is written.
+  updateSound() {
+    const pc0 = this.ports[this.MEDIA_PORT] & this.BEEPER_BIT;
+    const pb7 = this.ports[this.PALETTE_PORT] & this.BEEPER_MODE_BIT;
+    const level = this.ignore_cntrl_bit ? pc0 : pc0 || !pb7 ? 1 : 0;
+
+    if (level === this.beeper_level) return;
+
+    this.beeper_level = level;
+    this.beeper.process(level);
   }
 
   input(port) {
@@ -128,12 +145,12 @@ export class IO {
     }
 
     if (port === this.MEDIA_PORT) {
-      if (this.ports[this.PALETTE_PORT] & this.BEEPER_MODE_BIT || this.ignore_cntrl_bit) {
-        this.beeper.process(w8 & this.BEEPER_BIT);
-      }
+      // The beeper follows PC0 (see updateSound), so only remember the value here.
     }
 
     this.ports[port] = w8;
+
+    this.updateSound();
   }
 
   interrupt(iff) {

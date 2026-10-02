@@ -19,9 +19,10 @@ const DEFAULT_SETTINGS = {
   beeper: {
     allow_sound: true,
     allow_highpass_filter: false,
-    // Emitter model of the real machine: 'piezo' (the built-in piezo emitter -
-    // resonant, almost no low end) or 'flat' (the raw 1-bit square wave).
-    speaker_model: 'piezo',
+    // Emitter model: 'flat' (the raw 1-bit square wave - what Emu80 v4 produces and
+    // the reference for accuracy) or 'piezo' (a rough model of the built-in piezo
+    // emitter, see CODE_REVIEW.md P3.11).
+    speaker_model: 'flat',
   },
   cpu: {
     // Emulated CPU speed relative to the documented clock of the machine:

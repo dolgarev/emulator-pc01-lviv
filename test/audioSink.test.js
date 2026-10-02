@@ -70,18 +70,18 @@ describe('AudioSink', () => {
     sink.play(frame(), 44100);
 
     expect(context.starts).toHaveLength(2);
-    expect(context.starts[0]).toBe(0);
-    expect(context.starts[1]).toBeCloseTo(0.02, 6);
+    expect(context.starts[0]).toBeCloseTo(0.05, 6); // a lead over the audio clock...
+    expect(context.starts[1] - context.starts[0]).toBeCloseTo(0.02, 6); // ...but no overlap
   });
 
-  it('resynchronises with the clock after an underrun', () => {
+  it('restores the lead after an underrun instead of overlapping', () => {
     const { sink, context } = createSink();
 
     sink.play(frame(), 44100);
     context.time = 5; // the tab was throttled for a while
     sink.play(frame(), 44100);
 
-    expect(context.starts[1]).toBe(5);
+    expect(context.starts[1]).toBeCloseTo(5.05, 6);
   });
 
   it('reports the sample rate of the output device', () => {

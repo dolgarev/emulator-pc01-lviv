@@ -39,12 +39,19 @@ function createProfile({
     idle() {},
     restart() {},
   };
+  const beeper = {
+    plays: 0,
+    play() {
+      this.plays += 1;
+    },
+    restart() {},
+  };
 
   const profile = new ComputerProfile({
     settings: { tape: { is_connected: false }, dnd: { is_connected: false } },
     profile: 'test',
     config: { cpu: { frame_duration, frame_cycles, frame_work_cycles } },
-    beeper: { play() {}, restart() {} },
+    beeper,
     keyboard: { special_keys: 0, reset() {}, reset_special_keys() {}, restart() {} },
     io: {},
     memory: {},
@@ -57,7 +64,7 @@ function createProfile({
     storage: {},
   });
 
-  return { profile, ticker, cpu };
+  return { profile, ticker, cpu, beeper };
 }
 
 // Runs the pending animation frame and returns the next queued one.
@@ -98,6 +105,22 @@ describe('ComputerProfile main loop', () => {
     step(ticker);
 
     expect(cpu.cycles).toBe(600);
+  });
+
+  it('produces one audio buffer per emulated frame, not per animation frame', () => {
+    const { profile, ticker, beeper } = createProfile({ frame_duration: 10 });
+
+    profile.run();
+    step(ticker); // no emulated frame elapsed -> no audio
+    expect(beeper.plays).toBe(0);
+
+    ticker.time = 25; // two emulated frames in a single animation frame
+    step(ticker);
+    expect(beeper.plays).toBe(2);
+
+    ticker.time = 30;
+    step(ticker);
+    expect(beeper.plays).toBe(3);
   });
 
   it('caps the backlog after a long stall', () => {
