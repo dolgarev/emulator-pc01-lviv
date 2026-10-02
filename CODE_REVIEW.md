@@ -355,8 +355,12 @@ adaptive scaling, fullscreen; **P3** WebGL, color filters, animations, statistic
   Chrome file system.
 - **Responsive design** for different screen sizes, including mobile.
 - **Improved audio subsystem** — AudioWorklet instead of `ScriptProcessorNode`/`createBufferSource`;
-  volume control; mute. One remaining beeper limitation: the 1-bit output is not band-limited, so
-  very fast toggles alias into the audible band (the real machine fed a TV speaker instead).
+  volume control; mute; a model of the built-in **piezo emitter** the beeper drives (the PC-01 used the
+  same kind of membrane as push-button telephones and the handheld LCD games of that era). It is a
+  resonant load with a peak in the low kHz range and very little low end, so the raw 1-bit square wave
+  is only an approximation of the real timbre — and, being unfiltered, it also lets very fast toggles
+  alias into the audible band. Note that a piezo element is capacitive, so it blocks DC by itself: the
+  real machine never had the offset problem the emulator had before P3.10.
 - **Loading ROM/dumps from the network** (by URL), not only local files.
 - **Snapshot round-trip** — already covered by the tests in P1.1.
 
@@ -756,3 +760,7 @@ on the audio clock, underrun resync, device sample rate, lazy DC blocker, warn-o
 Measured over 100 frames of a 1000 Hz tone: the audio per frame is exactly 20.000 ms at every speed
 factor, the tone measures 1000 Hz, the DC offset is 0 and no frame starts with a forced low level
 (before: 19.955/20.340 ms, 983 Hz, DC 0.075, 0.5 ms).
+
+What the beeper does *not* model yet is the emitter itself: the samples go into the Web Audio graph as
+raw square waves, while the real machine drove a built-in piezo emitter with a strongly frequency
+dependent response (see P3.9).
