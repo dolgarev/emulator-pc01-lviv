@@ -25,7 +25,11 @@ class FakeTicker {
   }
 }
 
-function createProfile({ frame_duration = 10, frame_cycles = 1000 } = {}) {
+function createProfile({
+  frame_duration = 10,
+  frame_cycles = 1000,
+  frame_work_cycles = frame_cycles,
+} = {}) {
   const ticker = new FakeTicker();
   const cpu = {
     cycles: 0,
@@ -39,7 +43,7 @@ function createProfile({ frame_duration = 10, frame_cycles = 1000 } = {}) {
   const profile = new ComputerProfile({
     settings: { tape: { is_connected: false }, dnd: { is_connected: false } },
     profile: 'test',
-    config: { cpu: { frame_duration, frame_cycles } },
+    config: { cpu: { frame_duration, frame_cycles, frame_work_cycles } },
     beeper: { play() {}, restart() {} },
     keyboard: { special_keys: 0, reset() {}, reset_special_keys() {}, restart() {} },
     io: {},
@@ -80,6 +84,20 @@ describe('ComputerProfile main loop', () => {
     ticker.time = 30; // the 5 ms remainder plus 5 ms -> one more frame
     step(ticker);
     expect(cpu.cycles).toBe(3000);
+  });
+
+  it('executes the CPU work budget, not the nominal cycles, per frame', () => {
+    const { profile, ticker, cpu } = createProfile({
+      frame_duration: 10,
+      frame_cycles: 1000,
+      frame_work_cycles: 600,
+    });
+
+    profile.run();
+    ticker.time = 10;
+    step(ticker);
+
+    expect(cpu.cycles).toBe(600);
   });
 
   it('caps the backlog after a long stall', () => {

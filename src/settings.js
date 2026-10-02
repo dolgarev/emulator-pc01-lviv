@@ -21,6 +21,13 @@ const DEFAULT_SETTINGS = {
     allow_highpass_filter: false,
   },
   cpu: {
+    // Emulated CPU speed relative to the documented clock of the machine:
+    //   1.0 - the nominal clock (2.2 MHz, 44800 cycles every 20 ms frame);
+    //   0.6 - what the real PC-01 effectively delivered: the video circuit took
+    //         roughly 2.3 extra cycles on every RAM access, so the CPU completed
+    //         only ~60% of its nominal cycles (see CODE_REVIEW.md, P2.11).
+    // Only the work done within a frame changes - the frame rate stays at 50 Hz.
+    speed_factor: 0.6,
     i8080: {
       clock_speed: 2.2 * 1000000,
       frame_cycles: 44800,
@@ -61,8 +68,8 @@ export class Settings {
       case 'standard':
         predefined_settings.computer = {
           profile: 'pc01_lvov_80',
-          // Turbo mode runs the CPU 4x faster; off by default so the emulator keeps
-          // the real PC-01 clock speed.
+          // Turbo mode multiplies the CPU speed factor by 4; off by default so the
+          // emulator keeps the speed of the real PC-01.
           allow_turbo_mode: false,
         };
         break;
@@ -75,7 +82,10 @@ export class Settings {
         break;
     }
 
-    const settings = { ...DEFAULT_SETTINGS, ...predefined_settings };
+    // Clone the defaults so that instances never share nested objects: changing
+    // e.g. `settings.cpu.speed_factor` at runtime must not leak into other
+    // Settings instances.
+    const settings = structuredClone({ ...DEFAULT_SETTINGS, ...predefined_settings });
     for (const [prop, value] of Object.entries(settings)) {
       Object.defineProperty(this, prop, { value, enumerable: true });
     }

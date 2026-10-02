@@ -15,8 +15,11 @@ export class Beeper {
     this.sink = sink;
 
     this.SAMPLE_RATE = 44100;
-    this.SAMPLE_CPU_CYCLES = Math.round(config.cpu.clock_speed / this.SAMPLE_RATE);
-    this.SAMPLE_BUFFER_SIZE = Math.ceil(config.cpu.frame_cycles / this.SAMPLE_CPU_CYCLES) + 1;
+    // Convert cycles to samples with the clock the CPU really runs at, and size the
+    // buffer for the cycles executed within one frame: the audio stays gapless,
+    // while a slower machine produces a proportionally lower pitch.
+    this.SAMPLE_CPU_CYCLES = Math.round(config.cpu.effective_clock_speed / this.SAMPLE_RATE);
+    this.SAMPLE_BUFFER_SIZE = Math.ceil(config.cpu.frame_work_cycles / this.SAMPLE_CPU_CYCLES) + 1;
     this.VOLUME = 0.15;
 
     // Use TypedArray for better performance

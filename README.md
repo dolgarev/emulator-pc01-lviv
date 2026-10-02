@@ -20,6 +20,9 @@ The project began in 2014 as the author's first step into the world of Open Sour
 ## Features
 
 - Intel 8080 (КР580ВМ80А) CPU core
+- Adjustable CPU speed: `cpu.speed_factor` in `src/settings.js` — `1.0` is the nominal 2.2 MHz
+  clock, the default `0.6` matches the effective speed of the real machine (the video circuit
+  took cycles on every RAM access, see [P2.11](CODE_REVIEW.md))
 - Paged memory (maps: 80, 144, 256 KiB) with RAM / ROM / VRAM
 - i8255A programmable peripheral interface (I/O ports, partial address decoding)
 - Video output to `<canvas>` (256×256, color and grayscale modes, switchable palettes)

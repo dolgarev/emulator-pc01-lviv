@@ -1,7 +1,7 @@
 # Emulator PC-01 Lviv — Review, Roadmap and Backlog
 
 > Date: 2026-09-26
-> Last updated: 2026-09-29
+> Last updated: 2026-10-02
 > Branch: `dev-spa-version`
 > Scope: all modules in `src/`, `index.html`, project documentation
 > This document consolidates the former `CODE_REVIEW.md`, `IMPROVEMENTS.md` and
@@ -78,7 +78,7 @@ Migration option comparison:
 - ✅ Known bugs closed
 - ✅ Game loop rebuilt: a single `requestAnimationFrame` with a fixed timestep, at the real PC-01
   clock speed
-- ✅ DOM-free core + headless test suite (Vitest, 61 tests in 9 files)
+- ✅ DOM-free core + headless test suite (Vitest, 72 tests in 11 files)
 - ⏳ `ARCHITECTURE.md` and JSDoc types (P3.4)
 - ⏳ Web Worker for the CPU (P2.5), `.editorconfig` + CI (P2.10)
 
@@ -271,6 +271,37 @@ buffer, PCM) and moving `Clock` and the `Screen` pixel buffer across the worker 
 
 Add `.editorconfig` and a GitHub Actions workflow for linting.
 
+#### P2.11 Wait states: the video/RAM contention is not modelled — ⏳
+
+The emulator runs the CPU at its **nominal** clock, while the real PC-01 was effectively slower: the
+video circuit took cycles from the CPU on every RAM access (RAM regeneration / video fetch). Three
+independent sources agree on the size of the effect:
+
+- `vpyk/emu80v4` (Emu80 v4, GPL-3, `dist/lvov/lvov.conf` and `src/Lvov.cpp`) drives the Lviv at
+  **2 222 222 Hz** and models **wait states** on top of it: ≈2 2/7 cycles per RAM access (a repeating
+  7-step pattern of 2, 2, 2, 3, 2, 2, 3), +0.75 on average for writes, and +1 cycle for the `IN`/`OUT`
+  opcodes. All four RAM pages (including the video RAM) carry the contended tag, the ROM does not, so
+  code executing from ROM (monitor, BASIC) keeps full speed. For a typical instruction mix this works
+  out to roughly **0.6×** of the nominal clock.
+- The pre-P2.1 loop produced ≈32 ms per frame (timer + `requestAnimationFrame` + nested-timer clamp)
+  — accidentally ≈0.6× as well, which is the speed the emulator was "known" to run at.
+- The documentation quotes 2.22 MHz nominal but only "200…300 thousand ops/s", against "2.5 MHz /
+  500…625 thousand ops/s" in other descriptions (≈0.5×).
+
+Since `c6c8a72` the loop is honest (44800 cycles × 50 Hz = 2.24 MHz), which is why the emulator now
+feels faster than the hardware. The interim fix is `cpu.speed_factor` (P2.12, default `0.6`) — a
+uniform approximation that also slows ROM code. The faithful model is per-access wait states:
+
+1. Budget the frame in *hardware* cycles (44 444 per 20 ms frame at 2.22 MHz) and let the wait cycles
+   consume that budget, so the frame rate stays 50 Hz while the CPU completes fewer instructions.
+2. Count the waits on contended accesses in the injected `Memory`/`IO` and advance the injected
+   `Clock` with them (the beeper already derives its sound from the clock, so the pitch follows).
+3. `I8080.run()` counts nominal cycles itself and calls `Clock.startFrame()` on every call, so a
+   sliced `run()` would break the beeper's frame offsets — needs either the core refactor (P1.2) or a
+   feedback loop that sizes the next frame from the waits measured during the previous one.
+4. First step: **measure** instead of estimating — wrap `Memory.read`/`write` with counters, run real
+   games and BASIC in a headless browser and get the actual accesses/waits per frame.
+
 ### P3 — Polish, features and rendering ideas
 
 #### P3.4 Typing and documentation — ⏳
@@ -351,9 +382,9 @@ adaptive scaling, fullscreen; **P3** WebGL, color filters, animations, statistic
 3. **Write `ARCHITECTURE.md`** (P3.4) — the module split (DOM-free core vs. browser shell) is now
    stable enough to document.
 4. Work on the structural leftovers when the code is touched anyway: `i8080.js` modernization (P1.2),
-   Web Worker (P2.5), `.editorconfig` + CI (P2.10), rendering (P3.7 / P3.8).
+   Web Worker (P2.5), `.editorconfig` + CI (P2.10), wait states (P2.11), rendering (P3.7 / P3.8).
 
-Only **P1.2, P2.5, P2.10, P3.4, P3.6 and P3.7** are open tasks. Everything else in the backlog is
+Only **P1.2, P2.5, P2.10, P2.11, P3.4, P3.6 and P3.7** are open tasks. Everything else in the backlog is
 either done (see [Completed](#completed)) or a candidate list (P3.8, P3.9).
 
 ---
@@ -584,6 +615,31 @@ component has a single responsibility.
 
 The `'settings,config,...'.split(',').forEach(...)` teardown in `ComputerProfile.terminate()` was
 replaced with an explicit `PROFILE_DEPENDENCIES` array iterated by a `for...of` loop.
+
+#### P2.12 Configurable CPU speed (`cpu.speed_factor`) — ✅ done
+
+The emulator ran the CPU at the full nominal clock (2.24 MHz) and felt faster than a real PC-01 (see
+P2.11). The frame rate and the CPU speed are now two separate things: the frame rate belongs to the
+video circuit and stays at 50 Hz, while `cpu.speed_factor` sets how much work the CPU gets done
+within a frame.
+
+- `src/settings.js`: new `cpu.speed_factor` (default `0.6`, ≈ the effective speed of the real
+  machine); `allow_turbo_mode` now multiplies it by 4 (turbo keeps the 50 Hz frame rate). The defaults
+  are `structuredClone`d, so instances no longer share nested objects.
+- `src/config.js`: `frame_duration` stayed nominal, `frame_work_cycles` (the CPU budget per frame) and
+  `effective_clock_speed` (what the CPU really executes) are new; an invalid factor throws
+  `RangeError`.
+- `src/beeper.js`: converts cycles to samples with `effective_clock_speed` and sizes the buffer from
+  `frame_work_cycles`, so the sound stays gapless and a slower machine plays a proportionally lower
+  pitch.
+- `src/computerProfile.js`: the main loop steps the CPU with `frame_work_cycles`.
+- Tests: `Config` frame timing / work budget / turbo / invalid factor, the loop honouring the work
+  budget, and the new `test/beeper.test.js` (the buffer covers a whole frame at any speed, the pitch
+  follows the factor, the frame reaches the sink).
+
+Measured in headless Chrome: the app boots, `Space` starts Moon Tracker (28 777 painted pixels),
+60 rAF/s, no console errors; `k = 1.0` would give 44800 cycles per frame, the default `0.6` gives
+26880 (1.34 MHz, +13.3 ms per frame).
 
 ### P3 — Polish, features and rendering ideas
 

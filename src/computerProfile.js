@@ -122,7 +122,7 @@ export class ComputerProfile {
       beeper = this.beeper,
       cpu = this.cpu,
       f_duration = this.config.cpu.frame_duration,
-      f_cycles = this.config.cpu.frame_cycles,
+      f_cycles = this.config.cpu.frame_work_cycles,
       keyboard = this.keyboard,
       screen = this.screen,
       ticker = this.ticker,
