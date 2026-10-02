@@ -79,9 +79,14 @@ export class IO {
     this.updateSound();
   }
 
-  // The speaker level is PC0 OR NOT PB7: PB7 low forces the output high, PB7 high
-  // lets PC0 through. This is how Emu80 v4 (vpyk/emu80v4) models the same circuit,
-  // and it keeps the level in step whichever of the two ports is written.
+  // The speaker level is PC0 OR NOT PB7. The circuit is on the rebuilt schematic
+  // (codepainters/lvov, sch/pio.kicad_sch, PDF page 6): PC0 and PB7 are the two
+  // inputs of an open-collector NAND gate (D29D, K155LA8/7401) and its output is the
+  // SPKR label, which reaches the emitter through the keyboard connector. With PB7
+  // high the emitter follows PC0, with PB7 low the output is a constant high, i.e.
+  // silence; by De Morgan the gate is PC0 OR NOT PB7. Whichever of the two ports is
+  // written the level has to be recomputed - and it is the level that changed, not
+  // just the port value, that the beeper has to see.
   updateSound() {
     const pc0 = this.ports[this.MEDIA_PORT] & this.BEEPER_BIT;
     const pb7 = this.ports[this.PALETTE_PORT] & this.BEEPER_MODE_BIT;

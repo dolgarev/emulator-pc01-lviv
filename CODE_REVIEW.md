@@ -834,11 +834,32 @@ independent of the model.
 #### P3.12 Speaker level: `PC0 OR NOT PB7` — ✅ done
 
 `src/io.js` treated PB7 as a plain enable: PC0 was handed to the beeper only while PB7 was set, and a
-PB7 falling edge changed nothing. Emu80 v4 (`src/Lvov.cpp`) derives the speaker value as
-`pc0 || !pb7` and recomputes it whenever *either* port is written, i.e. PB7 low forces the output high
-and PB7 high lets PC0 through. That matters for programs which leave PB7 low (no sound at all unless
-`ignore_control_bit` is set, as the `*_fixed` profile does) and for the edges themselves.
+PB7 falling edge changed nothing. The rebuilt schematic (codepainters/lvov, `sch/pio.kicad_sch`, PDF
+page 6) shows what the circuit actually does: `PC0` and `PB7` are the two inputs of an open-collector
+NAND gate (D29D, K155LA8/7401) whose output is the `SPKR` hierarchical label - the emitter on the
+keyboard board (the BUZZER pad of the keyboard connector). By De Morgan that gate is `PC0 OR NOT PB7`:
+with PB7 high the emitter follows PC0 (sound), with PB7 low the output is a constant high (silence).
+The same sheet shows PC0 also feeding the tape path (R3 1k, then R5 1k and C39 150nF to ground, then
+C42 150nF in series to the "Tape" connector X3), which is why one bit is both the tape output and the
+speaker.
 
 `IO.output()` now stores the port value and calls `updateSound()`, which computes the derived level and
-hands it to the beeper only when it changes. Tests: the new `test/io.test.js` pins the level sequence
-for PC0 writes, for a PB7 falling/rising edge, and for the profile that ignores PB7.
+hands it to the beeper only when it changes. Emu80 v4 (`src/Lvov.cpp`) derives the level the same way,
+but the schematic - not Emu80 - is the source of the fact; the comment in `src/io.js` says so. The old
+code is audibly equivalent while PB7 is high (both follow PC0) and differs only while PB7 is low,
+where it *held* the last level instead of forcing it high: a constant level is silence either way, so
+the practical difference is the edge itself. On the traced circuit the output really does step when PB7
+is written, so the derived level is the faithful one and a click at such a write is real. How often
+that can be heard is limited: the ROM contains six `OUT 0xC1` sites in total (0x3c, 0x5f, 0x8f twice,
+0xbd, one from a register, so two with PB7 low) and `dump-mtrack.bin` seven.
+
+Not the cause of the reported note overlap: while a note sounds PB7 is high (both the ROM and Moon
+Tracker set it that way), so both models hand the beeper the identical level, and the only extra edges
+this change can add are the rare `OUT 0xC1` writes above.
+
+Tests: the new `test/io.test.js` pins the level sequence for PC0 writes, for a PB7 falling/rising edge,
+and for the profile that ignores PB7.
+
+For P3.11: the gate has an open-collector output, so the rising edge is set by the pull-up charging the
+capacitance of the emitter (sharp falling edge, exponential rising edge), while the model there still
+uses a plain square wave. The pull-up is not on this sheet.
