@@ -814,10 +814,25 @@ graph as raw square waves. That is what P3.11 adds.
 The beeper fed its raw 1-bit square wave straight into the Web Audio graph, i.e. the emulator had no
 emitter at all. The real PC-01 does **not** drive the TV speaker (an earlier note in this document
 said so and was wrong): the sound leaves the mainboard through an **open-collector gate** (D29,
-К155ЛА8/7401) on the **PB7** bit of the main PPI and reaches the emitter via the **BUZZER** pin (16) of
-the keyboard connector — so the emitter sits on the keyboard PCB, and it is a built-in **piezo
-emitter** (the manual speaks of «динамик (капсуль)», and a piezo disc is exactly what an
-open-collector gate with a series resistor drives).
+К155ЛА8/7401) whose inputs are **PC0** and **PB7** of the main PPI (see P3.12) and reaches the emitter
+via the **BUZZER** pin (16) of the keyboard connector - so the emitter sits on the keyboard PCB, and it
+is a built-in **piezo emitter** (the manual speaks of «динамик (капсуль)»).
+
+**The emitter is a ЗП-1 piezo capsule.** What the part data says (technical conditions 12МО.081.085 ТУ,
+the designation the manufacturer uses, plus the listings that quote them):
+
+- passive, no built-in oscillator: it needs an external pulse, which is exactly what the gate provides;
+- **resonance range 3-5 kHz**, sound pressure at least **75 dB at 100±3 cm**, nominal voltage **5±2 V**;
+- operating range -30…+60 °C, mass up to 5 g, soldered to the board with two leads;
+- the same capsule can also be used in a three-wire circuit with feedback for a self-oscillating
+  generator, but the PC-01 does not use that: the capsule is driven from the gate as a plain two-wire
+  load, which is what the schematic shows.
+
+Two published figures disagree and both are kept here: the TU gives the 3-5 kHz above, while several
+reseller pages give "resonance 1000…3000 Hz" and a 39x4 mm disc and put the difference down to batches
+or to the way the resonance is measured. The spread over specimens is therefore somewhere in 1-5 kHz,
+and the first version of the model below - built on the reseller figure - was one end of that range
+rather than simply a mistake.
 
 Evidence collected for this item:
 
@@ -832,12 +847,19 @@ Evidence collected for this item:
 - The keyboard layout scan (`orig/keyboard_pcb.jpg`) shows a single round emitter with a centre pad
   next to R14, its silkscreen labels mirrored (`ВА1`/`ЗП…`).
 
-What could **not** be established is the emitter's type and resonance: the surviving parts list
-(`orig/partlist.djvu`) and the keyboard schematic are DjVu scans and no DjVu tooling is available on
-this machine (`ddjvu`/`djvutxt` from djvulibre are absent), so the numbers below are a plausible
-approximation, not data for the real part. Whoever reads that scan can pin them down.
+What is still **not** established is the *shape* of the response of the mounted capsule: no measured
+curve is available, the level is not calibrated to the 75 dB figure, and the drive is not a symmetric
+square wave - the open-collector output pulls the line low through the transistor while the rising edge
+is the (unseen) pull-up charging the capacitance of the capsule, i.e. an RC charge. The missing values
+are the pull-up resistor of the gate, the series resistor next to the capsule (R14 on the keyboard
+board) and the capacitance of the capsule. One constraint follows from the band itself: for a 3-5 kHz
+resonance to survive at all, the RC time constant has to stay well below a quarter of a period
+(τ ≲ 20-30 µs), which for a capsule of a few tens of nF means a pull-up of about 1 kΩ rather than tens
+of kΩ.
 
-Implementation (`src/audioSink.js`) — a chain of biquads in front of the output:
+Implementation (`src/audioSink.js`) - a chain of biquads in front of the output. The constants below
+were chosen before the part data was found, so they are a first approximation and do not follow the
+3-5 kHz of the TU:
 
 | Stage | Type | Frequency | Notes |
 | --- | --- | --- | --- |
@@ -846,11 +868,12 @@ Implementation (`src/audioSink.js`) — a chain of biquads in front of the outpu
 | Resonance | peaking | 3000 Hz, +9 dB, Q 1 | mechanical resonance of a small disc |
 | Top end | lowpass | 10 kHz | rolls off instead of ringing |
 
-`beeper.speaker_model` in `src/settings.js` switches between `'flat'` (**the default**: the raw square
-wave, matching Emu80 v4, which mixes its beeper source into the 48 kHz output without any speaker
-filtering) and `'piezo'` (the model above, opt-in); an unknown value throws `RangeError` in `Config`.
-The model was kept instead of dropped because the emitter is real, but the reference for accuracy is
-Emu80 v4: with the actual parameters of the part unknown, no filtering is the honest default.
+`beeper.speaker_model` in `src/settings.js` switches between `'flat'` (**the default**: the unfiltered
+square wave) and `'piezo'` (the model above, opt-in); an unknown value throws `RangeError` in `Config`.
+No filtering is the default because the model has never been compared against a real capsule and the
+response of the mounted one is unknown: the emitter is real, the numbers are not measured. Where the
+sound does come from is settled elsewhere: the ROM's BEEP routine runs from ROM and is therefore not
+slowed by the video/RAM contention (P2.11), so its tones keep the nominal pitch.
 
 Measured by rendering tones through the real chain in an `OfflineAudioContext` (level relative to
 `flat`, which is flat by definition):
@@ -869,8 +892,10 @@ data, the 3-5 kHz band, the response tables, the batch spread, the failed held-l
 then reverted, because without a recording or a measured curve of the real capsule none of it could be
 checked, and two rounds of tuning by reasoning made the sound worse before they were measured. Code and
 notes of that session are on branch `feature/sound-work` (tag `sound-session-2026-10-04`); the emulator
-itself is back at the state of `603b937`, i.e. with the repaired beeper pipeline and one animation loop,
-but no emitter filtering by default.
+itself now generates the sound the way it did before that session (see P3.10) and models the video/RAM
+contention (P2.11), with no emitter filtering by default. Until there is a reference recording, the
+`'piezo'` model stays an option and its constants are the first approximation from the table above; the
+part data suggests the next attempt should start from the 3-5 kHz of the TU instead.
 
 #### P3.12 Speaker level: `PC0 OR NOT PB7` — ✅ done
 
@@ -885,8 +910,8 @@ C42 150nF in series to the "Tape" connector X3), which is why one bit is both th
 speaker.
 
 `IO.output()` now stores the port value and calls `updateSound()`, which computes the derived level and
-hands it to the beeper only when it changes. Emu80 v4 (`src/Lvov.cpp`) derives the level the same way,
-but the schematic - not Emu80 - is the source of the fact; the comment in `src/io.js` says so. The old
+hands it to the beeper only when it changes. The schematic is the source of the fact and the comment in
+`src/io.js` says so. The old
 code is audibly equivalent while PB7 is high (both follow PC0) and differs only while PB7 is low,
 where it *held* the last level instead of forcing it high: a constant level is silence either way, so
 the practical difference is the edge itself. On the traced circuit the output really does step when PB7

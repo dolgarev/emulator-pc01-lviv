@@ -19,9 +19,10 @@ const DEFAULT_SETTINGS = {
   beeper: {
     allow_sound: true,
     allow_highpass_filter: false,
-    // Emitter model: 'flat' (the raw 1-bit square wave - what Emu80 v4 produces and
-    // the reference for accuracy) or 'piezo' (a rough model of the built-in piezo
-    // emitter, see CODE_REVIEW.md P3.11).
+    // Emitter model: 'flat' (the unfiltered 1-bit square wave - the default) or 'piezo'
+    // (a first approximation of the built-in ЗП-1 piezo capsule, see CODE_REVIEW.md
+    // P3.11; the part data gives that capsule a resonance band of 3-5 kHz, which the
+    // constants of the model do not follow yet).
     speaker_model: 'flat',
   },
   cpu: {

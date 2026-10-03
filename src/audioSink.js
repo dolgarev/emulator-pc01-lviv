@@ -9,15 +9,16 @@ import { assertInstance } from './utils/assert.js';
 // Removes the DC offset that a constant beeper level leaves in the output.
 const DC_BLOCKER_FREQUENCY = 20;
 
-// Typical small piezo emitter. The PC-01 drove the same kind of membrane as the
-// push-button telephones of that era: the signal leaves the mainboard through an
-// open-collector gate and reaches the emitter via the BUZZER pin of the keyboard
-// connector. Such an emitter is a resonant, capacitive load - it moves almost no air
-// below a few hundred Hz and has a mechanical resonance in the low kHz range.
+// The emitter of the real machine is a ЗП-1 piezo capsule: a passive, capacitive, resonant
+// load that needs an external pulse and moves almost no air below its band. Its part data
+// (ТУ 12МО.081.085) puts the resonance at 3-5 kHz, with at least 75 dB at 100±3 cm and
+// 5±2 V nominal; the signal reaches it from an open-collector gate through the BUZZER pin
+// of the keyboard connector.
 //
-// The numbers below are a plausible approximation, not data for the part actually
-// used: the surviving parts list is a scan, so the emitter type (and with it the
-// real resonance) could not be read. See CODE_REVIEW.md, P3.11.
+// The numbers below are a first approximation made before that part data was found: they do
+// not follow the 3-5 kHz of the TU, and the curve of the mounted capsule has not been
+// measured. Treat them as a starting point for tuning against a reference recording.
+// See CODE_REVIEW.md, P3.11.
 const PIEZO_MODEL = {
   low_cut: 400, // Hz - below this the disc is almost silent
   resonance: 3000, // Hz - mechanical resonance of a small disc
