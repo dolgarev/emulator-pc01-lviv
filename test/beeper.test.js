@@ -4,7 +4,12 @@ import { Clock } from '../src/clock.js';
 import { Config } from '../src/config.js';
 import { Settings } from '../src/settings.js';
 
-function createBeeper({ speed_factor = 0.6, sample_rate = undefined } = {}) {
+// The beeper implements the *original* sound generation of the emulator (see the note in
+// src/beeper.js and CODE_REVIEW.md P3.10), so the tests pin its known properties: a
+// unipolar wave, a phase restart per frame, a fixed 44100 Hz rate and an integer number
+// of cycles per sample. The speed factor stays at its nominal 1.0 here, because the class
+// converts cycles with the nominal clock.
+function createBeeper({ speed_factor = 1, sample_rate = undefined } = {}) {
   const settings = new Settings('default');
   settings.cpu.speed_factor = speed_factor;
 
@@ -19,139 +24,118 @@ function createBeeper({ speed_factor = 0.6, sample_rate = undefined } = {}) {
   return { beeper: new Beeper(config, clock, sink), clock, config, buffers };
 }
 
-// Plays a square wave of `frequency` for `frames` emulated frames; the sink collects
-// the PCM of every frame.
-function playTone({ beeper, clock, config, buffers }, frequency, frames) {
-  const frame_cycles = config.cpu.frame_work_cycles;
+// Writes a square wave of `frequency` into the beeper for `frames` emulated frames.
+function playTone(target, frequency, frames) {
+  const { beeper, clock, config } = target;
+  const frame_cycles = config.cpu.frame_cycles;
   const half_period = config.cpu.effective_clock_speed / (2 * frequency);
 
   let state = 0;
-  let elapsed = 0; // cycles since the tone started
-  let next_change = half_period; // cycle of the next level change
+  let position = 0; // cycles of the tone generated so far
+  let next_change = half_period;
 
   for (let frame = 0; frame < frames; frame++) {
     clock.startFrame();
 
     let offset = 0;
-    let change = Math.round(next_change - elapsed);
-
-    while (change <= frame_cycles) {
-      clock.addCycles(change - offset);
-      offset = change;
+    while (next_change <= position + frame_cycles) {
+      const at = Math.round(next_change - position);
+      clock.addCycles(at - offset);
+      offset = at;
       state = 1 - state;
       beeper.process(state);
       next_change += half_period;
-      change = Math.round(next_change - elapsed);
     }
 
     clock.addCycles(frame_cycles - offset);
-    elapsed += frame_cycles;
     beeper.play();
+    position += frame_cycles;
   }
-
-  return buffers;
 }
 
-function concat(buffers) {
+const concat = (buffers) => {
   const total = buffers.reduce((sum, buffer) => sum + buffer.data.length, 0);
   const samples = new Float32Array(total);
 
-  let offset = 0;
+  let at = 0;
   for (const buffer of buffers) {
-    samples.set(buffer.data, offset);
-    offset += buffer.data.length;
+    samples.set(buffer.data, at);
+    at += buffer.data.length;
   }
 
   return samples;
-}
+};
 
-function countTransitions(samples) {
-  let count = 0;
+const countTransitions = (samples) => {
+  let changes = 0;
   for (let i = 1; i < samples.length; i++) {
-    if (samples[i] > 0 !== samples[i - 1] > 0) count++;
+    if (samples[i] !== samples[i - 1]) changes += 1;
   }
-  return count;
-}
+  return changes;
+};
 
-describe('Beeper', () => {
-  it('sends exactly one frame of audio per frame, at the sink sample rate', () => {
-    const target = createBeeper({ sample_rate: 48000 });
+describe('Beeper (original sound generation)', () => {
+  it('hands over one buffer per frame that had port writes, at a fixed 44100 Hz', () => {
+    const target = createBeeper();
     playTone(target, 1000, 3);
 
     expect(target.buffers).toHaveLength(3);
-    for (const buffer of target.buffers) {
-      expect(buffer.sample_rate).toBe(48000);
-      expect(buffer.data).toHaveLength(960); // 20 ms at 48 kHz
-    }
-  });
-
-  it('falls back to 44100 Hz for sinks that do not report a sample rate', () => {
-    const target = createBeeper();
-    playTone(target, 1000, 1);
-
     expect(target.buffers[0].sample_rate).toBe(44100);
-    expect(target.buffers[0].data).toHaveLength(882);
+    // ceil(44800 / 50) + 1 = 897 samples, i.e. 20.34 ms per frame.
+    expect(target.buffers[0].data).toHaveLength(897);
   });
 
-  it('continues the level run across frame boundaries', () => {
+  it('hands over nothing for a frame without any port write', () => {
     const target = createBeeper();
     const { beeper, clock, config } = target;
-    const amplitude = beeper.VOLUME / 2;
-    const quarter = Math.round(config.cpu.frame_work_cycles / 4);
 
-    // One level change per frame, a quarter into the frame.
-    for (const state of [1, 0, 1]) {
-      clock.startFrame();
-      clock.addCycles(quarter);
-      beeper.process(state);
-      clock.addCycles(config.cpu.frame_work_cycles - quarter);
-      beeper.play();
-    }
-
-    const [first, second, third] = target.buffers.map((buffer) => buffer.data);
-
-    expect(first[0]).toBeCloseTo(-amplitude, 6);
-    // ~220 samples (a quarter of the frame) at level 0, then the level flips.
-    expect(first[219]).toBeCloseTo(-amplitude, 6);
-    expect(first[221]).toBeCloseTo(amplitude, 6);
-    expect(first.at(-1)).toBeCloseTo(amplitude, 6);
-
-    // The first frame ends at level 1, so the second one starts there: the wave is
-    // not restarted at the frame boundary (it used to be forced to level 0).
-    expect(second[0]).toBeCloseTo(amplitude, 6);
-    expect(second.at(-1)).toBeCloseTo(-amplitude, 6);
-    expect(third[0]).toBeCloseTo(-amplitude, 6);
-  });
-
-  it('measures the run length from the frame boundary, not from the last change', () => {
-    const target = createBeeper();
-    const { beeper, clock, config } = target;
-    const half = Math.round(config.cpu.frame_work_cycles / 2);
-
-    // A frame without level changes emits nothing at all.
     clock.startFrame();
-    beeper.process(0); // same level as before -> the run just continues
-    clock.addCycles(config.cpu.frame_work_cycles);
+    clock.addCycles(config.cpu.frame_cycles);
     beeper.play();
 
     expect(target.buffers).toHaveLength(0);
-
-    clock.startFrame();
-    clock.addCycles(half);
-    beeper.process(1);
-    clock.addCycles(config.cpu.frame_work_cycles - half);
-    beeper.play();
-
-    const data = target.buffers[0].data;
-    const middle = Math.floor(data.length / 2);
-    const amplitude = beeper.VOLUME / 2;
-
-    expect(data[0]).toBeCloseTo(-amplitude, 6);
-    expect(data[middle - 1]).toBeCloseTo(-amplitude, 6);
-    expect(data[middle + 1]).toBeCloseTo(amplitude, 6);
   });
 
-  it('reproduces the frequency of the tone', () => {
+  it('hands over a buffer even when the level did not change, because the write opens a run', () => {
+    const target = createBeeper();
+    const { beeper, clock, config } = target;
+
+    clock.startFrame();
+    clock.addCycles(1000);
+    beeper.process(0); // same level as the initial state
+    clock.addCycles(config.cpu.frame_cycles - 1000);
+    beeper.play();
+
+    expect(target.buffers).toHaveLength(1);
+  });
+
+  it('outputs a unipolar wave between 0 and VOLUME', () => {
+    const target = createBeeper();
+    playTone(target, 1000, 5);
+
+    const samples = concat(target.buffers);
+    let min = Infinity;
+    let max = -Infinity;
+    for (const value of samples) {
+      min = Math.min(min, value);
+      max = Math.max(max, value);
+    }
+
+    expect(min).toBe(0);
+    expect(max).toBeCloseTo(target.beeper.VOLUME, 6);
+  });
+
+  it('restarts the wave in every frame', () => {
+    const target = createBeeper();
+    playTone(target, 1000, 4);
+
+    // Whatever the previous frame ended with, the next one starts from the low level.
+    for (const buffer of target.buffers) {
+      expect(buffer.data[0]).toBe(0);
+    }
+  });
+
+  it('renders a tone at the rate implied by the integer cycles per sample', () => {
     const target = createBeeper();
     playTone(target, 1000, 25); // 0.5 s of emulated time
 
@@ -159,44 +143,33 @@ describe('Beeper', () => {
     const seconds = samples.length / 44100;
     const frequency = countTransitions(samples) / 2 / seconds;
 
-    expect(frequency).toBeGreaterThan(990);
-    expect(frequency).toBeLessThan(1010);
+    // round(2 200 000 / 44100) = 50 cycles per sample, so a 1000 Hz request comes out at
+    // 44100 / (2 * (1120 / 50)) = 984.4 Hz - the detune of the original implementation.
+    expect(frequency).toBeGreaterThan(975);
+    expect(frequency).toBeLessThan(995);
+    expect(1000 - frequency).toBeGreaterThan(10);
   });
 
-  it('outputs a bipolar wave without a DC offset', () => {
-    const target = createBeeper();
-    playTone(target, 1000, 25);
-
-    const samples = concat(target.buffers);
-    const mean = samples.reduce((sum, value) => sum + value, 0) / samples.length;
-    const peak = samples.reduce((max, value) => Math.max(max, value), -Infinity);
-
-    expect(peak).toBeCloseTo(target.beeper.VOLUME / 2, 6);
-    expect(Math.abs(mean)).toBeLessThan(0.005);
-  });
-
-  it('drops inaudible level changes instead of cutting the frame short', () => {
+  it('flushes a partial buffer when the segments overflow', () => {
     const target = createBeeper();
     const { beeper, clock, config } = target;
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     clock.startFrame();
 
-    // One level change every two cycles: far below anything audible, and far more
-    // than the segment buffer can hold.
+    // One level change every two cycles: far above anything audible and far more than the
+    // segment buffer can hold.
     let state = 0;
-    for (let cycles = 0; cycles < config.cpu.frame_work_cycles; cycles += 2) {
+    for (let cycles = 0; cycles < config.cpu.frame_cycles; cycles += 2) {
       clock.addCycles(2);
       state = 1 - state;
       beeper.process(state);
     }
 
+    expect(warn).toHaveBeenCalled();
+    expect(target.buffers.length).toBeGreaterThan(0);
+
     beeper.play();
-
-    expect(target.buffers).toHaveLength(1);
-    expect(target.buffers[0].data).toHaveLength(882);
-    expect(warn).toHaveBeenCalledTimes(1); // warned once, not once per change
-
     warn.mockRestore();
   });
 });

@@ -122,6 +122,10 @@ export class Config {
       (settings.cpu.frame_work_cycles * 1000) / settings.cpu.frame_duration
     );
 
+    // Wait states on RAM accesses (P2.11): the machine keeps its nominal cycle counter,
+    // but the cycles the video circuit steals are charged to the frame budget too.
+    settings.cpu.wait_states = emu_settings.cpu.wait_states ?? true;
+
     if (!settings.memory.strict_mode) {
       settings.memory.strict_mode = emu_settings.memory.strict_mode;
     }

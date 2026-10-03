@@ -2,19 +2,30 @@ import { Config } from './config.js';
 import { Clock } from './clock.js';
 import { assertInstance } from './utils/assert.js';
 
-// A level change needs at least one OUT instruction (10 cycles) plus its loop
-// overhead, so the segment buffer is sized from this worst case. Should it ever be
-// exceeded, the excess changes are inaudible (far above the audio band) and are
-// dropped instead of cutting the frame short.
-const MIN_CYCLES_PER_CHANGE = 8;
-
 /**
  * 1-bit beeper: turns port writes into a square wave.
  *
- * The CPU reports the output level through process(); every level is measured in
- * CPU cycles, so the sound follows the emulated clock. play() converts the segments
- * collected during one frame into PCM for the injected sink (e.g. AudioSink), which
- * keeps this class free of Web Audio and DOM dependencies.
+ * This is the original sound generation of the emulator, restored after the pipeline
+ * rewrite of P3.10 was rejected by ear. Its known properties, deliberately kept:
+ *
+ * - the wave is unipolar (0 .. VOLUME), so the output carries a DC offset that the
+ *   speaker removes but the graph does not;
+ * - the phase restarts in every frame (`let state = 0`), which adds a ~50 Hz amplitude
+ *   modulation - the "body" of the sound the author prefers;
+ * - the sample rate is a fixed 44100 Hz, independent of the output device;
+ * - cycles are converted with an integer number of cycles per sample
+ *   (round(clock_speed / 44100) = 50), so a requested tone comes out slightly detuned
+ *   (a 1000 Hz tone is rendered at ~984 Hz) and a frame is 897 samples = 20.34 ms, i.e.
+ *   every frame overlaps the next one by about 0.34 ms.
+ *
+ * A repeated write is added to the previous run instead of being ignored, and the tail of
+ * a frame is left at zero rather than holding the level - both as in the original.
+ *
+ * The CPU reports the output level through process(); play() converts the segments
+ * collected during one frame into PCM for the injected sink (e.g. AudioSink), which keeps
+ * this class free of Web Audio and DOM dependencies. The original read the cycle counters
+ * of I8080 directly and owned its own AudioContext; those two couplings were removed in
+ * P0.2 and P2.6 and are not coming back.
  */
 export class Beeper {
   constructor(config, clock, sink) {
@@ -24,17 +35,18 @@ export class Beeper {
     assertInstance(clock, Clock, 'BEEPER: Invalid CLOCK object');
     this.clock = clock;
 
-    // Audio output is an injected sink (e.g. AudioSink), so the beeper itself
-    // stays free of Web Audio / DOM dependencies.
+    // Audio output is an injected sink (e.g. AudioSink): see the note above.
     this.sink = sink;
 
-    // Used when the sink cannot report the sample rate of the output device.
-    this.DEFAULT_SAMPLE_RATE = 44100;
+    this.SAMPLE_RATE = 44100;
+    this.SAMPLE_CPU_CYCLES = Math.round(config.cpu.clock_speed / this.SAMPLE_RATE);
+    this.SAMPLE_BUFFER_SIZE = Math.ceil(config.cpu.frame_cycles / this.SAMPLE_CPU_CYCLES) + 1;
     this.VOLUME = 0.15;
 
-    // One entry per level change, not per sample.
-    this.MAX_SEGMENTS = Math.ceil(config.cpu.frame_work_cycles / MIN_CYCLES_PER_CHANGE) + 2;
-    this.sound_buffer = new Float32Array(this.MAX_SEGMENTS);
+    // Two entries per level change at most, with reserve for the flush path.
+    this.sound_buffer = new Float32Array(this.SAMPLE_BUFFER_SIZE * 2);
+    this.buffer_index = 0;
+    this.sample_accumulator = 0;
 
     this.init();
   }
@@ -45,90 +57,71 @@ export class Beeper {
 
   restart() {
     this.buffer_index = 0;
-    this.sample_carry = 0;
-    this.wave_level = 0;
-    this.prev_change_offset = 0;
+    this.sample_accumulator = 0;
+    this.prev_frame_offset = 0;
     this.prev_beeper_state = 0;
-    this.overflow_warned = false;
-  }
-
-  get sample_rate() {
-    return this.sink?.sample_rate ?? this.DEFAULT_SAMPLE_RATE;
   }
 
   play() {
-    const segments = this.buffer_index;
+    if (!this.config.beeper.allow_sound || this.buffer_index === 0) return;
 
-    // The frame boundary cuts the level run that is still open: the cycles between
-    // the last change and the frame end belong to this frame and are emitted by the
-    // tail of generateSquareWave(), not by the next frame.
+    const data = new Float32Array(this.SAMPLE_BUFFER_SIZE);
+
+    this.generateSquareWave(data, this.SAMPLE_CPU_CYCLES, this.VOLUME);
+
     this.buffer_index = 0;
-    this.prev_change_offset = 0;
+    this.prev_frame_offset = 0;
+    this.sample_accumulator = 0;
 
-    if (!this.config.beeper.allow_sound || segments === 0) return;
-
-    const sample_rate = this.sample_rate;
-    // Exactly one frame of audio, whatever the emulated CPU speed is, so the sound
-    // stays in step with the emulation.
-    const frame_samples = Math.round((this.config.cpu.frame_duration * sample_rate) / 1000);
-    const data = new Float32Array(frame_samples);
-
-    this.generateSquareWave(data, sample_rate, segments);
-
-    this.sink?.play(data, sample_rate);
+    this.sink?.play(data, this.SAMPLE_RATE);
   }
 
-  generateSquareWave(data, sample_rate, segments) {
-    const samples_per_cycle = sample_rate / this.config.cpu.effective_clock_speed;
-    const amplitude = this.VOLUME / 2;
-
-    // The first segment continues the level held at the frame boundary: the wave
-    // must not restart at every frame, or its phase jumps 50 times per second.
-    let level = this.wave_level;
+  generateSquareWave(data, sample_cpu_cycles, volume) {
+    // The phase restarts here, in every frame - see the note above.
+    let state = 0;
     let n = 0;
 
-    for (let i = 0; i < segments && n < data.length; i++) {
-      // Fractional samples are carried over, so no cycles are lost to rounding.
-      this.sample_carry += this.sound_buffer[i] * samples_per_cycle;
+    for (let i = 0; i < this.buffer_index && n < data.length; i++) {
+      this.sample_accumulator += this.sound_buffer[i] / sample_cpu_cycles;
+      const samples = Math.floor(this.sample_accumulator);
+      this.sample_accumulator -= samples;
 
-      const samples = Math.floor(this.sample_carry);
-      this.sample_carry -= samples;
-
-      const emitted = Math.min(samples, data.length - n);
-      const value = level ? amplitude : -amplitude;
-
-      for (let j = 0; j < emitted; j++) data[n++] = value;
-
-      level = 1 - level;
+      const value = state ? volume : 0;
+      for (let j = 0; j < samples && n < data.length; j++) {
+        data[n++] = value;
+      }
+      state = 1 - state;
     }
-
-    // The beeper holds its last level until the next write. Samples that did not fit
-    // belong to emulated time this frame cannot represent (a trap can run far more
-    // cycles than a frame), so they are dropped rather than accumulated.
-    const held = level ? amplitude : -amplitude;
-
-    while (n < data.length) data[n++] = held;
-
-    this.wave_level = level;
   }
 
   process(state) {
-    if (state === this.prev_beeper_state) return;
-
     const frame_offset = this.clock.frameOffset;
+    const inc_offset = frame_offset - this.prev_frame_offset;
 
     if (this.buffer_index >= this.sound_buffer.length) {
-      if (!this.overflow_warned) {
-        this.overflow_warned = true;
-        console.warn('BEEPER: Segment buffer overflow, dropping inaudible level changes');
-      }
-    } else {
-      // The run that just ended: from the previous level change (or from the frame
-      // boundary) up to this write.
-      this.sound_buffer[this.buffer_index++] = frame_offset - this.prev_change_offset;
+      this.flushPartialBuffer();
     }
 
-    this.prev_change_offset = frame_offset;
-    this.prev_beeper_state = state;
+    if (state === this.prev_beeper_state) {
+      // A repeated write extends the run that is already open.
+      if (this.buffer_index > 0) {
+        this.sound_buffer[this.buffer_index - 1] += inc_offset;
+      } else {
+        this.sound_buffer[this.buffer_index++] = inc_offset;
+      }
+    } else {
+      // A new sound segment starts here.
+      this.sound_buffer[this.buffer_index++] = inc_offset;
+      this.prev_beeper_state = state;
+    }
+
+    this.prev_frame_offset = frame_offset;
+  }
+
+  flushPartialBuffer() {
+    console.warn('BEEPER: Buffer overflow, flushing partial buffer');
+    this.play();
+    this.buffer_index = 0;
+    this.sample_accumulator = 0;
   }
 }

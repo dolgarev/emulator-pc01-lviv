@@ -18,12 +18,14 @@ describe('Config', () => {
     expect(config.cpu.frame_duration).toBe(20);
   });
 
-  it('runs the CPU below its nominal clock by default (video/RAM contention)', () => {
+  it('runs the CPU at its nominal clock by default', () => {
     const config = new Config(new Settings('default'), 'pc01_lvov_80');
 
-    // 0.6 * 44800 = 26880 cycles in the same 20 ms frame -> 1.344 MHz (P2.11)
-    expect(config.cpu.frame_work_cycles).toBe(26880);
-    expect(config.cpu.effective_clock_speed).toBe(1344000);
+    // 1.0 * 44800 = 44800 cycles in the same 20 ms frame -> 2.24 MHz. The wait-state
+    // model (0.6) is reachable through cpu.speed_factor, but it also lowers the pitch of
+    // the beeper by the same factor, so it is not the default (see P2.11 and P3.11).
+    expect(config.cpu.frame_work_cycles).toBe(44800);
+    expect(config.cpu.effective_clock_speed).toBe(2240000);
   });
 
   it('scales the work done per frame, not the frame rate', () => {
@@ -50,11 +52,11 @@ describe('Config', () => {
 
     const config = new Config(settings, 'pc01_lvov_80');
 
-    // Turbo multiplies the speed factor by 4: 4 * 0.6 * 44800 = 107520 cycles per
-    // frame -> 5.376 MHz. The frame rate stays at 50 Hz.
+    // Turbo multiplies the speed factor by 4: 4 * 1.0 * 44800 = 179200 cycles per
+    // frame -> 8.96 MHz. The frame rate stays at 50 Hz.
     expect(config.cpu.frame_duration).toBe(20);
-    expect(config.cpu.frame_work_cycles).toBe(107520);
-    expect(config.cpu.effective_clock_speed).toBe(5376000);
+    expect(config.cpu.frame_work_cycles).toBe(179200);
+    expect(config.cpu.effective_clock_speed).toBe(8960000);
   });
 
   it('falls back to the raw square wave by default, as Emu80 v4 does', () => {

@@ -16,6 +16,7 @@ import { UiBinding } from './uiBinding.js';
 import { Viewport } from './viewport.js';
 import { Screen } from './screen.js';
 import { Tape } from './tape.js';
+import { Contention } from './contention.js';
 import { DnD } from './dnd.js';
 import { Traps } from './traps.js';
 import { Dump } from './dump.js';
@@ -321,6 +322,8 @@ export class ComputerProfileBuilder {
     // Create components if they were not explicitly set
     this._config ??= new Config(this._settings, this._profile);
     this._clock ??= new Clock();
+    // Video/RAM contention (P2.11); null when the model is switched off.
+    this._contention ??= this._config.cpu.wait_states ? new Contention(this._clock) : null;
     this._dom ??= new DomResolver(this._settings);
     this._ticker ??= new Ticker();
     this._ui ??= new UiBinding({ load_button: this._dom.local_load_button });
@@ -328,11 +331,12 @@ export class ComputerProfileBuilder {
     this._beeper ??= new Beeper(this._config, this._clock, this._audio_sink);
     this._keyboard ??= new Keyboard();
     this._keyboard_binding ??= new KeyboardBinding(this._keyboard);
-    this._io ??= new IO(this._config, this._beeper, this._keyboard);
-    this._memory ??= new Memory(this._config, this._io);
+    this._io ??= new IO(this._config, this._beeper, this._keyboard, this._contention);
+    this._memory ??= new Memory(this._config, this._io, this._contention);
     this._rom ??= new Rom(this._config, this._memory);
     this._traps ??= new Traps();
     this._cpu ??= new I8080(this._config, this._memory, this._io, this._traps, this._clock);
+    this._contention?.attach(this._cpu);
     this._storage ??= new Storage(this._cpu, this._memory, this._io);
     this._viewport ??= new Viewport(this._dom.viewport_container);
     this._screen ??= new Screen(this._config, this._io, this._memory);

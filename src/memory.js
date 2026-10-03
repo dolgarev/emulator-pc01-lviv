@@ -38,12 +38,15 @@ const EXTENDED_PAGE_BASE = 4;
 const PAGES_PER_BANK_SHIFT = 2;
 
 export class Memory {
-  constructor(config, io) {
+  constructor(config, io, contention = undefined) {
     assertInstance(config, Config, 'MEMORY: Invalid CONFIG object');
     this.config = config;
 
     assertInstance(io, IO, 'MEMORY: Invalid IO object');
     this.io = io;
+
+    // Optional: charges the cycles the video circuit steals on RAM accesses (P2.11).
+    this.contention = contention;
 
     this.mem_map = normalizeMemMap(this.config.memory.map);
     this.pages = this.createMemoryPages(this.mem_map);
@@ -114,11 +117,21 @@ export class Memory {
   }
 
   read(addr) {
-    return this.pages[this.get_mem_page_index(addr)].read(addr);
+    const page = this.pages[this.get_mem_page_index(addr)];
+
+    // The video circuit contends RAM, not the ROM: code in ROM keeps the nominal speed,
+    // which is why the beeper's tone sounds at the pitch the ROM generates it with.
+    if (!page.is_rom) this.contention?.read();
+
+    return page.read(addr);
   }
 
   write(addr, w8) {
-    this.pages[this.get_mem_page_index(addr)].write(addr, w8);
+    const page = this.pages[this.get_mem_page_index(addr)];
+
+    if (!page.is_rom) this.contention?.write();
+
+    page.write(addr, w8);
   }
 
   transfer(begin, end, data, offset = 0, mem_page, method = 'write') {

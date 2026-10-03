@@ -11,7 +11,7 @@ const BSR_BIT_SHIFT = 1;
 const BSR_SET_BIT = 0x01;
 
 export class IO {
-  constructor(config, beeper, keyboard) {
+  constructor(config, beeper, keyboard, contention = undefined) {
     assertInstance(config, Config, 'IO: Invalid CONFIG object');
     this.config = config;
 
@@ -20,6 +20,9 @@ export class IO {
 
     assertInstance(keyboard, Keyboard, 'IO: Invalid KEYBOARD object');
     this.keyboard = keyboard;
+
+    // Optional: an I/O access costs one extra cycle (P2.11).
+    this.contention = contention;
 
     //port 0xF0
     //[http://lvovpc.cu.cc/article.shtml?id=6]
@@ -99,6 +102,8 @@ export class IO {
   }
 
   input(port) {
+    this.contention?.io();
+
     port &= 0xff;
 
     // The PC-01 "Lviv" implements partial I/O port address decoding
@@ -128,6 +133,7 @@ export class IO {
   }
 
   output(port, w8) {
+    this.contention?.io();
     port &= 0xff;
 
     // The PC-01 "Lviv" implements partial I/O port address decoding

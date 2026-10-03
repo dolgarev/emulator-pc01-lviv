@@ -26,12 +26,24 @@ const DEFAULT_SETTINGS = {
   },
   cpu: {
     // Emulated CPU speed relative to the documented clock of the machine:
-    //   1.0 - the nominal clock (2.2 MHz, 44800 cycles every 20 ms frame);
+    //   1.0 - the nominal clock of the processor (2.2 MHz, 44800 cycles every 20 ms
+    //         frame); tones come out at the pitch the ROM produces them with;
     //   0.6 - what the real PC-01 effectively delivered: the video circuit took
     //         roughly 2.3 extra cycles on every RAM access, so the CPU completed
     //         only ~60% of its nominal cycles (see CODE_REVIEW.md, P2.11).
+    //         Careful: this factor also scales the *pitch* of the beeper, because the
+    //         tone frequency is the machine's cycle rate divided by twice the length of
+    //         the ROM's tone loop - at 0.6 every note sounds a factor of ~1.64 low. A
+    //         model that keeps the pitch while slowing the work needs the wait cycles
+    //         charged on RAM accesses instead of one global factor: that is what
+    //         `wait_states` below does, and it is the default.
     // Only the work done within a frame changes - the frame rate stays at 50 Hz.
-    speed_factor: 0.6,
+    speed_factor: 1.0,
+    // Charge the cycles the video circuit steals on RAM accesses (P2.11). This is the
+    // faithful way to slow the machine down: code in ROM keeps the nominal speed, so the
+    // ROM's tone loop still sounds at the right pitch while RAM code loses about 40% of
+    // its cycles. Use either this or a speed factor below 1.0, not both.
+    wait_states: true,
     i8080: {
       clock_speed: 2.2 * 1000000,
       frame_cycles: 44800,
