@@ -87,8 +87,8 @@ describe('AudioSink', () => {
       'peaking',
       'lowpass',
     ]);
-    expect(context.filters.map((filter) => filter.frequency.value)).toEqual([3000, 4000, 5000]);
-    expect(context.filters[1].gain.value).toBe(6);
+    expect(context.filters.map((filter) => filter.frequency.value)).toEqual([700, 3500, 8000]);
+    expect(context.filters[1].gain.value).toBe(5);
     expect(context.starts).toHaveLength(1);
 
     // The chain is built once, not once per frame.

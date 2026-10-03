@@ -831,15 +831,37 @@ keyboard board) and the capacitance of the capsule. One constraint follows from 
 (τ ≲ 20-30 µs), so a capsule of a few tens of nF implies a pull-up of about 1 kΩ rather than tens of
 kΩ.
 
-Implementation (`src/audioSink.js`) - a chain of biquads in front of the output, with the band taken
-from the part data:
+Implementation (`src/audioSink.js`) - a chain of biquads in front of the output, with the resonance band
+taken from the part data:
 
 | Stage | Type | Frequency | Notes |
 | --- | --- | --- | --- |
 | DC blocker (optional, `allow_highpass_filter`) | highpass | 20 Hz | only needed in `flat` mode: a piezo is capacitive and blocks DC by itself |
-| Low end | highpass | 3000 Hz | lower edge of the resonance band quoted in the TU |
-| Resonance | peaking | 4000 Hz, +6 dB, Q 1 | middle of the 3-5 kHz band, broad enough to cover it |
-| Top end | lowpass | 5000 Hz | upper edge of the resonance band |
+| Low end | highpass | 700 Hz | below the resonance the capsule rolls off; the TU does not state how steeply (see below) |
+| Resonance | peaking | 3500 Hz, +5 dB, Q 0.8 | inside the 3-5 kHz band quoted in the TU, broad enough to cover it |
+| Top end | lowpass | 8000 Hz | the top end rolls off instead of ringing |
+
+**A first guess about the skirt was measurably wrong, and the ear caught it.** Taking the rated 3-5 kHz
+band as a *passband* (highpass at 3000 Hz, lowpass at 5000 Hz) put the fundamental of every note the
+software plays 20-30 dB under the band, so each note came out as whichever harmonic happened to land in
+it. Measured on the test melody (notes between 125 and 1025 Hz, median 550 Hz, 24.7 level changes per
+50 Hz frame):
+
+| note | 1st harmonic | loudest component | energy in 3-5 kHz |
+| --- | --- | --- | --- |
+| 150 Hz | −52.2 dB | 9th (1350 Hz) | — |
+| 300 Hz | −40.1 dB | 9th (2700 Hz) | — |
+| 550 Hz | −29.4 dB | 7th (3850 Hz) | 94 % |
+| 900 Hz | −20.3 dB | 3rd (2700 Hz) | — |
+
+That is a pinched, hoarse whistle whose timbre changes from note to note, not a melody - exactly what
+the ear reported. The TU says nothing about the response below the resonance, so the low cut is now kept
+well under the band: the fundamental stays within a few dB for the notes actually used and is still the
+loudest component (the same table for the current model: −26.6 dB and 5th at 150 Hz, −14.0 dB and 3rd at
+300 Hz, −2.8 dB and 1st at 550 Hz, +1.8 dB and 1st at 900 Hz), the resonance region keeps a lift, and
+the melody comes out at −22.8 dB against −22.5 dB for `flat` - i.e. without the loudness drop that
+invited turning the volume up. The remaining unknown is that skirt; a recording or a measured curve of
+a real capsule is what would settle it, as would the pull-up and the series resistor.
 
 `beeper.speaker_model` in `src/settings.js` switches between `'piezo'` (**the default**: the model
 above, now that the part has been identified) and `'flat'` (the raw square wave, kept as the
@@ -854,17 +876,27 @@ Measured by rendering tones through the real chain in an `OfflineAudioContext` (
 
 | 100 Hz | 200 Hz | 400 Hz | 700 Hz | 1 kHz | 1.5 kHz | 2 kHz | 2.5 kHz | 3 kHz | 4 kHz | 6 kHz | 10 kHz | 15 kHz |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| −33.7 dB | −21.4 dB | −8.5 dB | +0.3 dB | +2.0 dB | +2.4 dB | +3.3 dB | +4.4 dB | +5.4 dB | +5.7 dB | +3.9 dB | −2.9 dB | −15.8 dB |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | −59.3 dB | −47.2 dB | −35.1 dB | −25.0 dB | −18.3 dB | −10.0 dB | −3.5 dB | +1.7 dB | +5.5 dB | +8.4 dB | +1.8 dB | −12.3 dB | −25.3 dB |
 
-The −3 dB points of the model land at about 2.1 kHz and 6.3 kHz, i.e. around the quoted band rather
-than inside it: the TU gives the range in which the disc resonates, and the filters have to be centred
-on it. The audible consequence is large, because the software does not play in that range: the melody
-of the test application (`public/data/apps/almazy_lviv.lvt`) averages about 600 Hz - 24.7 level changes
-per 50 Hz frame - which the model passes at about −25 dB, so it is reproduced mainly through the 5th to
-7th harmonics of its square wave, i.e. around 3-4 kHz. That is exactly the thin, shrill character of a
-ringer capsule, and it is what a real machine does with these melodies; a melody written for the
-capsule's own band would come out roughly 25 dB louder. If that turns out to be too extreme by ear, the
-constants sit in one block (`PIEZO_MODEL`) and the band can be widened without touching anything else.
+The −3 dB points of the current model land at about 200 Hz and 11 kHz: a gentle roll-off below the
+resonance with a lift around 3.5-4 kHz. That is a compromise, and it is worth being explicit about what
+it trades. The faithful reading of the TU (band 3-5 kHz only) costs the melody its pitch - measured
+above - while a model that keeps the fundamental has to let the capsule pass frequencies well below its
+rated band, which a real capsule does only attenuated. Which of the two the machine actually did cannot
+be decided from the documents: it needs the skirt of the real capsule, i.e. a measured curve or a
+recording of a real PC-01 playing the same melody. Notes and reasoning for that measurement are in the
+paragraph above. The constants sit in one block (`PIEZO_MODEL`), so the band and its skirt can be moved
+without touching anything else.
+
+One more artefact showed up while measuring and is *not* the model's doing: the beeper emits nothing at
+all for an emulated frame in which the output level does not change (`Beeper.play()` returns early when
+there are no level changes), so the sink queues no audio for that frame and its output drops to zero.
+At the end of every note that is a step, and the model turns it into a click: 48 such steps over the
+melody with the 3-5 kHz band against 7 with `flat` and 13 with the current model. Holding the level
+instead - emitting a frame of the held level, which is what the hardware does - would remove them; it is
+left alone here because it changes the audio path rather than the emitter model.
 
 Tests (`test/audioSink.test.js`): the chain of each model, that it is built once, that `flat` builds no
 nodes, and that the DC blocker stays independent of the model.

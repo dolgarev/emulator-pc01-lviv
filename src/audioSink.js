@@ -23,16 +23,24 @@ const DC_BLOCKER_FREQUENCY = 20;
 // connector, i.e. as a driven emitter - not in the three-wire self-oscillating circuit
 // the same capsule also allows.
 //
-// The band below comes from the TU; the shape of the curve does not. No measured response
-// of the mounted capsule is available, nor its capacitance or the pull-up resistor of the
-// gate, so the asymmetric edges (fast pull-down, RC charge through the pull-up) are not
-// modelled either. See CODE_REVIEW.md, P3.11.
+// The band below comes from the TU; the shape of the curve does not. That shape decides the
+// sound, and one guess about it was measurably wrong: taking the rated 3-5 kHz band as a
+// passband (highpass at 3000 Hz) pushed the fundamental of every note the software plays
+// 20-30 dB under the band, so each note was re-voiced by whichever harmonic happened to land
+// in it - a 550 Hz note came out as its 7th harmonic at -29 dB, a 300 Hz note as its 9th at
+// -40 dB - which sounds like a pinched, hoarse whistle instead of a melody. The TU says
+// nothing about the skirt below the resonance, so the low cut is kept well under the band:
+// the fundamental stays within a few dB for the notes actually used (measured -2.8 dB at
+// 550 Hz, where it is still the loudest component), while the 3-5 kHz region keeps the
+// capsule's lift. No measured response of the mounted capsule is available, nor its
+// capacitance or the pull-up resistor of the gate, so the asymmetric edges (fast pull-down,
+// RC charge through the pull-up) are not modelled either. See CODE_REVIEW.md, P3.11.
 const PIEZO_MODEL = {
-  low_cut: 3000, // Hz - lower edge of the resonance band quoted in the TU
-  resonance: 4000, // Hz - middle of the 3..5 kHz band
-  resonance_gain: 6, // dB - the TU quotes a band, so the peak stays modest
-  resonance_q: 1, // broad peak, wide enough to cover the band
-  high_cut: 5000, // Hz - upper edge of the resonance band
+  low_cut: 700, // Hz - below the resonance; the real skirt is unknown (see above)
+  resonance: 3500, // Hz - inside the resonance band quoted in the TU
+  resonance_gain: 5, // dB - the TU quotes a band, so the lift stays modest
+  resonance_q: 0.8, // broad peak, wide enough to cover the band
+  high_cut: 8000, // Hz - top end rolls off instead of ringing
 };
 
 export class AudioSink {
