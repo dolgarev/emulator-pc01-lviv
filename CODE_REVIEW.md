@@ -944,7 +944,7 @@ uses a plain square wave. The pull-up is not on this sheet.
 
 #### P3.13 Duplicated animation loop after a synchronous resume — ✅ fixed
 
-**Symptom.** With a `.lvt` application (`public/data/apps/almazy_lviv.lvt`, the melody on its splash
+**Symptom.** With a `.lvt` application (`almazy_lviv.lvt`, a local tape image - the melody on its splash
 screen) the sound was rough - the tone sounded doubled - and the machine itself ran about 1.66x too
 fast. The same defect had earlier been reported as notes overlapping from time to time.
 
