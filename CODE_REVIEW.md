@@ -793,12 +793,20 @@ operating range -30..+60 °C, mass up to 5 g. The same capsule also allows a thr
 feedback for a self-oscillating generator, but the PC-01 does not use that: the capsule is driven from
 the gate as a plain two-wire load.
 
-One caveat about that number: shop listings quote "resonance 1000..3000 Hz" and a 39x4 mm disc, and that
-is where the first version of this model came from. The TU is preferred because the same catalogue lists
-a resonance for every type of the series (ЗП-3 4.1±0.05 kHz, ЗП-5 1.5-3 kHz, ЗП-22 1-3.5 kHz) and
-because the "1000..3000 Hz" text appears verbatim on several reseller pages, which smells of a
-propagated copy error. The TU is what the model follows, so the band sits an octave higher than in the
-first version.
+The two published numbers do not have to be in conflict. Alongside the 3-5 kHz of the TU, several
+sources give the primary resonance point as 1-3 kHz, and attribute the difference to batches or to the
+way the resonance is measured (the first version of this model was built on that figure, and an earlier
+revision of this note called it a propagated copy error - that guess was wrong). The spread therefore
+covers roughly 1-5 kHz. The model follows the TU band, as agreed; a particular capsule may sit lower,
+which is one more reason to measure the real machine if that ever becomes possible.
+
+The remaining data for the part, from the same sources: it needs an external pulse to do anything (no
+built-in generator), it is soldered to the board with two leads, the disc is 39 mm across and 4 mm
+thick (one table quotes 32x4 mm, which is the odd one out), the nominal voltage is 5±2 V in the TU and
+is given as 3-10 V by the listings. The emulator does not calibrate the absolute level, so the drive
+voltage only matters for whoever drives a real capsule. Two leads and an external pulse is also what
+the schematic shows: the capsule is driven from the gate, not through the three-wire self-oscillating
+circuit.
 
 Evidence collected for this item:
 
