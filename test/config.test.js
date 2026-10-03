@@ -57,7 +57,7 @@ describe('Config', () => {
     expect(config.cpu.effective_clock_speed).toBe(5376000);
   });
 
-  it('keeps the raw square wave by default', () => {
+  it('falls back to the raw square wave by default, as Emu80 v4 does', () => {
     const config = new Config(new Settings('default'), 'pc01_lvov_80');
 
     expect(config.beeper.speaker_model).toBe('flat');

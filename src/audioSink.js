@@ -9,38 +9,21 @@ import { assertInstance } from './utils/assert.js';
 // Removes the DC offset that a constant beeper level leaves in the output.
 const DC_BLOCKER_FREQUENCY = 20;
 
-// The emitter is a ЗП-1 piezo capsule, and its data comes from the TU (12MO.081.085 TU, the
-// designation in the manufacturer's catalogue): resonance frequency 3-5 kHz, sound
-// pressure at least 75 dB at 100+/-3 cm, nominal voltage 5+/-2 V, -30..+60 C, mass up to
-// 5 g. Shop listings also quote "resonance 1000..3000 Hz" and a 39x4 mm disc, but the
-// same numbers appear verbatim across several resellers, while the TU catalogue lists a
-// resonance for every type of the series (ЗП-3 4.1 kHz, ЗП-5 1.5-3 kHz, ЗП-22 1-3.5 kHz),
-// so the TU is taken as the source of the band.
+// Typical small piezo emitter. The PC-01 drove the same kind of membrane as the
+// push-button telephones of that era: the signal leaves the mainboard through an
+// open-collector gate and reaches the emitter via the BUZZER pin of the keyboard
+// connector. Such an emitter is a resonant, capacitive load - it moves almost no air
+// below a few hundred Hz and has a mechanical resonance in the low kHz range.
 //
-// The capsule is a resonant, capacitive load: it moves almost no air below its band and
-// rolls off above it, which is why the machine sounds thin and shrill rather than deep.
-// The PC-01 drives it from an open-collector gate through the BUZZER pin of the keyboard
-// connector, i.e. as a driven emitter - not in the three-wire self-oscillating circuit
-// the same capsule also allows.
-//
-// The band below comes from the TU; the shape of the curve does not. That shape decides the
-// sound, and one guess about it was measurably wrong: taking the rated 3-5 kHz band as a
-// passband (highpass at 3000 Hz) pushed the fundamental of every note the software plays
-// 20-30 dB under the band, so each note was re-voiced by whichever harmonic happened to land
-// in it - a 550 Hz note came out as its 7th harmonic at -29 dB, a 300 Hz note as its 9th at
-// -40 dB - which sounds like a pinched, hoarse whistle instead of a melody. The TU says
-// nothing about the skirt below the resonance, so the low cut is kept well under the band:
-// the fundamental stays within a few dB for the notes actually used (measured -2.8 dB at
-// 550 Hz, where it is still the loudest component), while the 3-5 kHz region keeps the
-// capsule's lift. No measured response of the mounted capsule is available, nor its
-// capacitance or the pull-up resistor of the gate, so the asymmetric edges (fast pull-down,
-// RC charge through the pull-up) are not modelled either. See CODE_REVIEW.md, P3.11.
+// The numbers below are a plausible approximation, not data for the part actually
+// used: the surviving parts list is a scan, so the emitter type (and with it the
+// real resonance) could not be read. See CODE_REVIEW.md, P3.11.
 const PIEZO_MODEL = {
-  low_cut: 700, // Hz - below the resonance; the real skirt is unknown (see above)
-  resonance: 3500, // Hz - inside the resonance band quoted in the TU
-  resonance_gain: 5, // dB - the TU quotes a band, so the lift stays modest
-  resonance_q: 0.8, // broad peak, wide enough to cover the band
-  high_cut: 8000, // Hz - top end rolls off instead of ringing
+  low_cut: 400, // Hz - below this the disc is almost silent
+  resonance: 3000, // Hz - mechanical resonance of a small disc
+  resonance_gain: 9, // dB
+  resonance_q: 1, // broad peak
+  high_cut: 10000, // Hz - the top end rolls off instead of ringing
 };
 
 export class AudioSink {

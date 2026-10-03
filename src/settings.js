@@ -19,11 +19,9 @@ const DEFAULT_SETTINGS = {
   beeper: {
     allow_sound: true,
     allow_highpass_filter: false,
-    // Emitter model: 'flat' (the raw 1-bit square wave, i.e. without emitter filtering -
-    // what this emulator has always produced) or 'piezo' (a model of the built-in ЗП-1
-    // piezo capsule, see CODE_REVIEW.md P3.11). The model is opt-in: it has never been
-    // compared against the real capsule, and both attempts to tune it by reasoning made
-    // the sound worse.
+    // Emitter model: 'flat' (the raw 1-bit square wave - what Emu80 v4 produces and
+    // the reference for accuracy) or 'piezo' (a rough model of the built-in piezo
+    // emitter, see CODE_REVIEW.md P3.11).
     speaker_model: 'flat',
   },
   cpu: {
