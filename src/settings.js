@@ -20,9 +20,9 @@ const DEFAULT_SETTINGS = {
     allow_sound: true,
     allow_highpass_filter: false,
     // Emitter model: 'piezo' (the built-in ЗП-1 piezo capsule, see CODE_REVIEW.md P3.11)
-    // or 'flat' (the raw 1-bit square wave - exactly what Emu80 v4 produces, kept as
-    // the unfiltered mode). The capsule is real and its working range is known from
-    // the part data, so the model is the default.
+    // or 'flat' (the raw 1-bit square wave, i.e. without emitter filtering). The
+    // capsule is real and its working range is known from the part data, so the model
+    // is the default; 'flat' remains for the unfiltered output.
     speaker_model: 'piezo',
   },
   cpu: {

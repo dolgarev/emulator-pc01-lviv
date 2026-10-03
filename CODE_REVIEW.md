@@ -822,11 +822,12 @@ from the part data:
 | Top end | lowpass | 3000 Hz | upper edge of the working range |
 
 `beeper.speaker_model` in `src/settings.js` switches between `'piezo'` (**the default**: the model
-above, now that the part has been identified) and `'flat'` (the raw square wave, i.e. exactly what
-Emu80 v4 produces, kept as the unfiltered mode); an unknown value throws `RangeError` in `Config`.
-Emu80 v4 stays the reference for the digital side - the mixer, the level composition and the timing -
-while the analogue emitter follows the part data; the shape of the response curve of the mounted
-capsule is still unknown, so the model remains an approximation, not a measurement.
+above, now that the part has been identified) and `'flat'` (the raw square wave, kept as the
+unfiltered mode); an unknown value throws `RangeError` in `Config`. The raw square wave is what this
+emulator has produced since its first version: the sound pipeline is our own design and older than
+other PC-01 emulations, so the digital side (the level, the frames, the mixer) was not taken from
+another emulator - only the analogue emitter follows the part data. The shape of the response curve of
+the mounted capsule is still unknown, so the model remains an approximation, not a measurement.
 
 Measured by rendering tones through the real chain in an `OfflineAudioContext` (level relative to
 `flat`, which is flat by definition):
@@ -855,8 +856,8 @@ C42 150nF in series to the "Tape" connector X3), which is why one bit is both th
 speaker.
 
 `IO.output()` now stores the port value and calls `updateSound()`, which computes the derived level and
-hands it to the beeper only when it changes. Emu80 v4 (`src/Lvov.cpp`) derives the level the same way,
-but the schematic - not Emu80 - is the source of the fact; the comment in `src/io.js` says so. The old
+hands it to the beeper only when it changes. The schematic is the source of the fact, and the comment
+in `src/io.js` says so. The old
 code is audibly equivalent while PB7 is high (both follow PC0) and differs only while PB7 is low,
 where it *held* the last level instead of forcing it high: a constant level is silence either way, so
 the practical difference is the edge itself. On the traced circuit the output really does step when PB7

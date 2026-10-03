@@ -27,8 +27,7 @@ The project began in 2014 as the author's first step into the world of Open Sour
 - i8255A programmable peripheral interface (I/O ports, partial address decoding)
 - Video output to `<canvas>` (256×256, color and grayscale modes, switchable palettes)
 - Sound via the Web Audio API: the beeper through a model of the built-in ЗП-1 piezo emitter by
-  default (`beeper.speaker_model` in `src/settings.js`), or as a raw 1-bit square wave (`'flat'`, as
-  in Emu80 v4)
+  default (`beeper.speaker_model` in `src/settings.js`), or as a raw 1-bit square wave (`'flat'`)
 - Keyboard input, drag & drop, and file loading
 - Snapshot save / load
 
