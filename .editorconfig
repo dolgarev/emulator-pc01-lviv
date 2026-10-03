@@ -1,0 +1,19 @@
+# Editor configuration, https://editorconfig.org
+#
+# Mirrors .prettierrc (two spaces, 100 columns, single quotes) - prettier and eslint do the
+# enforcing, this only keeps editors from fighting the code.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+max_line_length = 100
+
+[*.md]
+# Markdown uses two trailing spaces for a hard line break.
+trim_trailing_whitespace = false

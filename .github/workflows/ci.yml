@@ -1,0 +1,40 @@
+name: CI
+
+# Manual for now: the project does not need a run on every change yet, so the checks are started from
+# the Actions tab ("Run workflow"). GitHub only offers that button when the file is on the default
+# branch, and a push only triggers a workflow that is present on the pushed branch. Uncomment the
+# triggers below to make the runs automatic.
+on:
+  workflow_dispatch:
+
+  # push:
+  #   branches:
+  #     - master
+  #     - dev-spa-version
+  # pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # The lowest version that satisfies the engines of vite (20.19), eslint (20.19) and
+          # vitest (22.12). The README said 20, which vitest no longer accepts.
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+      # Serves dist/, boots it in headless Chrome and checks the canvas and the console. Chrome
+      # lives at its default path on the runner image (the script also takes --chrome <path>) and
+      # --no-sandbox is added when CI is set, because a container usually cannot use the sandbox.
+      - name: Browser smoke check
+        run: npm run check

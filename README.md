@@ -34,7 +34,7 @@ The project began in 2014 as the author's first step into the world of Open Sour
 
 ## Getting started
 
-Requires [Node.js](https://nodejs.org/) 20 or newer.
+Requires [Node.js](https://nodejs.org/) 22 or newer (vitest 5 no longer accepts 20).
 
 ```bash
 npm install

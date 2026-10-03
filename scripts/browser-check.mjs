@@ -5,9 +5,10 @@
 // painted on it and that the console stayed clean. Exits non-zero on failure, so it can
 // gate a CI job (see CODE_REVIEW.md, P2.10).
 //
-//   npm run build && node scripts/browser-check.mjs [--port 5199] [--chrome <path>]
+//   npm run build && node scripts/browser-check.mjs [--port 5199] [--chrome <path>] [--no-sandbox]
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
+import { createServer as createProbe } from 'node:net';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -23,7 +24,6 @@ const option = (name, fallback) => {
 };
 
 const PORT = Number(option('port', 5199));
-const DEBUG_PORT = PORT + 100;
 const CHROME = option('chrome', '/usr/bin/google-chrome');
 const PROFILE = fs.mkdtempSync(path.join(os.tmpdir(), 'pc01-check-'));
 
@@ -39,6 +39,24 @@ const MIME = {
 };
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// A previous run may have left its server behind, so take the first free pair instead of
+// failing on a busy port.
+const isFree = (port) =>
+  new Promise((resolve) => {
+    const probe = createProbe();
+    probe.once('error', () => resolve(false));
+    probe.once('listening', () => probe.close(() => resolve(true)));
+    probe.listen(port, '127.0.0.1');
+  });
+
+let app_port = PORT;
+let DEBUG_PORT = app_port + 100;
+for (let attempt = 0; attempt < 20; attempt++) {
+  if ((await isFree(app_port)) && (await isFree(DEBUG_PORT))) break;
+  app_port += 1;
+  DEBUG_PORT = app_port + 100;
+}
 
 async function waitFor(url, tries = 60) {
   for (let i = 0; i < tries; i++) {
@@ -61,7 +79,7 @@ const check = (ok, message) => {
 
 // A static server is enough: the application is a plain SPA with data files under /data.
 const server = createServer((request, response) => {
-  const url = new URL(request.url, `http://localhost:${PORT}`);
+  const url = new URL(request.url, `http://localhost:${app_port}`);
   let file = path.join(DIST, decodeURIComponent(url.pathname));
 
   if (!file.startsWith(DIST)) {
@@ -81,6 +99,9 @@ const server = createServer((request, response) => {
   fs.createReadStream(file).pipe(response);
 });
 
+// A container (CI) usually cannot use the Chrome sandbox; locally it stays on.
+const NO_SANDBOX = args.includes('--no-sandbox') || process.env.CI === 'true';
+
 const chrome = spawn(
   CHROME,
   [
@@ -90,6 +111,8 @@ const chrome = spawn(
     '--no-first-run',
     '--no-default-browser-check',
     '--disable-gpu',
+    '--disable-dev-shm-usage', // containers often have a small /dev/shm
+    ...(NO_SANDBOX ? ['--no-sandbox'] : []),
     '--autoplay-policy=no-user-gesture-required',
     'about:blank',
   ],
@@ -112,7 +135,7 @@ try {
     throw new Error('dist/index.html is missing - run "npm run build" first');
   }
 
-  await new Promise((resolve) => server.listen(PORT, resolve));
+  await new Promise((resolve) => server.listen(app_port, resolve));
 
   if (!(await waitFor(`http://127.0.0.1:${DEBUG_PORT}/json/version`))) {
     throw new Error(`Chrome did not open its debug port (${CHROME})`);
@@ -174,7 +197,7 @@ try {
   await send('Runtime.enable');
   await send('Log.enable');
   await send('Page.enable');
-  await send('Page.navigate', { url: `http://localhost:${PORT}/` });
+  await send('Page.navigate', { url: `http://localhost:${app_port}/` });
 
   // Wait for the application to boot and draw its first frames.
   await sleep(2500);
@@ -183,6 +206,7 @@ try {
     const canvas = document.querySelector('canvas');
     return canvas ? { width: canvas.width, height: canvas.height } : null;
   })()`);
+  console.log(`info serving on port ${app_port}, Chrome debug port ${DEBUG_PORT}`);
   check(
     canvas !== null,
     `the emulator created a canvas (${canvas ? `${canvas.width}x${canvas.height}` : 'none'})`

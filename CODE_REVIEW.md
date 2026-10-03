@@ -78,13 +78,13 @@ Migration option comparison:
 - ✅ Known bugs closed
 - ✅ Game loop rebuilt: a single `requestAnimationFrame` with a fixed timestep, at the real PC-01
   clock speed
-- ✅ DOM-free core + headless test suite (Vitest, 90 tests in 13 files)
+- ✅ DOM-free core + headless test suite (Vitest, 95 tests in 14 files)
 - ⏳ `ARCHITECTURE.md` and JSDoc types (P3.4)
-- ⏳ Web Worker for the CPU (P2.5), `.editorconfig` + CI (P2.10)
+- ⏳ Web Worker for the CPU (P2.5)
 
 **Next steps:**
 1. Start Phase 2: add PWA support (P3.6) — the last migration phase
-2. Phase 3 leftovers: `ARCHITECTURE.md` (P3.4), tests for `io.js`, CI (P2.10)
+2. Phase 3 leftovers: `ARCHITECTURE.md` (P3.4), tests for `io.js`
 3. Opportunistically: `i8080.js` modernization (P1.2), Web Worker (P2.5), rendering (P3.7 / P3.8)
 
 ---
@@ -218,8 +218,8 @@ export default defineConfig({
 **3.2. Infrastructure**
 - ✅ strict mode (provided by ES modules)
 - ✅ ESLint + Prettier (+ husky/lint-staged)
-- ⏳ `.editorconfig`
-- ⏳ GitHub Actions for linting
+- ✅ `.editorconfig`
+- ✅ GitHub Actions workflow (manual trigger for now): format check, lint, tests, build, browser smoke check
 
 **3.3. Code modernization**
 - ✅ ES modules
@@ -267,12 +267,27 @@ UI responsiveness. Now unblocked: the core is DOM-free (P2.6) and can be instant
 as is. The remaining work is the message protocol (start/pause/reset, key state, snapshot, frame
 buffer, PCM) and moving `Clock` and the `Screen` pixel buffer across the worker boundary.
 
-#### P2.10 `.editorconfig` and CI — ⏳
+#### P2.10 `.editorconfig` and CI — ✅ done
 
-Add `.editorconfig` and a GitHub Actions workflow for linting. The checks it should run are ready:
-`npm run lint`, `npm test`, the browser smoke check (`npm run check`, which serves `dist/`, boots it
-in headless Chrome and asserts a painted canvas with a clean console) and, when the sound is touched,
-the measurement tools (`npm run audio:response`, `npm run audio:melody`). See `scripts/README.md`.
+`.editorconfig` mirrors `.prettierrc` (two spaces, 100 columns, LF, UTF-8) so that editors do not fight
+the formatting, with trailing whitespace kept in markdown. Prettier only reads this file, it does not
+format it, so it stays outside the format check.
+
+`.github/workflows/ci.yml` runs `npm ci` on Node 22 - the lowest version that satisfies the engines of
+vite (20.19), eslint (20.19) and vitest (22.12), while the README promised 20 - then `npm run
+format:check`, `npm run lint`, `npm test`, `npm run build` and the browser smoke check `npm run check`.
+That check needs Chrome, which the GitHub runner images ship; the script also takes `--chrome <path>` and
+adds `--no-sandbox` when CI is set, because a container usually cannot use the sandbox.
+
+The workflow is triggered by hand for now (`workflow_dispatch`), because the project does not need a run
+on every change yet; the `push` and `pull_request` triggers sit next to it commented out and come back by
+removing the `#`. Two GitHub rules decide when a trigger fires: the file has to be on the **default
+branch** for the "Run workflow" button (and the dispatch API) to exist at all, and a `push` only starts a
+workflow that is present on the pushed branch. So the job stays dormant until this file reaches `master`,
+which matches what the project wants at the moment.
+
+The measurement tools (`npm run audio:response`, `npm run audio:melody`) are deliberately not part of the
+job: they print numbers for a human instead of asserting anything. See `scripts/README.md`.
 
 #### P2.11 Wait states: the video/RAM contention is not modelled — ✅ done
 
@@ -402,9 +417,9 @@ adaptive scaling, fullscreen; **P3** WebGL, color filters, animations, statistic
 3. **Write `ARCHITECTURE.md`** (P3.4) — the module split (DOM-free core vs. browser shell) is now
    stable enough to document.
 4. Work on the structural leftovers when the code is touched anyway: `i8080.js` modernization (P1.2),
-   Web Worker (P2.5), `.editorconfig` + CI (P2.10), rendering (P3.7 / P3.8).
+   Web Worker (P2.5), rendering (P3.7 / P3.8).
 
-Only **P1.2, P2.5, P2.10, P3.4, P3.6 and P3.7** are open tasks. Everything else in the backlog is
+Only **P1.2, P2.5, P3.4, P3.6 and P3.7** are open tasks. Everything else in the backlog is
 either done (see [Completed](#completed)) or a candidate list (P3.8, P3.9).
 
 The sound work needs one thing from outside the repository: a recording of a real PC-01 (see P3.10 and
@@ -483,8 +498,8 @@ shorter than it. Covered by `test/fileFormat.test.js`.
 
 #### P1.1 No tests (largest gap) and no `test` script — ✅ fixed
 
-Added Vitest (`npm test` / `npm run test:watch`) and a headless suite, since grown to **90 tests
-across 13 files**. They run without a DOM against the decoupled core, using a shared `test/helpers.js`
+Added Vitest (`npm test` / `npm run test:watch`) and a headless suite, since grown to **95 tests
+across 14 files**. They run without a DOM against the decoupled core, using a shared `test/helpers.js`
 (`createCore()`):
 - `i8080` — instruction execution: immediates, register moves, arithmetic flags, `JMP`, `CALL`/`RET`,
   `PUSH`/`POP`, `run()` frame stepping, halt, plus the opcode-fetch/trap contract (P3.5);
@@ -521,8 +536,8 @@ tree-shaking and code splitting. (Supersedes the old ES3-style, manually-ordered
 
 #### P1.6 Build system and tooling — ✅ (partial)
 
-`package.json`, ESLint (Flat Config), Prettier and husky/lint-staged are configured. CI/CD
-(GitHub Actions) is still missing (see P2.10).
+`package.json`, ESLint (Flat Config), Prettier and husky/lint-staged are configured, `.editorconfig`
+keeps editors in line, and a GitHub Actions workflow can run all of the checks (by hand for now, see P2.10).
 
 #### P1.7 Deprecated web APIs — ✅
 
@@ -999,5 +1014,5 @@ up to 5 sources). With a correct loop the audio-clock queue measures **0** overl
 63-120 ms, so the candidate is to bring it back with an overflow policy that *drops* instead of
 rewinding the schedule. Not scheduled.
 
-The reproduction harness behind the table is a throwaway script; it is a candidate for `P2.10` if a
-headless smoke check is wanted in CI.
+The reproduction harness behind the table is a throwaway script; if the audio-clock queue is brought back,
+it is the starting point for a regression check.
