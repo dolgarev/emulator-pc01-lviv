@@ -786,12 +786,19 @@ of the keyboard connector - so the emitter sits on the keyboard PCB, and it is a
 emitter** (the manual speaks of «динамик (капсуль)», and a piezo disc is exactly what an
 open-collector gate with a series resistor drives).
 
-The emitter itself has since been identified from the part data: it is a **ЗП-1** piezo capsule - a
-passive emitter without a built-in oscillator, 5 V nominal, working range 1000-3000 Hz, at least
-75 dB at 1 m, a disc about 39 mm across and 4 mm thick, operating range -30..+60 °C, TU
-12MO.081.085TU. The same capsule also allows a three-wire circuit with feedback for a self-oscillating
-generator, but the PC-01 does not use that: the capsule is driven from the gate as a plain two-wire
-load.
+The emitter itself has since been identified from the part data: it is a **ЗП-1** piezo capsule, and
+the data is taken from its TU (12MO.081.085 TU, the designation in the manufacturer's catalogue):
+resonance frequency **3-5 kHz**, sound pressure at least 75 dB at 100±3 cm, nominal voltage 5±2 V,
+operating range -30..+60 °C, mass up to 5 g. The same capsule also allows a three-wire circuit with
+feedback for a self-oscillating generator, but the PC-01 does not use that: the capsule is driven from
+the gate as a plain two-wire load.
+
+One caveat about that number: shop listings quote "resonance 1000..3000 Hz" and a 39x4 mm disc, and that
+is where the first version of this model came from. The TU is preferred because the same catalogue lists
+a resonance for every type of the series (ЗП-3 4.1±0.05 kHz, ЗП-5 1.5-3 kHz, ЗП-22 1-3.5 kHz) and
+because the "1000..3000 Hz" text appears verbatim on several reseller pages, which smells of a
+propagated copy error. The TU is what the model follows, so the band sits an octave higher than in the
+first version.
 
 Evidence collected for this item:
 
@@ -807,9 +814,14 @@ Evidence collected for this item:
   next to R14, its silkscreen labels mirrored (`ВА1`/`ЗП…`).
 
 What is still **not** established is the *shape* of the response of the mounted capsule: no measured
-curve is available, the level is not calibrated to the 75 dB/1 m figure, and the drive is not a
-symmetric square wave - the open-collector output pulls the line low through the transistor, while the
-rising edge is the (unseen) pull-up charging the capacitance of the capsule, i.e. an RC charge.
+curve is available, the level is not calibrated to the 75 dB figure, and the drive is not a symmetric
+square wave - the open-collector output pulls the line low through the transistor, while the rising
+edge is the (unseen) pull-up charging the capacitance of the capsule, i.e. an RC charge. The missing
+values are the pull-up resistor of the gate, the series resistor next to the capsule (R14 on the
+keyboard board) and the capacitance of the capsule. One constraint follows from the band itself: for the
+3-5 kHz resonance to survive, the RC time constant has to stay well below a quarter of a period
+(τ ≲ 20-30 µs), so a capsule of a few tens of nF implies a pull-up of about 1 kΩ rather than tens of
+kΩ.
 
 Implementation (`src/audioSink.js`) - a chain of biquads in front of the output, with the band taken
 from the part data:
@@ -817,9 +829,9 @@ from the part data:
 | Stage | Type | Frequency | Notes |
 | --- | --- | --- | --- |
 | DC blocker (optional, `allow_highpass_filter`) | highpass | 20 Hz | only needed in `flat` mode: a piezo is capacitive and blocks DC by itself |
-| Low end | highpass | 1000 Hz | lower edge of the working range of the ЗП-1 |
-| Resonance | peaking | 2000 Hz, +6 dB, Q 1 | middle of the 1-3 kHz band, where the disc moves most air |
-| Top end | lowpass | 3000 Hz | upper edge of the working range |
+| Low end | highpass | 3000 Hz | lower edge of the resonance band quoted in the TU |
+| Resonance | peaking | 4000 Hz, +6 dB, Q 1 | middle of the 3-5 kHz band, broad enough to cover it |
+| Top end | lowpass | 5000 Hz | upper edge of the resonance band |
 
 `beeper.speaker_model` in `src/settings.js` switches between `'piezo'` (**the default**: the model
 above, now that the part has been identified) and `'flat'` (the raw square wave, kept as the
@@ -834,13 +846,19 @@ Measured by rendering tones through the real chain in an `OfflineAudioContext` (
 
 | 100 Hz | 200 Hz | 400 Hz | 700 Hz | 1 kHz | 1.5 kHz | 2 kHz | 2.5 kHz | 3 kHz | 4 kHz | 6 kHz | 10 kHz | 15 kHz |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| −40.0 dB | −27.7 dB | −15.0 dB | −3.9 dB | +2.3 dB | +6.5 dB | +8.1 dB | +6.6 dB | +3.9 dB | −1.9 dB | −11.1 dB | −22.9 dB | −34.9 dB |
+| −59.3 dB | −47.2 dB | −35.1 dB | −25.0 dB | −18.3 dB | −10.0 dB | −3.5 dB | +1.7 dB | +5.5 dB | +8.4 dB | +1.8 dB | −12.3 dB | −25.3 dB |
 
-The −3 dB band of the model lands at about 750 Hz and 4 kHz, a little wider than the quoted
-1-3 kHz: the quoted range is where the part meets its sound-pressure rating, and the response relative
-to that rating is not published. Low beeper notes therefore become much quieter and the low-kHz notes
-louder - the thin, sharp character of the real machine, which the emulator never had. Tests
-(`test/audioSink.test.js`): the chain of each model, that it is built once, that `flat` builds no
+The −3 dB points of the model land at about 2.1 kHz and 6.3 kHz, i.e. around the quoted band rather
+than inside it: the TU gives the range in which the disc resonates, and the filters have to be centred
+on it. The audible consequence is large, because the software does not play in that range: the melody
+of the test application (`public/data/apps/almazy_lviv.lvt`) averages about 600 Hz - 24.7 level changes
+per 50 Hz frame - which the model passes at about −25 dB, so it is reproduced mainly through the 5th to
+7th harmonics of its square wave, i.e. around 3-4 kHz. That is exactly the thin, shrill character of a
+ringer capsule, and it is what a real machine does with these melodies; a melody written for the
+capsule's own band would come out roughly 25 dB louder. If that turns out to be too extreme by ear, the
+constants sit in one block (`PIEZO_MODEL`) and the band can be widened without touching anything else.
+
+Tests (`test/audioSink.test.js`): the chain of each model, that it is built once, that `flat` builds no
 nodes, and that the DC blocker stays independent of the model.
 
 #### P3.12 Speaker level: `PC0 OR NOT PB7` — ✅ done

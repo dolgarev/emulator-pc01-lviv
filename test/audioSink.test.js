@@ -87,7 +87,7 @@ describe('AudioSink', () => {
       'peaking',
       'lowpass',
     ]);
-    expect(context.filters.map((filter) => filter.frequency.value)).toEqual([1000, 2000, 3000]);
+    expect(context.filters.map((filter) => filter.frequency.value)).toEqual([3000, 4000, 5000]);
     expect(context.filters[1].gain.value).toBe(6);
     expect(context.starts).toHaveLength(1);
 

@@ -9,24 +9,30 @@ import { assertInstance } from './utils/assert.js';
 // Removes the DC offset that a constant beeper level leaves in the output.
 const DC_BLOCKER_FREQUENCY = 20;
 
-// The emitter is a ЗП-1 piezo capsule. The part data: passive (no built-in
-// oscillator), 5 V nominal, working range 1000-3000 Hz, at least 75 dB at 1 m, a disc
-// about 39 mm across and 4 mm thick, -30..+60 C, TU 12MO.081.085TU. Such a capsule is
-// a resonant, capacitive load: it moves almost no air below its band and rolls off
-// above it. The PC-01 drives it from an open-collector gate through the BUZZER pin of
-// the keyboard connector, i.e. as a driven emitter - not in the three-wire
-// self-oscillating circuit the same capsule also allows.
+// The emitter is a ЗП-1 piezo capsule, and its data comes from the TU (12MO.081.085 TU, the
+// designation in the manufacturer's catalogue): resonance frequency 3-5 kHz, sound
+// pressure at least 75 dB at 100+/-3 cm, nominal voltage 5+/-2 V, -30..+60 C, mass up to
+// 5 g. Shop listings also quote "resonance 1000..3000 Hz" and a 39x4 mm disc, but the
+// same numbers appear verbatim across several resellers, while the TU catalogue lists a
+// resonance for every type of the series (ЗП-3 4.1 kHz, ЗП-5 1.5-3 kHz, ЗП-22 1-3.5 kHz),
+// so the TU is taken as the source of the band.
 //
-// The band below comes from the part data; the shape of the curve does not. No
-// measured response of the mounted capsule is available, and the open-collector
-// rising edge (a pull-up charging the capsule capacitance) is not modelled.
-// See CODE_REVIEW.md, P3.11.
+// The capsule is a resonant, capacitive load: it moves almost no air below its band and
+// rolls off above it, which is why the machine sounds thin and shrill rather than deep.
+// The PC-01 drives it from an open-collector gate through the BUZZER pin of the keyboard
+// connector, i.e. as a driven emitter - not in the three-wire self-oscillating circuit
+// the same capsule also allows.
+//
+// The band below comes from the TU; the shape of the curve does not. No measured response
+// of the mounted capsule is available, nor its capacitance or the pull-up resistor of the
+// gate, so the asymmetric edges (fast pull-down, RC charge through the pull-up) are not
+// modelled either. See CODE_REVIEW.md, P3.11.
 const PIEZO_MODEL = {
-  low_cut: 1000, // Hz - lower edge of the working range of the ЗП-1
-  resonance: 2000, // Hz - middle of the 1..3 kHz band, where the disc moves most air
-  resonance_gain: 6, // dB - the part quotes the band as a whole, so the peak stays modest
-  resonance_q: 1, // broad peak
-  high_cut: 3000, // Hz - upper edge of the working range
+  low_cut: 3000, // Hz - lower edge of the resonance band quoted in the TU
+  resonance: 4000, // Hz - middle of the 3..5 kHz band
+  resonance_gain: 6, // dB - the TU quotes a band, so the peak stays modest
+  resonance_q: 1, // broad peak, wide enough to cover the band
+  high_cut: 5000, // Hz - upper edge of the resonance band
 };
 
 export class AudioSink {
