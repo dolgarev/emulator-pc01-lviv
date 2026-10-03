@@ -897,9 +897,22 @@ hand over a buffer - the other 65 % are rests, and the longest stretch without a
 of that is right: a held level is DC and a piezo does not move, so a rest is silence on the hardware as
 well. What is *not* right is the entry into a rest: on the hardware the signal does not stop changing,
 it simply stops being handed over here, so the filters see a step down to zero (measured at most 0.08
-against a signal peak of 0.25 - a soft edge, not a crack). Emitting a frame of the held level instead
-would remove it and would make the stream continuous; it is left alone here because it changes the audio
-path rather than the emitter model.
+against a signal peak of 0.25 - a soft edge, not a crack). Emitting a frame of the held level instead -
+which is what the hardware does - would remove it and would make the stream continuous, and it was
+tried: `Beeper.play()` stopped returning early for a frame without level changes, so all 750 frames of
+the 15 s test melody handed over a buffer instead of 262, and the artificial steps in `flat` mode fell
+from 65 to 7. **The result was a constant unpleasant noise in the output, so it was reverted.** The
+likely reason is that the idle state is a *constant* level, i.e. a DC offset in the graph: the `piezo`
+chain blocks it, `flat` does not, and a loudspeaker does not want a permanent DC at its input. Whether
+the real machine holds the line or lets it drop is again something the documents cannot settle.
+
+**This item is blocked on a reference recording.** Everything above was reasoned from documents, the
+schematic and the behaviour of the software, and the last two attempts to improve the sound by reasoning
+alone both made it worse before they were measured: taking the rated 3-5 kHz band as a passband, and
+holding the level through a rest. What is missing is one recording of a real PC-01 - a few notes and one
+melody, 10-20 s, microphone at a known distance - with which the band, its skirt, the level and the edge
+shape can be fitted and checked in numbers instead of by ear. Until then the emitter stays as it is
+(`PIEZO_MODEL`, with `flat` available) and no further tuning should be attempted on guesswork.
 
 The same measurement is a warning about method. An earlier version of this analysis glued the emitted
 frames together and left the skipped ones out, which deleted the rests from the melody: the offline
