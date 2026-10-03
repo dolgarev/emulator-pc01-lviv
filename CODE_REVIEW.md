@@ -831,6 +831,14 @@ character of the real machine, which the emulator never had. Tests (`test/audioS
 chain of each model, that it is built once, that `flat` builds no nodes, and that the DC blocker stays
 independent of the model.
 
+**Where the further work went.** The emitter model was developed further in one session - the ЗП-1 TU
+data, the 3-5 kHz band, the response tables, the batch spread, the failed held-level experiment - and
+then reverted, because without a recording or a measured curve of the real capsule none of it could be
+checked, and two rounds of tuning by reasoning made the sound worse before they were measured. Code and
+notes of that session are on branch `feature/sound-work` (tag `sound-session-2026-10-04`); the emulator
+itself is back at the state of `603b937`, i.e. with the repaired beeper pipeline and one animation loop,
+but no emitter filtering by default.
+
 #### P3.12 Speaker level: `PC0 OR NOT PB7` — ✅ done
 
 `src/io.js` treated PB7 as a plain enable: PC0 was handed to the beeper only while PB7 was set, and a
