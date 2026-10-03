@@ -57,17 +57,17 @@ describe('Config', () => {
     expect(config.cpu.effective_clock_speed).toBe(5376000);
   });
 
-  it('models the piezo emitter by default', () => {
+  it('keeps the raw square wave by default', () => {
     const config = new Config(new Settings('default'), 'pc01_lvov_80');
 
-    expect(config.beeper.speaker_model).toBe('piezo');
+    expect(config.beeper.speaker_model).toBe('flat');
   });
 
-  it('accepts the raw square wave and rejects unknown emitter models', () => {
+  it('accepts the piezo emitter model and rejects unknown ones', () => {
     const settings = new Settings('default');
 
-    settings.beeper.speaker_model = 'flat';
-    expect(new Config(settings, 'pc01_lvov_80').beeper.speaker_model).toBe('flat');
+    settings.beeper.speaker_model = 'piezo';
+    expect(new Config(settings, 'pc01_lvov_80').beeper.speaker_model).toBe('piezo');
 
     settings.beeper.speaker_model = 'bass-reflex';
     expect(() => new Config(settings, 'pc01_lvov_80')).toThrow(RangeError);

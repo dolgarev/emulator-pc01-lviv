@@ -863,13 +863,14 @@ the melody comes out at −22.8 dB against −22.5 dB for `flat` - i.e. without 
 invited turning the volume up. The remaining unknown is that skirt; a recording or a measured curve of
 a real capsule is what would settle it, as would the pull-up and the series resistor.
 
-`beeper.speaker_model` in `src/settings.js` switches between `'piezo'` (**the default**: the model
-above, now that the part has been identified) and `'flat'` (the raw square wave, kept as the
-unfiltered mode); an unknown value throws `RangeError` in `Config`. The raw square wave is what this
-emulator has produced since its first version: the sound pipeline is our own design and older than
-other PC-01 emulations, so the digital side (the level, the frames, the mixer) was not taken from
-another emulator - only the analogue emitter follows the part data. The shape of the response curve of
-the mounted capsule is still unknown, so the model remains an approximation, not a measurement.
+`beeper.speaker_model` in `src/settings.js` switches between `'flat'` (**the default**: the raw square
+wave, i.e. without emitter filtering) and `'piezo'` (the model above, opt-in); an unknown value throws
+`RangeError` in `Config`. The raw square wave is what this emulator has produced since its first
+version: the sound pipeline is our own design and older than other PC-01 emulations, so the digital side
+(the level, the frames, the mixer) was not taken from another emulator - only the analogue emitter
+follows the part data. The shape of the response curve of the mounted capsule is still unknown, so the
+model remains an approximation, not a measurement - and it made the sound worse twice before it was
+measured, which is why it is no longer the default.
 
 Measured by rendering tones through the real chain in an `OfflineAudioContext` (level relative to
 `flat`, which is flat by definition):
@@ -911,8 +912,9 @@ schematic and the behaviour of the software, and the last two attempts to improv
 alone both made it worse before they were measured: taking the rated 3-5 kHz band as a passband, and
 holding the level through a rest. What is missing is one recording of a real PC-01 - a few notes and one
 melody, 10-20 s, microphone at a known distance - with which the band, its skirt, the level and the edge
-shape can be fitted and checked in numbers instead of by ear. Until then the emitter stays as it is
-(`PIEZO_MODEL`, with `flat` available) and no further tuning should be attempted on guesswork.
+shape can be fitted and checked in numbers instead of by ear. Until then the emitter stays as it is -
+no filtering by default, the `PIEZO_MODEL` available as an option - and no further tuning should be
+attempted on guesswork.
 
 The same measurement is a warning about method. An earlier version of this analysis glued the emitted
 frames together and left the skipped ones out, which deleted the rests from the melody: the offline

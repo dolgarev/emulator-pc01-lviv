@@ -48,7 +48,7 @@ function createContext({ sample_rate = 44100 } = {}) {
   };
 }
 
-function createSink({ highpass = false, speaker_model = 'piezo', sample_rate = 44100 } = {}) {
+function createSink({ highpass = false, speaker_model = 'flat', sample_rate = 44100 } = {}) {
   const settings = new Settings('default');
   settings.beeper.allow_highpass_filter = highpass;
   settings.beeper.speaker_model = speaker_model;
