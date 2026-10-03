@@ -781,10 +781,17 @@ graph as raw square waves. That is what P3.11 adds.
 The beeper fed its raw 1-bit square wave straight into the Web Audio graph, i.e. the emulator had no
 emitter at all. The real PC-01 does **not** drive the TV speaker (an earlier note in this document
 said so and was wrong): the sound leaves the mainboard through an **open-collector gate** (D29,
-К155ЛА8/7401) on the **PB7** bit of the main PPI and reaches the emitter via the **BUZZER** pin (16) of
-the keyboard connector — so the emitter sits on the keyboard PCB, and it is a built-in **piezo
+К155ЛА8/7401) fed by **PC0** and **PB7** (see P3.12) and reaches the emitter via the **BUZZER** pin (16)
+of the keyboard connector - so the emitter sits on the keyboard PCB, and it is a built-in **piezo
 emitter** (the manual speaks of «динамик (капсуль)», and a piezo disc is exactly what an
 open-collector gate with a series resistor drives).
+
+The emitter itself has since been identified from the part data: it is a **ЗП-1** piezo capsule - a
+passive emitter without a built-in oscillator, 5 V nominal, working range 1000-3000 Hz, at least
+75 dB at 1 m, a disc about 39 mm across and 4 mm thick, operating range -30..+60 °C, TU
+12MO.081.085TU. The same capsule also allows a three-wire circuit with feedback for a self-oscillating
+generator, but the PC-01 does not use that: the capsule is driven from the gate as a plain two-wire
+load.
 
 Evidence collected for this item:
 
@@ -799,37 +806,41 @@ Evidence collected for this item:
 - The keyboard layout scan (`orig/keyboard_pcb.jpg`) shows a single round emitter with a centre pad
   next to R14, its silkscreen labels mirrored (`ВА1`/`ЗП…`).
 
-What could **not** be established is the emitter's type and resonance: the surviving parts list
-(`orig/partlist.djvu`) and the keyboard schematic are DjVu scans and no DjVu tooling is available on
-this machine (`ddjvu`/`djvutxt` from djvulibre are absent), so the numbers below are a plausible
-approximation, not data for the real part. Whoever reads that scan can pin them down.
+What is still **not** established is the *shape* of the response of the mounted capsule: no measured
+curve is available, the level is not calibrated to the 75 dB/1 m figure, and the drive is not a
+symmetric square wave - the open-collector output pulls the line low through the transistor, while the
+rising edge is the (unseen) pull-up charging the capacitance of the capsule, i.e. an RC charge.
 
-Implementation (`src/audioSink.js`) — a chain of biquads in front of the output:
+Implementation (`src/audioSink.js`) - a chain of biquads in front of the output, with the band taken
+from the part data:
 
 | Stage | Type | Frequency | Notes |
 | --- | --- | --- | --- |
 | DC blocker (optional, `allow_highpass_filter`) | highpass | 20 Hz | only needed in `flat` mode: a piezo is capacitive and blocks DC by itself |
-| Low end | highpass | 400 Hz | the disc moves almost no air below this |
-| Resonance | peaking | 3000 Hz, +9 dB, Q 1 | mechanical resonance of a small disc |
-| Top end | lowpass | 10 kHz | rolls off instead of ringing |
+| Low end | highpass | 1000 Hz | lower edge of the working range of the ЗП-1 |
+| Resonance | peaking | 2000 Hz, +6 dB, Q 1 | middle of the 1-3 kHz band, where the disc moves most air |
+| Top end | lowpass | 3000 Hz | upper edge of the working range |
 
-`beeper.speaker_model` in `src/settings.js` switches between `'flat'` (**the default**: the raw square
-wave, matching Emu80 v4, which mixes its beeper source into the 48 kHz output without any speaker
-filtering) and `'piezo'` (the model above, opt-in); an unknown value throws `RangeError` in `Config`.
-The model was kept instead of dropped because the emitter is real, but the reference for accuracy is
-Emu80 v4: with the actual parameters of the part unknown, no filtering is the honest default.
+`beeper.speaker_model` in `src/settings.js` switches between `'piezo'` (**the default**: the model
+above, now that the part has been identified) and `'flat'` (the raw square wave, i.e. exactly what
+Emu80 v4 produces, kept as the unfiltered mode); an unknown value throws `RangeError` in `Config`.
+Emu80 v4 stays the reference for the digital side - the mixer, the level composition and the timing -
+while the analogue emitter follows the part data; the shape of the response curve of the mounted
+capsule is still unknown, so the model remains an approximation, not a measurement.
 
 Measured by rendering tones through the real chain in an `OfflineAudioContext` (level relative to
 `flat`, which is flat by definition):
 
-| 100 Hz | 200 Hz | 400 Hz | 1 kHz | 2 kHz | 3 kHz | 6 kHz | 10 kHz | 15 kHz |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| −23.8 dB | −11.1 dB | +0.2 dB | +1.9 dB | +5.4 dB | +9.3 dB | +3.6 dB | +0.7 dB | −12.0 dB |
+| 100 Hz | 200 Hz | 400 Hz | 700 Hz | 1 kHz | 1.5 kHz | 2 kHz | 2.5 kHz | 3 kHz | 4 kHz | 6 kHz | 10 kHz | 15 kHz |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| −40.0 dB | −27.7 dB | −15.0 dB | −3.9 dB | +2.3 dB | +6.5 dB | +8.1 dB | +6.6 dB | +3.9 dB | −1.9 dB | −11.1 dB | −22.9 dB | −34.9 dB |
 
-Low beeper notes therefore become much quieter and the low-kHz notes louder — the thin, sharp
-character of the real machine, which the emulator never had. Tests (`test/audioSink.test.js`): the
-chain of each model, that it is built once, that `flat` builds no nodes, and that the DC blocker stays
-independent of the model.
+The −3 dB band of the model lands at about 750 Hz and 4 kHz, a little wider than the quoted
+1-3 kHz: the quoted range is where the part meets its sound-pressure rating, and the response relative
+to that rating is not published. Low beeper notes therefore become much quieter and the low-kHz notes
+louder - the thin, sharp character of the real machine, which the emulator never had. Tests
+(`test/audioSink.test.js`): the chain of each model, that it is built once, that `flat` builds no
+nodes, and that the DC blocker stays independent of the model.
 
 #### P3.12 Speaker level: `PC0 OR NOT PB7` — ✅ done
 

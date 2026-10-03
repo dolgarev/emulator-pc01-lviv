@@ -9,21 +9,24 @@ import { assertInstance } from './utils/assert.js';
 // Removes the DC offset that a constant beeper level leaves in the output.
 const DC_BLOCKER_FREQUENCY = 20;
 
-// Typical small piezo emitter. The PC-01 drove the same kind of membrane as the
-// push-button telephones of that era: the signal leaves the mainboard through an
-// open-collector gate and reaches the emitter via the BUZZER pin of the keyboard
-// connector. Such an emitter is a resonant, capacitive load - it moves almost no air
-// below a few hundred Hz and has a mechanical resonance in the low kHz range.
+// The emitter is a ЗП-1 piezo capsule. The part data: passive (no built-in
+// oscillator), 5 V nominal, working range 1000-3000 Hz, at least 75 dB at 1 m, a disc
+// about 39 mm across and 4 mm thick, -30..+60 C, TU 12MO.081.085TU. Such a capsule is
+// a resonant, capacitive load: it moves almost no air below its band and rolls off
+// above it. The PC-01 drives it from an open-collector gate through the BUZZER pin of
+// the keyboard connector, i.e. as a driven emitter - not in the three-wire
+// self-oscillating circuit the same capsule also allows.
 //
-// The numbers below are a plausible approximation, not data for the part actually
-// used: the surviving parts list is a scan, so the emitter type (and with it the
-// real resonance) could not be read. See CODE_REVIEW.md, P3.11.
+// The band below comes from the part data; the shape of the curve does not. No
+// measured response of the mounted capsule is available, and the open-collector
+// rising edge (a pull-up charging the capsule capacitance) is not modelled.
+// See CODE_REVIEW.md, P3.11.
 const PIEZO_MODEL = {
-  low_cut: 400, // Hz - below this the disc is almost silent
-  resonance: 3000, // Hz - mechanical resonance of a small disc
-  resonance_gain: 9, // dB
+  low_cut: 1000, // Hz - lower edge of the working range of the ЗП-1
+  resonance: 2000, // Hz - middle of the 1..3 kHz band, where the disc moves most air
+  resonance_gain: 6, // dB - the part quotes the band as a whole, so the peak stays modest
   resonance_q: 1, // broad peak
-  high_cut: 10000, // Hz - the top end rolls off instead of ringing
+  high_cut: 3000, // Hz - upper edge of the working range
 };
 
 export class AudioSink {

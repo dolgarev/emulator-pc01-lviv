@@ -143,7 +143,7 @@ export class Config {
     }
 
     // The emitter the beeper drives: a piezo model or the raw square wave.
-    const speaker_model = emu_settings.beeper.speaker_model ?? 'flat';
+    const speaker_model = emu_settings.beeper.speaker_model ?? 'piezo';
 
     if (!['flat', 'piezo'].includes(speaker_model)) {
       throw new RangeError('CONFIG: Unknown speaker model');

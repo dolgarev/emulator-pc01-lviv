@@ -48,7 +48,7 @@ function createContext({ sample_rate = 44100 } = {}) {
   };
 }
 
-function createSink({ highpass = false, speaker_model = 'flat', sample_rate = 44100 } = {}) {
+function createSink({ highpass = false, speaker_model = 'piezo', sample_rate = 44100 } = {}) {
   const settings = new Settings('default');
   settings.beeper.allow_highpass_filter = highpass;
   settings.beeper.speaker_model = speaker_model;
@@ -87,8 +87,8 @@ describe('AudioSink', () => {
       'peaking',
       'lowpass',
     ]);
-    expect(context.filters.map((filter) => filter.frequency.value)).toEqual([400, 3000, 10000]);
-    expect(context.filters[1].gain.value).toBe(9);
+    expect(context.filters.map((filter) => filter.frequency.value)).toEqual([1000, 2000, 3000]);
+    expect(context.filters[1].gain.value).toBe(6);
     expect(context.starts).toHaveLength(1);
 
     // The chain is built once, not once per frame.
@@ -106,11 +106,14 @@ describe('AudioSink', () => {
   });
 
   it('keeps the DC blocker independent of the speaker model', () => {
-    const { sink, context } = createSink();
+    const { sink, context } = createSink({ speaker_model: 'flat' });
 
     sink.play(frame(), 44100);
 
-    const { sink: filtered, context: withFilter } = createSink({ highpass: true });
+    const { sink: filtered, context: withFilter } = createSink({
+      speaker_model: 'flat',
+      highpass: true,
+    });
     filtered.play(frame(), 44100);
 
     expect(context.filters).toHaveLength(0);
