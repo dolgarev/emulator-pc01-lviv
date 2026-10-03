@@ -864,16 +864,15 @@ resonance to survive at all, the RC time constant has to stay well below a quart
 (τ ≲ 20-30 µs), which for a capsule of a few tens of nF means a pull-up of about 1 kΩ rather than tens
 of kΩ.
 
-Implementation (`src/audioSink.js`) - a chain of biquads in front of the output. The constants below
-were chosen before the part data was found, so they are a first approximation and do not follow the
-3-5 kHz of the TU:
+Implementation (`src/audioSink.js`) - a chain of biquads in front of the output, with the resonance
+taken from the part data:
 
 | Stage | Type | Frequency | Notes |
 | --- | --- | --- | --- |
 | DC blocker (optional, `allow_highpass_filter`) | highpass | 20 Hz | only needed in `flat` mode: a piezo is capacitive and blocks DC by itself |
-| Low end | highpass | 400 Hz | the disc moves almost no air below this |
-| Resonance | peaking | 3000 Hz, +9 dB, Q 1 | mechanical resonance of a small disc |
-| Top end | lowpass | 10 kHz | rolls off instead of ringing |
+| Low end | highpass | 700 Hz | below the resonance; the TU says nothing about the skirt, so it stays well under the band |
+| Resonance | peaking | 3500 Hz, +5 dB, Q 0.8 | inside the 3-5 kHz band of the TU, broad enough to cover it |
+| Top end | lowpass | 8000 Hz | rolls off instead of ringing |
 
 `beeper.speaker_model` in `src/settings.js` switches between `'flat'` (**the default**: the unfiltered
 square wave) and `'piezo'` (the model above, opt-in); an unknown value throws `RangeError` in `Config`.
@@ -887,12 +886,17 @@ Measured by rendering tones through the real chain in an `OfflineAudioContext` (
 
 | 100 Hz | 200 Hz | 400 Hz | 1 kHz | 2 kHz | 3 kHz | 6 kHz | 10 kHz | 15 kHz |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| −23.8 dB | −11.1 dB | +0.2 dB | +1.9 dB | +5.4 dB | +9.3 dB | +3.6 dB | +0.7 dB | −12.0 dB |
+| −33.7 dB | −21.4 dB | −8.5 dB | +2.0 dB | +3.3 dB | +5.4 dB | +3.9 dB | −2.9 dB | −15.8 dB |
 
-Low beeper notes therefore become much quieter and the low-kHz notes louder — the thin, sharp
-character of the real machine, which the emulator never had. Tests (`test/audioSink.test.js`): the
-chain of each model, that it is built once, that `flat` builds no nodes, and that the DC blocker stays
-independent of the model.
+Low notes are attenuated and the 3-5 kHz region is lifted: the thin, sharp character of a ringer
+capsule, without pushing the fundamental of the software's notes out of the picture. One earlier variant
+did push it out - treating the rated 3-5 kHz band as a *passband* (highpass at 3000 Hz, lowpass at
+5000 Hz) left a 550 Hz note at −29 dB with its 7th harmonic as the loudest component and a 300 Hz note at
+−40 dB with its 9th, which sounds like a pinched whistle instead of a melody. The TU does not describe
+the skirt below the resonance, so the low cut stays where the measurement says the notes survive: with
+700 Hz the fundamental of the test melody sits at −2.8 dB and remains the loudest part of the note.
+Tests (`test/audioSink.test.js`): the chain of each model, that it is built once, that `flat` builds no
+nodes, and that the DC blocker stays independent of the model.
 
 **Where the further work went.** The emitter model was developed further in one session - the ЗП-1 TU
 data, the 3-5 kHz band, the response tables, the batch spread, the failed held-level experiment - and
@@ -900,9 +904,10 @@ then reverted, because without a recording or a measured curve of the real capsu
 checked, and two rounds of tuning by reasoning made the sound worse before they were measured. Code and
 notes of that session are on branch `feature/sound-work` (tag `sound-session-2026-10-04`); the emulator
 itself now generates the sound the way it did before that session (see P3.10) and models the video/RAM
-contention (P2.11), with no emitter filtering by default. Until there is a reference recording, the
-`'piezo'` model stays an option and its constants are the first approximation from the table above; the
-part data suggests the next attempt should start from the 3-5 kHz of the TU instead.
+contention (P2.11), with no emitter filtering by default. The `'piezo'` model is an option and now follows
+the band of the TU (the table above, measured); the shape of the curve of the mounted capsule, its level
+and the RC of its drive are still unverified, which is why filtering is not the default until a recording
+of a real machine can be compared against.
 
 #### P3.12 Speaker level: `PC0 OR NOT PB7` — ✅ done
 

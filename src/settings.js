@@ -20,9 +20,8 @@ const DEFAULT_SETTINGS = {
     allow_sound: true,
     allow_highpass_filter: false,
     // Emitter model: 'flat' (the unfiltered 1-bit square wave - the default) or 'piezo'
-    // (a first approximation of the built-in ЗП-1 piezo capsule, see CODE_REVIEW.md
-    // P3.11; the part data gives that capsule a resonance band of 3-5 kHz, which the
-    // constants of the model do not follow yet).
+    // (a model of the built-in ЗП-1 piezo capsule: band 700 Hz .. 8 kHz with a lift at
+    // 3.5 kHz, following the 3-5 kHz resonance of its TU; see CODE_REVIEW.md P3.11).
     speaker_model: 'flat',
   },
   cpu: {
