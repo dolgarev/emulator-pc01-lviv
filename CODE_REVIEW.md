@@ -890,13 +890,28 @@ recording of a real PC-01 playing the same melody. Notes and reasoning for that 
 paragraph above. The constants sit in one block (`PIEZO_MODEL`), so the band and its skirt can be moved
 without touching anything else.
 
-One more artefact showed up while measuring and is *not* the model's doing: the beeper emits nothing at
-all for an emulated frame in which the output level does not change (`Beeper.play()` returns early when
-there are no level changes), so the sink queues no audio for that frame and its output drops to zero.
-At the end of every note that is a step, and the model turns it into a click: 48 such steps over the
-melody with the 3-5 kHz band against 7 with `flat` and 13 with the current model. Holding the level
-instead - emitting a frame of the held level, which is what the hardware does - would remove them; it is
-left alone here because it changes the audio path rather than the emitter model.
+One more artefact showed up while measuring and is *not* the model's doing: `Beeper.play()` returns
+early for an emulated frame in which the output level does not change, so the sink queues no audio for
+that frame and its input drops to zero. Over 15 s of the test melody only 262 of 750 emulated frames
+hand over a buffer - the other 65 % are rests, and the longest stretch without a buffer lasts 6 s. Most
+of that is right: a held level is DC and a piezo does not move, so a rest is silence on the hardware as
+well. What is *not* right is the entry into a rest: on the hardware the signal does not stop changing,
+it simply stops being handed over here, so the filters see a step down to zero (measured at most 0.08
+against a signal peak of 0.25 - a soft edge, not a crack). Emitting a frame of the held level instead
+would remove it and would make the stream continuous; it is left alone here because it changes the audio
+path rather than the emitter model.
+
+The same measurement is a warning about method. An earlier version of this analysis glued the emitted
+frames together and left the skipped ones out, which deleted the rests from the melody: the offline
+render then sounded clean and continuous while the emulator sounded gated, and the difference was in the
+analysis, not in the emulator. Any offline judgement of the sink has to reproduce the frames it *skips*
+as well.
+
+Two more differences between playing the audio for real and rendering it offline, both live-only: the
+sink plays every buffer with `start(0)`, so a catch-up burst after a stall starts several buffers at the
+same instant and sums them (measured earlier at 341-389 ms of overlap per 10 s of melody, up to 5
+sources at once); and the live output is about 4.5 dB below the peak-normalised offline render, which
+invites raising the volume and then hearing the loudspeaker rather than the emulator.
 
 Tests (`test/audioSink.test.js`): the chain of each model, that it is built once, that `flat` builds no
 nodes, and that the DC blocker stays independent of the model.
