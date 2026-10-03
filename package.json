@@ -8,10 +8,13 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint src test",
-    "format": "prettier --write \"{src,test}/**/*.js\"",
+    "lint": "eslint src test scripts",
+    "format": "prettier --write \"{src,test}/**/*.js\" \"scripts/**/*.mjs\"",
     "test": "vitest run",
     "test:watch": "vitest",
+    "check": "node scripts/browser-check.mjs",
+    "audio:response": "node scripts/audio-response.mjs",
+    "audio:melody": "node scripts/melody-audio.mjs",
     "prepare": "husky"
   },
   "repository": {

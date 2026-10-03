@@ -269,7 +269,10 @@ buffer, PCM) and moving `Clock` and the `Screen` pixel buffer across the worker 
 
 #### P2.10 `.editorconfig` and CI — ⏳
 
-Add `.editorconfig` and a GitHub Actions workflow for linting.
+Add `.editorconfig` and a GitHub Actions workflow for linting. The checks it should run are ready:
+`npm run lint`, `npm test`, the browser smoke check (`npm run check`, which serves `dist/`, boots it
+in headless Chrome and asserts a painted canvas with a clean console) and, when the sound is touched,
+the measurement tools (`npm run audio:response`, `npm run audio:melody`). See `scripts/README.md`.
 
 #### P2.11 Wait states: the video/RAM contention is not modelled — ✅ done
 
@@ -394,15 +397,19 @@ adaptive scaling, fullscreen; **P3** WebGL, color filters, animations, statistic
 
 1. **Add PWA support** (Phase 2 / P3.6) — the last migration phase: Service Worker, Web App
    Manifest, caching of `data/*.bin`.
-2. **Extend the test suite** — an `io.js` test, the 8080 Exerciser ROM as a CPU oracle, snapshot
-   fixtures.
+2. **Extend the test suite** — an 8080 Exerciser ROM as a CPU oracle, snapshot fixtures; the `io.js`
+   test now exists (`test/io.test.js`).
 3. **Write `ARCHITECTURE.md`** (P3.4) — the module split (DOM-free core vs. browser shell) is now
    stable enough to document.
 4. Work on the structural leftovers when the code is touched anyway: `i8080.js` modernization (P1.2),
-   Web Worker (P2.5), `.editorconfig` + CI (P2.10), wait states (P2.11), rendering (P3.7 / P3.8).
+   Web Worker (P2.5), `.editorconfig` + CI (P2.10), rendering (P3.7 / P3.8).
 
-Only **P1.2, P2.5, P2.10, P2.11, P3.4, P3.6 and P3.7** are open tasks. Everything else in the backlog is
+Only **P1.2, P2.5, P2.10, P3.4, P3.6 and P3.7** are open tasks. Everything else in the backlog is
 either done (see [Completed](#completed)) or a candidate list (P3.8, P3.9).
+
+The sound work needs one thing from outside the repository: a recording of a real PC-01 (see P3.10 and
+P3.11) - without it the emitter model cannot be checked against the hardware, and the video/RAM
+contention of P2.11 rests on the documented pattern rather than on a measurement of a real machine.
 
 ---
 
