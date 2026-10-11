@@ -116,6 +116,11 @@ export class ComputerProfile {
         }
       });
     }
+
+    if (this.ui instanceof UiBinding) {
+      this.ui.onAspectRatio((value) => this.viewport.setAspectRatio(value));
+      this.ui.onAutoScale((checked) => this.viewport.setAutoScale(checked));
+    }
   }
 
   run() {

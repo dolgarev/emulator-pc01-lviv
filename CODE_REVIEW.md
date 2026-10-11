@@ -362,14 +362,15 @@ menus and static screens.
 1. **Dirty rectangle tracking** — see P3.7.
 2. **WebGL rendering** — upload `ImageData` to a WebGL texture, render via a palette shader, add
    CRT/scanline filters. Gain: 10–100× performance and retro effects.
-3. **Dynamic aspect ratio** — UI selector for 1:1, 4:3 (CRT), 16:9, and auto-fit, via
-   `Viewport.setAspectRatio(value)`.
+3. **Dynamic aspect ratio** — ✅ done: UI selector for 1:1, 4:3 (CRT), 16:9 via
+   `Viewport.setAspectRatio(value)` and `screen.aspect_ratio`.
 4. **Scaling interpolation** — choose nearest-neighbor (pixel art), bilinear (smoothed) or a CRT
    filter via CSS `image-rendering` or WebGL shaders.
 5. **HiDPI/Retina support** — scale the canvas by `window.devicePixelRatio`.
 6. **Color corrections and filters** — brightness/contrast, color temperature, CRT effect
    (scanlines, bloom), monochrome monitor mode.
-7. **Adaptive scaling to window size** — pick the largest integer scale that fits the container.
+7. **Adaptive scaling to window size** — ✅ done: `fitScale()` picks the largest integer scale that
+   fits the container, driven by a `ResizeObserver` (`screen.auto_scale`, "Fit window" checkbox).
 8. **Fullscreen mode** — Fullscreen API with a toggle button, automatic scaling, ESC to exit.
 9. **Screenshots with metadata** — date/time, loaded program name, current settings; PNG/JPEG/WebP.
 10. **Animations and transitions** — smooth palette/color-mode changes and loading effects.
@@ -377,8 +378,8 @@ menus and static screens.
 12. **Multi-threaded rendering** — OffscreenCanvas + Worker, transferring `ImageData` as a
     transferable object.
 
-Priority within this list: **P1** dirty rectangle tracking, dynamic aspect ratio; **P2** HiDPI,
-adaptive scaling, fullscreen; **P3** WebGL, color filters, animations, statistics.
+Priority within this list: **P1** dirty rectangle tracking; **P2** HiDPI, fullscreen; **P3** WebGL,
+color filters, animations, statistics.
 
 #### P3.9 Feature backlog (candidate list, not a single task)
 
@@ -417,7 +418,7 @@ adaptive scaling, fullscreen; **P3** WebGL, color filters, animations, statistic
 3. **Write `ARCHITECTURE.md`** (P3.4) — the module split (DOM-free core vs. browser shell) is now
    stable enough to document.
 4. Work on the structural leftovers when the code is touched anyway: `i8080.js` modernization (P1.2),
-   Web Worker (P2.5), rendering (P3.7 / P3.8).
+   Web Worker (P2.5), dirty rectangles (P3.7), the remaining rendering ideas (P3.8).
 
 Only **P1.2, P2.5, P3.4, P3.6 and P3.7** are open tasks. Everything else in the backlog is
 either done (see [Completed](#completed)) or a candidate list (P3.8, P3.9).
@@ -498,8 +499,8 @@ shorter than it. Covered by `test/fileFormat.test.js`.
 
 #### P1.1 No tests (largest gap) and no `test` script — ✅ fixed
 
-Added Vitest (`npm test` / `npm run test:watch`) and a headless suite, since grown to **95 tests
-across 14 files**. They run without a DOM against the decoupled core, using a shared `test/helpers.js`
+Added Vitest (`npm test` / `npm run test:watch`) and a headless suite, since grown to **109 tests
+across 16 files**. They run without a DOM against the decoupled core, using a shared `test/helpers.js`
 (`createCore()`):
 - `i8080` — instruction execution: immediates, register moves, arithmetic flags, `JMP`, `CALL`/`RET`,
   `PUSH`/`POP`, `run()` frame stepping, halt, plus the opcode-fetch/trap contract (P3.5);
@@ -510,6 +511,9 @@ across 14 files**. They run without a DOM against the decoupled core, using a sh
 - `Keyboard` / `KeyboardBinding` — key matrix and the `evt.code` mapping;
 - `ComputerProfile` — the fixed-timestep loop via a fake ticker, including the real PC-01 clock speed;
 - `validateFileHeader` — the magic-string checks of the LVOV/DUMP and "Emulator 3000" headers;
+- `Viewport` — `fitScale()` integer fitting (aspect ratio, limiting dimension, minimum scale) and
+  aspect-ratio preset normalization;
+- `UiBinding` — aspect-ratio and auto-scale control forwarding plus `terminate()` (EventTarget mocks);
 - `Clock`, `Config`.
 
 The full 8080 Exerciser ROM remains a possible future oracle for exhaustive CPU coverage.

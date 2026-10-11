@@ -39,6 +39,8 @@ export class Config {
           screen: {
             resolution: 'default',
             allow_color_mode: true,
+            aspect_ratio: emu_settings.screen.aspect_ratio,
+            auto_scale: emu_settings.screen.auto_scale,
             screenshot_type: emu_settings.screen.screenshot_type,
           },
           traps: {
@@ -77,6 +79,8 @@ export class Config {
           screen: {
             resolution: 'default',
             allow_color_mode: true,
+            aspect_ratio: emu_settings.screen.aspect_ratio,
+            auto_scale: emu_settings.screen.auto_scale,
             screenshot_type: emu_settings.screen.screenshot_type,
           },
           traps: {

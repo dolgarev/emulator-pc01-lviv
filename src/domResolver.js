@@ -31,6 +31,22 @@ export class DomResolver {
     this.help_button = settings.controls.help_button
       ? DomResolver.resolve(settings.controls.help_button.id, HTMLButtonElement, 'HELP_BUTTON')
       : undefined;
+
+    this.aspect_ratio_select = settings.controls.aspect_ratio_select
+      ? DomResolver.resolve(
+          settings.controls.aspect_ratio_select.id,
+          HTMLSelectElement,
+          'ASPECT_RATIO_SELECT'
+        )
+      : undefined;
+
+    this.auto_scale_checkbox = settings.controls.auto_scale_checkbox
+      ? DomResolver.resolve(
+          settings.controls.auto_scale_checkbox.id,
+          HTMLInputElement,
+          'AUTO_SCALE_CHECKBOX'
+        )
+      : undefined;
   }
 
   static resolve(id, Type, label) {

@@ -11,6 +11,12 @@ const DEFAULT_SETTINGS = {
     help_button: {
       id: 'help_button',
     },
+    aspect_ratio_select: {
+      id: 'aspect_ratio_select',
+    },
+    auto_scale_checkbox: {
+      id: 'auto_scale_checkbox',
+    },
   },
   notify: {
     id: 'notify',
@@ -58,6 +64,13 @@ const DEFAULT_SETTINGS = {
   screen: {
     allow_color_mode: true,
     screenshot_type: 'image/png',
+    // Display aspect ratio (P3.8.3): a preset name ('1:1', '4:3', '16:9') or a
+    // number. The PC-01 framebuffer is 256×256 pixels shown on a CRT with
+    // non-square pixels, so '4:3' is the faithful default.
+    aspect_ratio: '4:3',
+    // Automatically pick the largest integer scale that fits the canvas container
+    // (P3.8.7). Off by default to keep the classic fixed 2× view.
+    auto_scale: false,
   },
   dump: {
     is_connected: true,

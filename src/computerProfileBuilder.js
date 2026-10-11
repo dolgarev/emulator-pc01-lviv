@@ -13,7 +13,7 @@ import { Clock } from './clock.js';
 import { Storage } from './storage.js';
 import { Ticker } from './ticker.js';
 import { UiBinding } from './uiBinding.js';
-import { Viewport } from './viewport.js';
+import { Viewport, aspectRatioName } from './viewport.js';
 import { Screen } from './screen.js';
 import { Tape } from './tape.js';
 import { Contention } from './contention.js';
@@ -326,7 +326,13 @@ export class ComputerProfileBuilder {
     this._contention ??= this._config.cpu.wait_states ? new Contention(this._clock) : null;
     this._dom ??= new DomResolver(this._settings);
     this._ticker ??= new Ticker();
-    this._ui ??= new UiBinding({ load_button: this._dom.local_load_button });
+    this._ui ??= new UiBinding({
+      load_button: this._dom.local_load_button,
+      aspect_ratio_select: this._dom.aspect_ratio_select,
+      auto_scale_checkbox: this._dom.auto_scale_checkbox,
+      aspect_ratio: aspectRatioName(this._config.screen.aspect_ratio) ?? '4:3',
+      auto_scale: this._config.screen.auto_scale,
+    });
     this._audio_sink ??= new AudioSink(this._config);
     this._beeper ??= new Beeper(this._config, this._clock, this._audio_sink);
     this._keyboard ??= new Keyboard();
@@ -338,7 +344,7 @@ export class ComputerProfileBuilder {
     this._cpu ??= new I8080(this._config, this._memory, this._io, this._traps, this._clock);
     this._contention?.attach(this._cpu);
     this._storage ??= new Storage(this._cpu, this._memory, this._io);
-    this._viewport ??= new Viewport(this._dom.viewport_container);
+    this._viewport ??= new Viewport(this._dom.viewport_container, this._config.screen);
     this._screen ??= new Screen(this._config, this._io, this._memory);
     this._tape ??= new Tape(this._config);
     this._dnd ??= new DnD(this._config, this._dom.dnd_container);
