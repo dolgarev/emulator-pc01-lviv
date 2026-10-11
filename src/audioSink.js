@@ -9,6 +9,18 @@ import { assertInstance } from './utils/assert.js';
 // Removes the DC offset that a constant beeper level leaves in the output.
 const DC_BLOCKER_FREQUENCY = 20;
 
+// Audio is scheduled a fraction of a frame ahead of the audio clock, so the variation of
+// the animation frame (zero, one or two emulated frames per callback) is absorbed by the
+// queue instead of splicing the sound at the buffer edges.
+const MIN_LEAD_SECONDS = 0.05;
+
+// The beeper hands over exactly one frame of PCM per emulated frame, so the queue stays
+// about a frame long. A lead of many frames means a catch-up burst after a stall: the
+// buffer is dropped and the schedule left alone. Rewinding the schedule instead - what the
+// first attempt did - starts audio on top of audio that is still playing, which is the
+// overlap that was heard before (CODE_REVIEW.md, P3.10).
+const MAX_LEAD_SECONDS = 0.5;
+
 // The emitter is a ЗП-1 piezo capsule, and its data comes from the TU (12MO.081.085 TU, the
 // designation in the manufacturer's catalogue): resonance frequency 3-5 kHz, sound
 // pressure at least 75 dB at 100+/-3 cm, nominal voltage 5+/-2 V, -30..+60 C, mass up to
@@ -54,6 +66,14 @@ export class AudioSink {
     this.chain = undefined;
     this.chain_built = false;
     this.warned_suspended = false;
+    this.next_start_time = 0;
+    this.warned_lead = false;
+  }
+
+  // Called when the machine restarts: audio queued for the previous run is dropped.
+  reset() {
+    this.next_start_time = 0;
+    this.warned_lead = false;
   }
 
   static activate() {
@@ -149,18 +169,31 @@ export class AudioSink {
       }
 
       const source = context.createBufferSource();
-      const buffer = context.createBuffer(1, samples.length, sample_rate);
+      const rate = sample_rate || context.sampleRate;
+      const buffer = context.createBuffer(1, samples.length, rate);
       buffer.getChannelData(0).set(samples);
 
       source.buffer = buffer;
       source.connect(this.chain ?? context.destination);
 
-      // Each buffer is played as soon as it is handed over. Scheduling the buffers
-      // on the audio clock (a queue with a lead over currentTime) was tried and
-      // reverted: to the ear it produced notes overlapping, and the cause could not
-      // be pinned down. The beeper hands over exactly one frame of audio per emulated
-      // frame, so the production and the consumption stay balanced anyway.
-      source.start(0);
+      // Buffers are queued on the audio clock instead of starting whenever the animation
+      // frame happens to run: frame jitter then only changes the latency instead of
+      // splicing the sound, and consecutive buffers never overlap.
+      const now = context.currentTime;
+      this.next_start_time = Math.max(this.next_start_time, now + MIN_LEAD_SECONDS);
+
+      if (this.next_start_time - now > MAX_LEAD_SECONDS) {
+        if (!this.warned_lead) {
+          this.warned_lead = true;
+          console.warn('AUDIO_SINK: Audio queue ahead of the audio clock, dropping buffers');
+        }
+        return;
+      }
+
+      this.warned_lead = false;
+
+      source.start(this.next_start_time);
+      this.next_start_time += samples.length / rate;
     } catch (error) {
       console.error('AUDIO_SINK: Failed to play sound:', error);
     }

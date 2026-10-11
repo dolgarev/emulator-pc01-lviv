@@ -842,6 +842,30 @@ behaviour, and the test melody is of the second kind (99 % of its toggles come f
 What the beeper did not model at that point was the emitter itself: the samples went into the Web Audio
 graph as raw square waves. That is what P3.11 adds.
 
+**Variant on `feature/sound-exact`: the same signal, rendered exactly (trial, not merged).** Five
+properties of the original generation were turned the other way round, so that every level change the
+machine makes reaches the output unchanged:
+
+- every change is sampled with a fractional carry: no 50-cycle grid, nothing merged, nothing rounded;
+- a frame is exactly `frame_duration x sample_rate` samples (20.00 ms at the device rate), so frames
+  neither overlap nor leave a gap - the original emits 897 samples (20.34 ms) per 20 ms frame;
+- the wave is bipolar (`+/-VOLUME/2`), so no DC offset is added where buffers meet;
+- the level is carried across frames and a frame is emitted even when nothing changed, so the stream is
+  continuous; a held level is a constant, i.e. silence;
+- buffers are queued on the audio clock with a 50 ms lead, and a buffer more than 0.5 s ahead (a
+  catch-up burst after a stall) is dropped instead of rewinding the schedule.
+
+The pieces only work together, which is why they failed one at a time before. The queue was blamed for
+the overlapping notes, but the real cause was the doubled animation loop (`603b937`); and the queue
+cannot stay balanced with the original framing anyway, because 20.34 ms of audio produced every 20 ms
+runs it dry every few seconds - that is a gap, not a click. The held-level frame produced a constant
+buzz because with a unipolar wave and a zero tail every frame ended in a step down to zero.
+
+Measured on the same tape (`almazy_lviv.lvt`, 15 emulated seconds, wait states on, `speed_factor` 1.0):
+the machine's level changes are unchanged (466/s), but all 750 frames now hand over a buffer instead of
+262 of them. Judged against `dev-spa-version` by ear: this variant is the clean one - the "body" of the
+original sound is the per-frame phase restart, which this variant removes.
+
 #### P3.11 Piezo emitter model — ✅ done
 
 The beeper fed its raw 1-bit square wave straight into the Web Audio graph, i.e. the emulator had no

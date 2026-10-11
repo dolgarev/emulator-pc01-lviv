@@ -62,14 +62,45 @@ function createSink({ highpass = false, speaker_model = 'flat', sample_rate = 44
 const frame = () => new Float32Array(882); // 20 ms at 44.1 kHz
 
 describe('AudioSink', () => {
-  it('plays each buffer as soon as it is handed over', () => {
+  it('queues buffers back to back on the audio clock', () => {
     const { sink, context } = createSink();
 
     sink.play(frame(), 44100);
-    context.time = 0.005; // the audio clock keeps running between frames
+    context.time = 0.005; // the caller is early: the queue waits, it does not splice
     sink.play(frame(), 44100);
 
-    expect(context.starts).toEqual([0, 0]);
+    expect(context.starts).toHaveLength(2);
+    expect(context.starts[0]).toBeCloseTo(0.05, 6); // a lead over the audio clock...
+    expect(context.starts[1] - context.starts[0]).toBeCloseTo(0.02, 6); // ...but no overlap
+  });
+
+  it('restores the lead after an underrun instead of overlapping', () => {
+    const { sink, context } = createSink();
+
+    sink.play(frame(), 44100);
+    context.time = 5; // the tab was throttled for a while
+    sink.play(frame(), 44100);
+
+    expect(context.starts[1]).toBeCloseTo(5.05, 6);
+  });
+
+  it('drops buffers that are far ahead instead of rewinding the schedule', () => {
+    const { sink, context } = createSink();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    // The audio clock stands still while 30 frames (0.6 s) are handed over at once.
+    for (let i = 0; i < 30; i++) sink.play(frame(), 44100);
+
+    expect(context.starts.length).toBeLessThan(30); // the excess is dropped...
+    expect(context.starts.length).toBeGreaterThan(20);
+    expect(warn).toHaveBeenCalledTimes(1);
+
+    // ...and what is left is still monotonic: no buffer starts on top of another.
+    for (let i = 1; i < context.starts.length; i++) {
+      expect(context.starts[i] - context.starts[i - 1]).toBeCloseTo(0.02, 6);
+    }
+
+    warn.mockRestore();
   });
 
   it('reports the sample rate of the output device', () => {
