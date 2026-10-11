@@ -154,7 +154,7 @@ public/data/                  ROM and dump binaries (.bin)
 
 Copyright (C) 2014 Oleg Dolgarev <o.dolgarev@gmail.com>
 
-GNU General Public License v3.0 **or later** (`GPL-3.0-or-later`) — see [`gpl-3.0.txt`](gpl-3.0.txt).
+GNU General Public License v3.0 **or later** (`GPL-3.0-or-later`) — see [`LICENSE`](LICENSE).
 This program is distributed in the hope that it will be useful, but **without any warranty**; without
 even the implied warranty of merchantability or fitness for a particular purpose. See the GNU General
 Public License for more details.
