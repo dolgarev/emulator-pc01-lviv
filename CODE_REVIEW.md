@@ -832,7 +832,8 @@ modulation, the "body" of the sound), a fixed 44100 Hz output, an integer number
 which overlaps the next one by ~0.34 ms. A repeated write extends the open run, and the tail of a frame
 is zero rather than a held level. The frame-exact framing, the fractional carry, the bipolar wave and the
 device sample rate stay in the history (branch `feature/sound-work`) for the day the sound can be judged
-against a reference recording.
+against a reference recording. The judgement was made by ear instead, and it went the other way: see the
+closing note of this item - the exact rendering is the default now (`9b09f51`).
 
 The pitch of a tone is the machine's cycle rate divided by twice the length of its loop, so it follows
 the CPU model: with the video/RAM contention of P2.11 (the default) ROM-driven tones keep the nominal
@@ -842,9 +843,9 @@ behaviour, and the test melody is of the second kind (99 % of its toggles come f
 What the beeper did not model at that point was the emitter itself: the samples went into the Web Audio
 graph as raw square waves. That is what P3.11 adds.
 
-**Variant on `feature/sound-exact`: the same signal, rendered exactly (trial, not merged).** Five
-properties of the original generation were turned the other way round, so that every level change the
-machine makes reaches the output unchanged:
+**The exact rendering replaced the original generation (`9b09f51`).** Five properties of the original
+generation were turned the other way round, so that every level change the machine makes reaches the
+output unchanged:
 
 - every change is sampled with a fractional carry: no 50-cycle grid, nothing merged, nothing rounded;
 - a frame is exactly `frame_duration x sample_rate` samples (20.00 ms at the device rate), so frames
@@ -863,8 +864,9 @@ buzz because with a unipolar wave and a zero tail every frame ended in a step do
 
 Measured on the same tape (`almazy_lviv.lvt`, 15 emulated seconds, wait states on, `speed_factor` 1.0):
 the machine's level changes are unchanged (466/s), but all 750 frames now hand over a buffer instead of
-262 of them. Judged against `dev-spa-version` by ear: this variant is the clean one - the "body" of the
-original sound is the per-frame phase restart, which this variant removes.
+262 of them. Judged against `d6678ce` - where the original generation was still the default - and
+then adopted: the exact rendering is the clean one. The "body" of the original sound was the per-frame
+phase restart, which it removes; this is the sound the emulator ships now.
 
 #### P3.11 Piezo emitter model — ✅ done
 
@@ -953,7 +955,7 @@ data, the 3-5 kHz band, the response tables, the batch spread, the failed held-l
 then reverted, because without a recording or a measured curve of the real capsule none of it could be
 checked, and two rounds of tuning by reasoning made the sound worse before they were measured. Code and
 notes of that session are on branch `feature/sound-work` (tag `sound-session-2026-10-04`); the emulator
-itself now generates the sound the way it did before that session (see P3.10) and models the video/RAM
+itself renders the sound exactly now (P3.10, `9b09f51`) and models the video/RAM
 contention (P2.11), with no emitter filtering by default. The `'piezo'` model is an option and now follows
 the band of the TU (the table above, measured); the shape of the curve of the mounted capsule, its level
 and the RC of its drive are still unverified, which is why filtering is not the default until a recording
