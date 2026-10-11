@@ -557,6 +557,12 @@ third-party assets) plus `package.json` and `LICENSE` — renamed from `gpl-3.0.
 recognises a licence by file name only when it is `LICENSE`, `LICENCE` or `COPYING`. `src/i8080.js`
 keeps its header because it also carries the upstream copyright of Alexander Demin (2012).
 
+The licence text itself was then brought to the current FSF wording: `http` becomes `https` in the three
+links, the old `philosophy/why-not-lgpl` address becomes `licenses/why-not-lgpl`, and the missing final
+newline is added. `LICENSE` is now byte-identical to the canonical copy shipped with the system
+(`/usr/share/common-licenses/GPL-3`); the text carries no trailing whitespace, so no `.editorconfig`
+exception is needed. The third-party licences under `public/assets/` are untouched.
+
 #### P1.9 Grayscale formula in `screen.js` — ✅ (not a bug)
 
 `~~(p & 0x00ff0000 && GRAYSCALE_RED_WEIGHT) + …` uses logical `&&` rather than multiplication. This
