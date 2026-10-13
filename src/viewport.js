@@ -202,6 +202,11 @@ export class Viewport {
 
     this.canvas.style.width = `${scaledWidth}px`;
     this.canvas.style.height = `${scaledHeight}px`;
+
+    // Assigning canvas.width/height resets the bitmap, so repaint the last
+    // rendered frame: the screen is not marked dirty by a resolution change,
+    // and without this the picture stays blank until the next dirty redraw.
+    this.redraw();
   }
 
   fit_to_container() {
@@ -237,6 +242,20 @@ export class Viewport {
       this.CANVAS_WIDTH,
       this.CANVAS_HEIGHT
     );
+
+    this.redraw();
+  }
+
+  /**
+   * Paints the last rendered frame onto the canvas. Used after a resolution
+   * change, whose canvas.width/height assignment resets the bitmap while the
+   * emulated screen itself stays clean (draw() keeps returning null).
+   */
+  redraw() {
+    if (!this.image_data) return;
+
+    const context = this.canvas.getContext('2d');
+    if (!context) return;
 
     // Enable image smoothing for better visual quality
     context.imageSmoothingEnabled = IMAGE_SMOOTHING_ENABLED;
