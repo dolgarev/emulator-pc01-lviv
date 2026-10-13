@@ -1,19 +1,5 @@
 export class Dump {
   static storage = {
-    bload: {
-      name: 'bload',
-      description: 'Образ памяти для команды BLOAD"",R',
-      type: 'sav',
-      is_hidden: true,
-      profile: '*',
-    },
-    cload: {
-      name: 'cload',
-      description: 'Образ памяти для команды CLOAD""',
-      type: 'sav',
-      is_hidden: true,
-      profile: '*',
-    },
     aerco1: {
       name: 'Aerocobra',
       description: '',

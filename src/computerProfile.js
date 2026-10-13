@@ -7,6 +7,7 @@ import { generateScreenshotFilename, getFileExtension } from './utils/screenshot
 import { Dump } from './dump.js';
 import { Notify } from './notify.js';
 import { assertInstance } from './utils/assert.js';
+import { BOOT_CYCLES, applyTapeEntry } from './tapeEntry.js';
 
 // Dependencies nulled out on terminate().
 const PROFILE_DEPENDENCIES = [
@@ -76,6 +77,7 @@ export class ComputerProfile {
     this.storage = storage;
 
     this.attached_file = void 0;
+    this.booted_snapshot = void 0;
 
     this.animation_frame = void 0;
     this.loop_token = void 0;
@@ -335,13 +337,11 @@ export class ComputerProfile {
         break;
 
       case 0xd0:
-        this.attach_file(data);
-        await this.load_dump(await Dump.get('bload'));
+        this.launch_tape(data, 'bload');
         break;
 
       case 0xd3:
-        this.attach_file(data);
-        await this.load_dump(await Dump.get('cload'));
+        this.launch_tape(data, 'cload');
         break;
 
       default:
@@ -365,22 +365,6 @@ export class ComputerProfile {
     assertInstance(dump, Dump, 'PROFILE: Received invalid DUMP object');
 
     switch (dump.type) {
-      case 'lvt':
-        switch (dump.data.getUint8(0x09)) {
-          case 0xd0:
-            this.set_snapshot((await Dump.get('bload')).data);
-            break;
-
-          case 0xd3:
-            this.set_snapshot((await Dump.get('cload')).data);
-            break;
-
-          default:
-            throw new Error('PROFILE: Unknown FILE type');
-        }
-        this.attach_file(dump.data);
-        break;
-
       case 'sav':
         this.set_snapshot(dump.data);
         break;
@@ -392,6 +376,47 @@ export class ComputerProfile {
       default:
         throw new Error('PROFILE: Unknown DUMP type');
     }
+  }
+
+  /**
+   * Boots the machine into BASIC and caches the resulting state. The cold-start
+   * is deterministic (no external input), so it runs only once per profile;
+   * every subsequent .lvt load restores the cached state and applies the small
+   * per-command entry delta (see launch_tape).
+   */
+  boot_basic() {
+    if (this.booted_snapshot) return;
+
+    this.reset();
+    this.cpu.run(BOOT_CYCLES);
+    // The cold-start may flip the beeper; drop its segments so they do not play
+    // on top of the freshly loaded program.
+    this.beeper.restart();
+
+    // Match the former dump-bload.bin / dump-cload.bin snapshots, which were
+    // captured at the BLOAD/CLOAD entry with the video RAM disconnected
+    // (MEDIA_PORT bit 2 set).
+    this.io.ports[this.io.MEDIA_PORT] |= this.io.VRAM_STATUS_BIT;
+
+    this.booted_snapshot = Uint8Array.from(this.storage.get_snapshot());
+  }
+
+  /**
+   * Prepares the machine to load a .lvt tape file through the BLOAD/CLOAD trap:
+   * restore the booted BASIC base, lay down the entry state the ROM would have
+   * after the command is issued, and attach the file. The trap fires on the next
+   * executed instruction.
+   */
+  launch_tape(data, kind) {
+    assertInstance(data, DataView, 'PROFILE: Param DATA is not DataView');
+
+    this.boot_basic();
+
+    this.set_snapshot(new DataView(this.booted_snapshot.buffer));
+
+    applyTapeEntry(this.cpu, kind);
+
+    this.attach_file(data);
   }
 
   bload(data) {

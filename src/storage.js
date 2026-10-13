@@ -29,6 +29,16 @@ export class Storage {
         this.cpu.memory_write_word(0xbea4, begin);
         this.cpu.memory_write_word(0xbea6, end);
         this.cpu.memory_write_word(0xbea9, start);
+        // FILE_TYPE = 0xD0 (code file), as the ROM BLOAD entry does (DD94/DD96).
+        this.cpu.memory_write_byte(0xbe87, 0xd0);
+        // Guard against AUTOSTART set with no run address (AS = 0): the ROM
+        // tail (DD20) unconditionally does PCHL CODFL_RUN when AUTOSTART is
+        // non-zero, which would jump to 0. Clear it so control returns to BASIC.
+        // (AUTOSTART itself is set by the command parser / snapshot; we only
+        // remove it here when it would crash, never force it on.)
+        if (start === 0 && this.cpu.memory_read_byte(0xbea3) !== 0) {
+          this.cpu.memory_write_byte(0xbea3, 0x00);
+        }
         this.memory.transfer(begin, end, data, 0x16);
       } catch {
         return false;
@@ -50,6 +60,11 @@ export class Storage {
       try {
         this.memory.transfer(0xbe92, 0xbe97, data, 0x0a);
         this.cpu.memory_write_word(0x0245, end);
+        // FILE_TYPE = 0xD3 (BASIC file), as the ROM CLOAD entry does (E535/E537).
+        this.cpu.memory_write_byte(0xbe87, 0xd3);
+        // BASFL_ORG / BASFL_END, as the ROM CLOAD entry does (E53D / E543).
+        this.cpu.memory_write_word(0xbe88, begin);
+        this.cpu.memory_write_word(0xbe8a, end);
         this.memory.transfer(begin, end, data, 0x10);
       } catch {
         return false;
