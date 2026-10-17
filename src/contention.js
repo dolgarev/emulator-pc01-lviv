@@ -13,6 +13,13 @@ import { assertInstance } from './utils/assert.js';
  * 2, 2, 2, 3, 2, 2, 3 cycles per RAM access (2 2/7 on average), an extra 3/4 of a cycle for
  * a write and one for an I/O access. See CODE_REVIEW.md, P2.11 and P2.18.
  *
+ * The arbiter has one failure mode that is not a number: an I/O cycle to a port below 0xC0.
+ * The 8080 duplicates the port address onto the upper half of the address bus, so the
+ * ~ROM_OE decode sees something that is not a ROM access, the arbiter samples a low ROM_OE
+ * and waits for a VIDEO_CPU pulse - and the RAM controller issues that pulse only for a CPU
+ * RAM cycle. An I/O cycle is not one, so READY stays low and the CPU stops until RESET. See
+ * CODE_REVIEW.md, P2.19.
+ *
  * The cycles are charged twice, and that is deliberate: they advance the shared Clock (so
  * the beeper sees the real timeline and a frame still holds 44800 ticks) and they are
  * added to the cycle count of the instruction that caused them (so the frame budget buys
@@ -27,14 +34,30 @@ const READ_PATTERN = [2, 2, 2, 3, 2, 2, 3];
 const WRITE_EXTRA = 3;
 const WRITE_EXTRA_PERIOD = 4;
 const IO_EXTRA = 1;
+// Only the ports 0xC0..0xFF put A15 = A14 = 1 on the address bus during an I/O cycle, and
+// those two bits are all the ~ROM_OE decode looks at (P2.19).
+const ROM_PORT_MASK = 0xc0;
+// A stalled CPU hands out this many cycles per call: the frame keeps its budget and the
+// shared clock keeps the beeper's timeline, while the CPU itself executes nothing (P2.19).
+const STALLED_CYCLES = 4;
 
 export class Contention {
   constructor(clock) {
     assertInstance(clock, Clock, 'CONTENTION: Invalid CLOCK object');
     this.clock = clock;
+    this.restart();
+  }
+
+  /**
+   * Puts the arbiter back into its power-on state: the pattern starts over and a CPU that an
+   * I/O cycle below 0xC0 has deadlocked runs again (P2.19). A RESET pulse releases the
+   * flip-flop with the VIDEO_CPU pulse that D47C guarantees.
+   */
+  restart() {
     this.step = 0;
     this.write_quarters = 0;
     this.pending = 0;
+    this.is_stalled = false;
   }
 
   read() {
@@ -60,8 +83,23 @@ export class Contention {
     return cycles;
   }
 
-  io() {
+  /**
+   * An I/O cycle: one extra cycle for the port itself (P2.11), and the arbiter's only way
+   * to hang the machine (P2.19). A port outside 0xC0..0xFF leaves READY low with no
+   * VIDEO_CPU pulse to release it, so the CPU stops until RESET.
+   *
+   * @param {number} port - The address the CPU put on the bus.
+   * @param {boolean} initial_rom_mapping - The state of the RESET flip-flop of P2.17 at the
+   *   start of the cycle. While it is set, ~ROM_OE is held low and every address and port
+   *   looks like a ROM access, which is what lets the ROM start with a dummy `OUT 00H`.
+   */
+  io(port, initial_rom_mapping = false) {
     this.charge(IO_EXTRA);
+
+    if (initial_rom_mapping) return;
+    if ((port & ROM_PORT_MASK) === ROM_PORT_MASK) return;
+
+    this.is_stalled = true;
   }
 
   charge(cycles) {
@@ -82,6 +120,16 @@ export class Contention {
     const instruction = cpu.instruction.bind(cpu);
 
     cpu.instruction = () => {
+      // READY is held low and no VIDEO_CPU pulse will ever come (P2.19): the CPU executes
+      // nothing at all. The frame still gets its cycles, so the video and the beeper keep
+      // their real timeline while the machine sits there until RESET. They are not charged:
+      // pending belongs to an instruction, and there is none to attribute them to.
+      if (this.is_stalled) {
+        this.clock.addCycles(STALLED_CYCLES);
+
+        return STALLED_CYCLES;
+      }
+
       this.pending = 0;
       const cycles = instruction();
 

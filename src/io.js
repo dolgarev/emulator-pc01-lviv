@@ -92,6 +92,9 @@ export class IO {
   restart() {
     this.ports.fill(0);
 
+    // RESET releases the CPU from the deadlock an I/O cycle below 0xC0 causes (P2.19).
+    this.contention?.restart();
+
     // RESET sets the initial-reset flip-flop (D5A, cleared by the I/O write strobe on
     // D5.1). While it is set it holds ~ROM_OE low, the ROM answers for every address and
     // its 16 KiB are mapped into all four banks; the first I/O write leaves the ROM in
@@ -162,9 +165,29 @@ export class IO {
     this.beeper.process(level);
   }
 
+  /**
+   * Reads a port as the CPU does, in an I/O cycle: the access is timed and the wait state
+   * arbiter decides whether the machine survives it (P2.11, P2.19).
+   *
+   * @param {number} port the address the CPU put on the bus
+   * @returns {number} the value the selected device drives onto the bus
+   */
   input(port) {
-    this.contention?.io();
+    this.contention?.io(port, this.initial_rom_mapping);
 
+    return this.read_port(port);
+  }
+
+  /**
+   * Reads a port without the timing and the arbitration of a CPU I/O cycle: the emulator's
+   * own bookkeeping - the palette sample of the screen, the port window of a snapshot - is
+   * not an access the CPU made, so it must not charge a wait cycle, and it must not hang the
+   * machine the way a real I/O cycle below 0xC0 does (P2.19).
+   *
+   * @param {number} port the port address
+   * @returns {number} the value the selected device drives onto the bus
+   */
+  read_port(port) {
     const decoded = this.decode_port(port);
 
     if (decoded === NO_DEVICE) {
@@ -196,13 +219,27 @@ export class IO {
   }
 
   output(port, w8) {
-    this.contention?.io();
-
     // The flip-flop of P2.17 is addressless: the I/O write strobe clears it before the
-    // address decoder is reached. The ROM depends on that - its very first instruction
-    // is a dummy `OUT 00H`, and 0x00 selects no device at all (P2.14).
+    // address decoder is reached. The ROM depends on that - its very first instruction is a
+    // dummy `OUT 00H`, and 0x00 selects no device at all (P2.14). The arbiter has to judge
+    // the state the cycle started in, so the flag is read before it is cleared (P2.19).
+    const initial_rom_mapping = this.initial_rom_mapping;
     this.initial_rom_mapping = false;
 
+    this.contention?.io(port, initial_rom_mapping);
+
+    this.write_port(port, w8);
+  }
+
+  /**
+   * Writes a port without the timing and the arbitration of a CPU I/O cycle: a snapshot
+   * replay, palette fix included, is not an access the CPU made and must not hang the machine
+   * (P2.19).
+   *
+   * @param {number} port the port address
+   * @param {number} w8 the byte to write
+   */
+  write_port(port, w8) {
     const decoded = this.decode_port(port);
 
     if (decoded === NO_DEVICE) {
@@ -236,7 +273,7 @@ export class IO {
     const ports = [];
 
     for (let i = 0, L = this.ports.length; i < L; i++) {
-      ports[i] = this.input(i);
+      ports[i] = this.read_port(i);
     }
 
     return ports;

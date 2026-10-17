@@ -240,7 +240,7 @@ export class Screen {
 
     const cache = this.cache;
     const cache_color = Screen.cache_color;
-    const palette = this.io.input(this.io.PALETTE_PORT) & 0x7f;
+    const palette = this.io.read_port(this.io.PALETTE_PORT) & 0x7f;
     const is_valid = this.cacheValid && this.cache_palette === palette;
     const is_color = this.allow_color_mode;
     const rgb = Screen.cache_rgb[palette];

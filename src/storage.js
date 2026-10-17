@@ -133,16 +133,17 @@ export class Storage {
     // Every address that selects no device (0x00..0xBF, 0xE0..0xEF) is dropped by the
     // decoding, so this replays exactly the state of the devices the machine has -
     // including the port 0xF0 latch of the PK-02 board, which the old address mask used
-    // to fold onto the keyboard PPI (P2.14).
+    // to fold onto the keyboard PPI (P2.14). The raw access is deliberate: a replay is not
+    // a CPU I/O cycle, so it must not deadlock the machine on the ports below 0xC0 (P2.19).
     for (let port = 0x00; port <= 0xff; port++) {
-      this.io.output(port, data.getUint8(offset++));
+      this.io.write_port(port, data.getUint8(offset++));
     }
 
     // Palette fix: because port 0xC1 is write-only by default, the snapshot
     // stores 0xFF instead of the real palette value. Set the default palette
     // to work around this.
-    if (this.io.input(this.io.PALETTE_PORT) === 0xff) {
-      this.io.output(this.io.PALETTE_PORT, 0x8f);
+    if (this.io.read_port(this.io.PALETTE_PORT) === 0xff) {
+      this.io.write_port(this.io.PALETTE_PORT, 0x8f);
     }
 
     this.cpu.restart();

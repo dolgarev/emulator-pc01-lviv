@@ -57,6 +57,17 @@ describe('Storage', () => {
     expect(memory.read(0x0000)).toBe(0xc9);
   });
 
+  it('does not stall the machine when a snapshot is loaded (P2.19)', () => {
+    const { storage, contention } = createCore('pc01_lvov_80', { wait_states: true });
+
+    const snapshot = Uint8Array.from(storage.get_snapshot());
+
+    // The replay walks every port, the deadlocking ones below 0xC0 included.
+    storage.set_snapshot(new DataView(snapshot.buffer));
+
+    expect(contention.is_stalled).toBe(false);
+  });
+
   // The port 0xF0 latch is what carries the video modes (P2.13) and the extended RAM
   // banks, and Storage used to replay the ports through IO.input()/IO.output(), i.e.
   // through the address decoding (P2.14).

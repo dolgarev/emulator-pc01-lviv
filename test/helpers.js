@@ -40,7 +40,20 @@ export function createCore(profile = 'pc01_lvov_80', { wait_states = false } = {
 
   boot(io);
 
-  return { settings, config, clock, beeper, keyboard, io, memory, traps, cpu, storage, screen };
+  return {
+    settings,
+    config,
+    clock,
+    contention,
+    beeper,
+    keyboard,
+    io,
+    memory,
+    traps,
+    cpu,
+    storage,
+    screen,
+  };
 }
 
 /**

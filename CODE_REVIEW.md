@@ -87,7 +87,8 @@ Migration option comparison:
 2. Phase 3 leftovers: `ARCHITECTURE.md` (P3.4), tests for `io.js`
 3. Opportunistically: `i8080.js` modernization (P1.2), Web Worker (P2.5), rendering (P3.7 / P3.8)
 4. Emulation fidelity, from the real-hardware measurements of the forum thread: the frame
-   length (P2.20); the write contention (P2.18) and the reset ROM mapping (P2.17) are done
+   length (P2.20); the write contention (P2.18), the reset ROM mapping (P2.17) and the
+   deadlock on the ports below `0xC0` (P2.19) are done
 
 ---
 
@@ -427,16 +428,51 @@ the write cost now points here.
 Covered by `test/contention.test.js`: the four writes of a period cost 2, 3, 3, 4 cycles with
 the pattern (12 in total, 3/4 of a cycle extra on average) and an I/O access still costs one.
 
-#### P2.19 `IN`/`OUT` below `0xC0` should stall the CPU — ⏳
+#### P2.19 `IN`/`OUT` below `0xC0` stalls the CPU — ✅ done
 
 The thread claims that any `IN`/`OUT` to ports 0-191 hangs the machine: the video/RAM access
 arbiter reacts to `A14 = A15 = 1` and does not distinguish a RAM access from a port access,
 and the 8080 duplicates `A0..A7` onto `A8..A15` during an I/O cycle, so READY is held low.
-The BASIC manual allows ports 192-255 only. The emulator answers the floating bus instead.
-**This must be verified before it is implemented:** `docs/cpu_pio.md` says the opposite
-(`ROM_OE` is high for EPROM *and* PIO requests, so `Q` - and therefore the wait state - goes
-low for RAM accesses only), and the emulator cannot afford to hang on a stray `OUT`.
-Status: claim to verify against the schematic, not a settled fact.
+The BASIC manual allows ports 192-255 only. The emulator answered the floating bus instead.
+It had to be verified first, because `docs/cpu_pio.md` says the opposite (`ROM_OE` is high for
+EPROM *and* PIO requests, so `Q` - and therefore the wait state - goes low for RAM accesses
+only) and the emulator cannot afford to hang on a stray `OUT`.
+
+**Verified - the thread is right.** In `cpu.kicad_sch` the wait-state flip-flop is `D5B`: it
+clocks `ROM_OE` (`D5.12`) on `~STSTB` (`D5.11`), one sample per machine cycle, and its `Q`
+(`D5.9`) drives the 8224's `RDYIN`. Its preset (`D5.10`) is `VIDEO_CPU`, the pulse the RAM
+controller makes when it has served a CPU RAM cycle; in `ram_ctrl.kicad_sch` that pulse comes
+from `D42`/`D50`, and `D42A` is clocked only by `~MEMR`/`~MEMW` (`D1`, a 74LS10), i.e. only by
+a memory access. `ROM_OE` itself is `~REMAP | (A15 & A14)` (`rom.kicad_sch`, `D1`/`D7`), so for
+an I/O cycle to a port below 0xC0 - A15 and A14 are not both high in the duplicated address -
+the arbiter samples a low `ROM_OE`, holds `RDYIN` low, and no `VIDEO_CPU` pulse can ever come:
+the CPU stops until RESET. Ports 0xC0..0xFF put A7 and A6 (A15/A14) high, `ROM_OE` stays high
+and the access is safe, which is all the "high for PIO I/O requests" of `docs/cpu_pio.md` ever
+described. While the RESET flip-flop of P2.17 is still set, `ROM_OE` is forced high for every
+address and port, so the dummy `OUT 00H` the ROM starts with is safe.
+
+**Implemented:** `Contention` (the wait-state arbiter, `src/contention.js`) gained `is_stalled`
+and a widened `io(port, initial_rom_mapping)`: an I/O cycle to a port outside 0xC0..0xFF sets
+the flag unless the RESET mapping of P2.17 still holds `~ROM_OE` low, and `attach()` then hands
+the frame its cycles (four per call, so the shared clock keeps the beeper's timeline) without
+executing anything, which leaves the PC where the deadlock caught it. `IO.restart()` releases
+the flag through `Contention.restart()`, so RESET and a snapshot load recover the machine. The
+flip-flop is read before it is cleared, so the first `OUT` of the ROM is judged in the state it
+starts in. `IO.input()`/`output()` stay the CPU-facing accessors; the two places that read and
+replay the whole port range without a CPU behind them - `IO.get_state()` and
+`Storage.set_snapshot()` - now use the new `IO.read_port()`/`write_port()`, which are also the
+palette-only accesses of `Screen` and `Storage`. They no longer charge a wait cycle per port
+either: a snapshot is not machine activity.
+
+**Verified with the real `rom-1990.bin`:** over 1200 emulated frames the ROM performs exactly
+one access below 0xC0 - the dummy `OUT 00H` at PC `0xE002` - and never stalls, and it reaches
+the BASIC keyboard loop (`0xE9B2`) as before. A CPU that does deadlock stays where it was: the
+frame budget is consumed and `PC` does not move.
+
+**Covered by** `test/contention.test.js` (an I/O cycle below 0xC0 stalls the CPU, the ROM ports
+and the dummy `OUT` do not, RESET releases it) and `test/storage.test.js` (loading a snapshot
+does not stall the machine). Note that the deadlock is part of the wait state model: with
+`cpu.wait_states` off the machine has no arbiter and does not hang.
 
 #### P2.20 The video frame is 20.48 ms (48.83 Hz), not 20 ms (50 Hz) — ⏳
 
@@ -555,7 +591,7 @@ is a "check against the dump first" item, not a change to make.
 4. Work on the structural leftovers when the code is touched anyway: `i8080.js` modernization (P1.2),
    Web Worker (P2.5), dirty rectangles (P3.7), the remaining rendering ideas (P3.8).
 
-Only **P1.2, P2.5, P2.15 and P2.19-P2.20, P3.4, P3.6, P3.7 and P3.14-P3.15** are open tasks.
+Only **P1.2, P2.5, P2.15 and P2.20, P3.4, P3.6, P3.7 and P3.14-P3.15** are open tasks.
 Everything else in the backlog is either done (see [Completed](#completed)) or a candidate
 list (P3.8, P3.9).
 

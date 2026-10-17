@@ -57,6 +57,53 @@ describe('Contention (video/RAM wait states)', () => {
 
     expect(clock.totalCycles).toBe(1 + 1);
     expect(contention.take()).toBe(2);
+    expect(contention.is_stalled).toBe(false);
+  });
+
+  it('does not stall on the ROM ports, nor on the dummy OUT (P2.17, P2.19)', () => {
+    const core = createCore('pc01_lvov_80', { wait_states: true });
+
+    core.io.restart(); // RESET: the ROM answers for every address
+
+    core.io.input(0x80); // while the flip-flop is set even a read below 0xC0 is safe
+    expect(core.contention.is_stalled).toBe(false);
+
+    core.io.output(0x00, 0x00); // the dummy OUT 00H the ROM starts with clears it
+    expect(core.contention.is_stalled).toBe(false);
+
+    core.io.output(0xc2, 0xff); // 0xC0..0xFF look like a ROM access to the arbiter
+    expect(core.contention.is_stalled).toBe(false);
+
+    core.io.output(0x80, 0x00); // anything below 0xC0 stops the CPU
+    expect(core.contention.is_stalled).toBe(true);
+  });
+
+  it('stalls the CPU on an I/O cycle below 0xC0 (P2.19)', () => {
+    const core = createCore('pc01_lvov_80', { wait_states: true });
+    // OUT 0x80: the decoder answers with no device there, and the arbiter cannot release
+    // the cycle either. The HALT behind it must never be reached.
+    load(core.memory, [0xd3, 0x80, 0x76], 0x0000);
+
+    core.cpu.instruction();
+
+    expect(core.contention.is_stalled).toBe(true);
+    expect(core.cpu.pc).toBe(0x0002);
+
+    // A whole frame later the CPU has not moved: READY is still low.
+    core.cpu.run(core.config.cpu.frame_cycles);
+
+    expect(core.cpu.pc).toBe(0x0002);
+  });
+
+  it('releases the stalled CPU on RESET (P2.19)', () => {
+    const core = createCore('pc01_lvov_80', { wait_states: true });
+
+    core.io.output(0x80, 0x00);
+    expect(core.contention.is_stalled).toBe(true);
+
+    core.io.restart();
+
+    expect(core.contention.is_stalled).toBe(false);
   });
 
   it('does not charge accesses to the ROM', () => {
