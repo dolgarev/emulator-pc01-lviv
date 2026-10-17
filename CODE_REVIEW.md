@@ -343,17 +343,6 @@ does not drive the bus is not a device that drives zeroes, so the faithful answe
 of P2.14. `Storage.set_snapshot()` carries a workaround built on the same assumption: it treats a
 returned `0xFF` at port `0xC1` (the palette) as "not readable" and forces the default palette.
 
-#### P2.16 The machine with the upgrades cannot be selected — ⏳
-
-`src/main.js` always builds `new Emulator()`, i.e. the `default` settings and the `pc01_lvov_80`
-profile; the `pc01_lvov_80_fixed` machine is only reachable by constructing the emulator with
-`'standard_fixed'`, or by loading a dump that carries that profile (`Computer.restart(dump.profile)`).
-With the port `0xF0` latch being a property of the upgraded machine (P2.13, P2.14), the 512×256
-mode, the screen blanking and the extended RAM banks are unreachable in the shipped build.
-
-**Fix (needs a decision):** offer the machine as a choice — a URL parameter, a control in the page, or
-a new default — keep it in `settings`, and `restart(profile)` when it changes.
-
 ### P3 — Polish, features and rendering ideas
 
 #### P3.4 Typing and documentation — ⏳
@@ -742,8 +731,8 @@ screen. Covered by tests in `test/screen.test.js` and `test/viewport.test.js`.
 
 The latch is a register of the PK-02 board, so `Screen` and `Memory` only ever see it under a profile
 that models that board's port `0xF0` device (P2.14): on the serial machine the address selects nothing
-and a write to it is lost, which is why the modes and the extended RAM banks are not reachable in the
-default profile (P2.16).
+and a write to it is lost, which is why the modes and the extended RAM banks exist only on the
+machine with the board, which the **Machine** selector of P2.16 provides.
 
 #### P2.14 I/O port decoding: `A5`, the `A7`/`A6` enable and "nothing selected" — ✅ done
 
@@ -783,7 +772,8 @@ circuit, and `fixed` is the wrong place for the choice: the decoding belongs to 
 - "Nothing selected" is a state the emulator does not have yet: a read returns the floating bus
   (`0xFF`; the same value `IO.restart()` already puts into `ports[MEDIA_PORT]` for "nothing
   connected") and a write is lost.
-- `0xF0..0xFF` selects the PK-02 latch, and only in a profile that has the upgrade (P2.16); unlike a
+- `0xF0..0xFF` selects the PK-02 latch, and only in a profile that has the board (`io.extended_port_latch`,
+  switched by the **Machine** selector of P2.16); unlike a
   PPI it is clocked by `~CS3` alone, so `A1`/`A0` do not reach it and all sixteen
   addresses write the one register. `IN 0F0H` returning the latch is an assumption — the output
   enable of the `8282` is not visible in the scanned sheet (`docs/Lviv PK-02 Upgrade.pdf`), which
@@ -815,6 +805,27 @@ through the real `ComputerProfile` for 360 frames and hashing the memory, the vi
 screen and the CPU state: identical, byte for byte. The only visible difference is the answer of
 `IN 0F0H` — the floating bus now, instead of the keyboard register the old mask folded it onto — and
 the snapshot, which stores the floating bus in the cells that select nothing.
+
+#### P2.16 The machine with the upgrades cannot be selected — ✅ done
+
+`src/main.js` always built `new Emulator()`, i.e. the `default` settings and the `pc01_lvov_80`
+profile; the `pc01_lvov_80_fixed` machine was only reachable by constructing the emulator with
+`'standard_fixed'`, or by loading a dump that carries that profile (`Computer.restart(dump.profile)`).
+With the port `0xF0` latch being a property of the upgraded machine (P2.13, P2.14), the 512×256 mode,
+the screen blanking and the extended RAM banks were unreachable in the shipped build.
+
+**Fix:** the page now has a **Machine** selector (`<select id="machine_select">` in `.row_2` of
+`index.html`) whose options carry the profile names. `Settings.controls.machine_select` and
+`DomResolver` resolve it like the other controls, `UiBinding` gains an `onMachine()` handler, and
+`ComputerProfile.onMachine()` passes the choice on to the owner of the profile — the machine is not a
+property of the running one, switching rebuilds the whole emulator. `Computer.select_machine()`
+restarts the profile of the chosen model (`restart(profile)`) and resumes it. It boots into the ROM
+*without* replaying the attached dump, because a dump names the machine it was taken from: the two
+bundled dumps come from serial machines and are not replayed after a switch.
+
+Verified in headless Chrome: the selector offers both models, the serial machine boots and paints,
+each switch rebuilds the emulator and paints the new machine, switching back works, and the console
+stays clean.
 
 ### P3 — Polish, features and rendering ideas
 

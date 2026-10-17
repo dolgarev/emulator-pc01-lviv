@@ -38,17 +38,35 @@ describe('UiBinding', () => {
     binding.terminate();
   });
 
+  it('forwards machine changes to the handler (P2.16)', () => {
+    const machine_select = new FakeControl({ value: 'pc01_lvov_80' });
+    const binding = new UiBinding({ machine_select });
+
+    const seen = [];
+    binding.onMachine((machine) => seen.push(machine));
+
+    machine_select.value = 'pc01_lvov_80_fixed';
+    machine_select.dispatchEvent(new Event('change'));
+
+    expect(seen).toEqual(['pc01_lvov_80_fixed']);
+    binding.terminate();
+  });
+
   it('syncs the controls to the configured initial values', () => {
+    const machine_select = new FakeControl({ value: 'pc01_lvov_80_fixed' });
     const select = new FakeControl({ value: '1:1' });
     const checkbox = new FakeControl({ checked: true });
 
     new UiBinding({
+      machine_select,
       aspect_ratio_select: select,
       auto_scale_checkbox: checkbox,
+      machine: 'pc01_lvov_80',
       aspect_ratio: '4:3',
       auto_scale: false,
     });
 
+    expect(machine_select.value).toBe('pc01_lvov_80');
     expect(select.value).toBe('4:3');
     expect(checkbox.checked).toBe(false);
   });

@@ -29,7 +29,20 @@ export class Computer {
       this.profile_name === '*' ? undefined : this.profile_name,
       this.dom
     );
+    this.profile.onMachine((machine) => this.select_machine(machine));
     await this.profile.initAsync();
+  }
+
+  /**
+   * Switches the machine (P2.16): the profile is rebuilt from the settings of the
+   * chosen model and boots into its ROM - deliberately without the dump that may
+   * have started the session, because that dump names the machine it was taken
+   * from.
+   * @param {string} profile - Profile name of the machine to run.
+   */
+  async select_machine(profile) {
+    await this.restart(profile);
+    this.run();
   }
 
   async restart(profile) {

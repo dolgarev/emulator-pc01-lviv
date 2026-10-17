@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ComputerProfile } from '../src/computerProfile.js';
+import { UiBinding } from '../src/uiBinding.js';
 
 // Minimal ticker double: time is driven manually and animation frames are
 // queued instead of executed.
@@ -29,6 +30,7 @@ function createProfile({
   frame_duration = 10,
   frame_cycles = 1000,
   frame_work_cycles = frame_cycles,
+  ui,
 } = {}) {
   const ticker = new FakeTicker();
   const cpu = {
@@ -50,18 +52,22 @@ function createProfile({
   const profile = new ComputerProfile({
     settings: { tape: { is_connected: false }, dnd: { is_connected: false } },
     profile: 'test',
-    config: { cpu: { frame_duration, frame_cycles, frame_work_cycles } },
+    config: {
+      cpu: { frame_duration, frame_cycles, frame_work_cycles },
+      traps: { profile: 'test' },
+    },
     beeper,
     keyboard: { special_keys: 0, reset() {}, reset_special_keys() {}, restart() {} },
     io: {},
     memory: {},
-    rom: {},
-    traps: {},
+    rom: { async init() {} },
+    traps: { activate() {} },
     cpu,
     viewport: { renderScreen() {}, pause() {}, terminate() {} },
     screen: { restart() {}, change_color_mode() {}, change_palette() {} },
     ticker,
     storage: {},
+    ui,
   });
 
   return { profile, ticker, cpu, beeper };
@@ -235,5 +241,23 @@ describe('ComputerProfile main loop', () => {
     }
 
     expect(cpu.cycles).toBe(50 * 44800);
+  });
+});
+
+describe('ComputerProfile machine selector (P2.16)', () => {
+  it('hands the machine chosen in the UI to the owner of the profile', async () => {
+    const machine_select = Object.assign(new EventTarget(), { value: 'pc01_lvov_80' });
+    const ui = new UiBinding({ machine_select });
+    const { profile } = createProfile({ ui });
+
+    const machines = [];
+    profile.onMachine((machine) => machines.push(machine));
+
+    await profile.initAsync();
+
+    machine_select.value = 'pc01_lvov_80_fixed';
+    machine_select.dispatchEvent(new Event('change'));
+
+    expect(machines).toEqual(['pc01_lvov_80_fixed']);
   });
 });

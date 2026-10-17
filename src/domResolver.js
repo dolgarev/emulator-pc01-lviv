@@ -32,6 +32,14 @@ export class DomResolver {
       ? DomResolver.resolve(settings.controls.help_button.id, HTMLButtonElement, 'HELP_BUTTON')
       : undefined;
 
+    this.machine_select = settings.controls.machine_select
+      ? DomResolver.resolve(
+          settings.controls.machine_select.id,
+          HTMLSelectElement,
+          'MACHINE_SELECT'
+        )
+      : undefined;
+
     this.aspect_ratio_select = settings.controls.aspect_ratio_select
       ? DomResolver.resolve(
           settings.controls.aspect_ratio_select.id,

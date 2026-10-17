@@ -11,6 +11,11 @@ const DEFAULT_SETTINGS = {
     help_button: {
       id: 'help_button',
     },
+    // Selects the machine, i.e. the `Config` profile the whole emulator is built
+    // from (P2.16); its options carry the profile names.
+    machine_select: {
+      id: 'machine_select',
+    },
     aspect_ratio_select: {
       id: 'aspect_ratio_select',
     },

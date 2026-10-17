@@ -79,6 +79,9 @@ export class ComputerProfile {
     this.attached_file = void 0;
     this.booted_snapshot = void 0;
 
+    // Set by the owner of the profile (Computer) when it can rebuild the machine
+    // on demand - the machine selector of P2.16.
+    this.machine_handler = void 0;
     this.animation_frame = void 0;
     this.loop_token = void 0;
 
@@ -122,7 +125,28 @@ export class ComputerProfile {
     if (this.ui instanceof UiBinding) {
       this.ui.onAspectRatio((value) => this.viewport.setAspectRatio(value));
       this.ui.onAutoScale((checked) => this.viewport.setAutoScale(checked));
+      // The machine is not a property of the running profile: choosing another model
+      // rebuilds the whole machine, which is the job of whoever owns this profile
+      // (P2.16).
+      this.ui.onMachine((machine) => {
+        if (typeof this.machine_handler === 'function') {
+          this.machine_handler(machine);
+        }
+      });
     }
+  }
+
+  /**
+   * Registers the handler that switches the machine (P2.16). Called by the owner of
+   * the profile before `initAsync()`.
+   * @param {Function} handler - Receives the profile name of the chosen machine.
+   */
+  onMachine(handler) {
+    if (typeof handler !== 'function') {
+      throw new Error('PROFILE: Handler must be a function');
+    }
+
+    this.machine_handler = handler;
   }
 
   run() {

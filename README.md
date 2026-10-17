@@ -109,6 +109,19 @@ Bundled software:
 - **Aerocobra** — courtesy of Andrey Chistyakov
 - **Moon Tracker**
 
+## Machines
+
+The **Machine** selector chooses the computer to emulate:
+
+- **ПК-01 «Львов»** (`pc01_lvov_80`) — the serial machine, the default.
+- **ПК-01 с доработками** (`pc01_lvov_80_fixed`) — the same machine with the PK-02 add-on board,
+  whose latch on port `0xF0` carries the 512×256 video mode, the screen blanking and the extended
+  RAM banks (see [P2.13](CODE_REVIEW.md) and [P2.14](CODE_REVIEW.md)).
+
+Switching rebuilds the emulator from scratch and boots the chosen model into its ROM: the attached
+dump is not replayed, because a dump names the machine it was taken from. The bundled dumps were
+saved on the serial machine.
+
 ## Project structure
 
 ```
