@@ -1,7 +1,7 @@
 # Emulator PC-01 Lviv — Review, Roadmap and Backlog
 
 > Date: 2026-09-26
-> Last updated: 2026-10-02
+> Last updated: 2026-10-17
 > Branch: `dev-spa-version`
 > Scope: all modules in `src/`, `index.html`, project documentation
 > This document consolidates the former `CODE_REVIEW.md`, `IMPROVEMENTS.md` and
@@ -86,6 +86,8 @@ Migration option comparison:
 1. Start Phase 2: add PWA support (P3.6) — the last migration phase
 2. Phase 3 leftovers: `ARCHITECTURE.md` (P3.4), tests for `io.js`
 3. Opportunistically: `i8080.js` modernization (P1.2), Web Worker (P2.5), rendering (P3.7 / P3.8)
+4. Emulation fidelity, from the real-hardware measurements of the forum thread in P2.17:
+   the reset ROM mapping (P2.17), the write contention (P2.18), the frame length (P2.20)
 
 ---
 
@@ -343,6 +345,65 @@ does not drive the bus is not a device that drives zeroes, so the faithful answe
 of P2.14. `Storage.set_snapshot()` carries a workaround built on the same assumption: it treats a
 returned `0xFF` at port `0xC1` (the palette) as "not readable" and forces the default palette.
 
+#### P2.17 The ROM is not mapped in all four banks until the first I/O write — ⏳
+
+`memory.js` resolves the four 16 KiB banks directly, so a low address always answers RAM.
+That contradicts the boot circuit: the `D5A` flip-flop is cleared by RESET and holds
+`~ROM_OE` low, so **the ROM answers for every address** and its 16 KiB appear in all four
+banks; the first write to an I/O port raises `~Q` and maps the ROM into `0xC000..0xFFFF`
+only (`docs/memories.md`, item `D5A`). The ROM does exactly that itself: its very first
+instruction after the reset vector is a dummy `OUT 00H`. The same sequence is described in
+the forum thread [Повышаем качество эмуляции Львов ПК-01](https://zx-pk.ru/threads/33071-povyshaem-kachestvo-emulyatsii-lvov-pk-01.html)
+(posts by Pyk and NEO SPECTRUMAN).
+
+The flip-flop is *addressless*: it is set by RESET and cleared by the `I/O W` strobe, not
+by the address decoder. The dummy write goes to `0x00`, which selects no device at all
+(P2.14), so the clear has to happen in `IO.output()` before the decode.
+
+**Symptom:** the machine boots through empty RAM. The reset vector at `0x0000` is
+`C3 00 E0` (`JMP 0xE000`), but the emulator answers `0x00` there, so the CPU runs NOPs
+until it wanders up into the ROM. Measured headlessly with `createCore()` and
+`public/data/rom-1990.bin`: `PC` reached `0xC000` only after **7 emulated frames**
+(~140 ms) instead of a few instructions.
+
+**Fix:** an `initial_rom_mapping` flag on `IO`, armed by `IO.restart()` and cleared by the
+first `IO.output()` (before the decode); while it is set, `Memory.get_mem_page_index()`
+returns `rom_page_index` for every bank. Reads are then served by the ROM and are not
+contended, because the RAM cycle never starts; writes are lost, because the EPROM is not
+writable. A restored snapshot describes a machine that has already performed I/O writes,
+so the snapshot loaders clear the flag explicitly.
+
+#### P2.18 A RAM write is charged one extra cycle instead of 3/4 — ⏳
+
+`src/contention.js` charges `WRITE_EXTRA = 1` on top of the read pattern. The real-hardware
+measurements collected in the thread above disagree: Pyk puts a RAM write at about +0.75
+cycle, and ivagor's fit over the real programs (Mandelbrot, Pi32, PiRk20 - each timed on a
+real machine) gives optima around `READ ≈ 2.277 / WRITE ≈ 0.745`, for which he chose the
+rational `16/7` and `3/4`. `READ_PATTERN = [2, 2, 2, 3, 2, 2, 3]` averages `2 2/7 = 2.286`
+and already matches (`16/7`); `WRITE_EXTRA` is the one parameter that is off, by ~1 % of the
+average speed. Implement as "3 extra cycles every 4 writes" so the average stays exact.
+
+#### P2.19 `IN`/`OUT` below `0xC0` should stall the CPU — ⏳
+
+The thread claims that any `IN`/`OUT` to ports 0-191 hangs the machine: the video/RAM access
+arbiter reacts to `A14 = A15 = 1` and does not distinguish a RAM access from a port access,
+and the 8080 duplicates `A0..A7` onto `A8..A15` during an I/O cycle, so READY is held low.
+The BASIC manual allows ports 192-255 only. The emulator answers the floating bus instead.
+**This must be verified before it is implemented:** `docs/cpu_pio.md` says the opposite
+(`ROM_OE` is high for EPROM *and* PIO requests, so `Q` - and therefore the wait state - goes
+low for RAM accesses only), and the emulator cannot afford to hang on a stray `OUT`.
+Status: claim to verify against the schematic, not a settled fact.
+
+#### P2.20 The video frame is 20.48 ms (48.83 Hz), not 20 ms (50 Hz) — ⏳
+
+`src/settings.js` fixes `frame_cycles: 44800` and `Config` derives `frame_duration = 20 ms`.
+`docs/timing.md`: the 20 MHz OSC feeds modulo-16, modulo-80 and modulo-320 counters, so a
+frame is `320 × 80 × 16 = 409600` OSC ticks = **20.48 ms**, i.e. `15625/320 = 48.83 Hz`
+(and ~45056 CPU cycles at the nominal 2.2 MHz, not 44800). The 2.4 % difference is in the
+same direction as the two items above and is visible in whole-program timings. Touching it
+means touching the audio budget too (`effective_clock_speed`, `frame_work_cycles`), so it
+needs its own change and a measurement - the forum's real-program timings are the oracle.
+
 ### P3 — Polish, features and rendering ideas
 
 #### P3.4 Typing and documentation — ⏳
@@ -403,6 +464,28 @@ color filters, animations, statistics.
 - **Loading ROM/dumps from the network** (by URL), not only local files.
 - **Snapshot round-trip** — already covered by the tests in P1.1.
 
+#### P3.14 Palette multicolour is not rendered — ⏳
+
+`Screen.draw()` samples the palette **once per frame** (`io.input(PALETTE_PORT) & 0x7f`) and
+renders the whole frame with it, so a program that rewrites port `0xC1` while the raster
+runs gets no effect. On the real machine it does: the video demultiplexer is fed from PB[6..0]
+as they stand when the byte reaches it, so fast palette writes paint coloured raster bands,
+and the same register's PB7 makes the emitter squeak while they are drawn. The thread
+(P2.17's source) has DDp's recordings and a test ROM (`palette_beep`) and concludes that
+even Emu80 reproduces it only "to within 4 pixels": a palette *знакоместо* is 4 pixels wide
+and shifted one pixel against the video *знакоместо*. Reproducing it faithfully means
+knowing where in the frame each palette write lands, i.e. the per-cycle timeline of the
+video fetch, which is the model P2.20 approaches only statistically. The sound half already
+works: `IO.updateSound()` recomputes the level on every port write (`P3.12`).
+
+#### P3.15 RAM content at power-on — ⏳
+
+`MemPage.init()` fills RAM with zeroes, and the thread argues the ROM does not clear all of
+it: DDp's `lvov_initial_memory_state` dump of a freshly powered machine was proposed as a
+better initial state (a game that sweeps memory would see it). The thread itself does not
+settle the question - it also notes that the video memory *is* cleared at power-on - so this
+is a "check against the dump first" item, not a change to make.
+
 ---
 
 ## Key risks
@@ -428,8 +511,9 @@ color filters, animations, statistics.
 4. Work on the structural leftovers when the code is touched anyway: `i8080.js` modernization (P1.2),
    Web Worker (P2.5), dirty rectangles (P3.7), the remaining rendering ideas (P3.8).
 
-Only **P1.2, P2.5, P3.4, P3.6 and P3.7** are open tasks. Everything else in the backlog is
-either done (see [Completed](#completed)) or a candidate list (P3.8, P3.9).
+Only **P1.2, P2.5, P2.15 and P2.17-P2.20, P3.4, P3.6, P3.7 and P3.14-P3.15** are open tasks.
+Everything else in the backlog is either done (see [Completed](#completed)) or a candidate
+list (P3.8, P3.9).
 
 The sound work needs one thing from outside the repository: a recording of a real PC-01 (see P3.10 and
 P3.11) - without it the emitter model cannot be checked against the hardware, and the video/RAM
