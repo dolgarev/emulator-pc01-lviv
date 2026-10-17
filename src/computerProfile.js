@@ -125,6 +125,9 @@ export class ComputerProfile {
     if (this.ui instanceof UiBinding) {
       this.ui.onAspectRatio((value) => this.viewport.setAspectRatio(value));
       this.ui.onAutoScale((checked) => this.viewport.setAutoScale(checked));
+      // Unlike the machine (P2.16), the length of the frame is a property of the running
+      // profile: the loop reads it on every display frame (P2.20).
+      this.ui.onFrame((frame) => this.config.set_frame(frame));
       // The machine is not a property of the running profile: choosing another model
       // rebuilds the whole machine, which is the job of whoever owns this profile
       // (P2.16).
@@ -153,8 +156,6 @@ export class ComputerProfile {
     const self = this,
       beeper = this.beeper,
       cpu = this.cpu,
-      f_duration = this.config.cpu.frame_duration,
-      f_cycles = this.config.cpu.frame_work_cycles,
       keyboard = this.keyboard,
       screen = this.screen,
       ticker = this.ticker,
@@ -209,6 +210,11 @@ export class ComputerProfile {
         keyboard.reset_special_keys();
       }
 
+      // The length of the video frame can be switched while the machine runs (P2.20), so
+      // it is read here, once per display frame, instead of being captured by run().
+      const f_duration = self.config.cpu.frame_duration;
+      const f_cycles = self.config.cpu.frame_work_cycles;
+
       const now = ticker.now();
       accumulator += now - prev_time;
       prev_time = now;
@@ -228,7 +234,8 @@ export class ComputerProfile {
 
           // One buffer of audio per emulated frame. The animation frame rate (60 Hz
           // on a typical display) is not the frame rate of the emulated machine
-          // (50 Hz); the sound has to follow the emulation, not the display.
+          // (48.83 Hz, or 50 Hz with the legacy frame); the sound has to follow the
+          // emulation, not the display.
           beeper.play();
         }
       }

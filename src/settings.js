@@ -16,6 +16,12 @@ const DEFAULT_SETTINGS = {
     machine_select: {
       id: 'machine_select',
     },
+    // Length of the video frame (P2.20): the 20.48 ms frame of the video circuit or the
+    // 20 ms approximation the emulator used before. Unlike the machine (P2.16), the
+    // choice is applied to the profile the emulator is already running.
+    frame_select: {
+      id: 'frame_select',
+    },
     aspect_ratio_select: {
       id: 'aspect_ratio_select',
     },
@@ -37,7 +43,7 @@ const DEFAULT_SETTINGS = {
   },
   cpu: {
     // Emulated CPU speed relative to the documented clock of the machine:
-    //   1.0 - the nominal clock of the processor (2.2 MHz, 44800 cycles every 20 ms
+    //   1.0 - the nominal clock of the processor (2.2 MHz, 45056 cycles every 20.48 ms
     //         frame); tones come out at the pitch the ROM produces them with;
     //   0.6 - what the real PC-01 effectively delivered: the video circuit took
     //         roughly 2.3 extra cycles on every RAM access, so the CPU completed
@@ -48,16 +54,23 @@ const DEFAULT_SETTINGS = {
     //         model that keeps the pitch while slowing the work needs the wait cycles
     //         charged on RAM accesses instead of one global factor: that is what
     //         `wait_states` below does, and it is the default.
-    // Only the work done within a frame changes - the frame rate stays at 50 Hz.
+    // Only the work done within a frame changes - the length of the frame itself comes
+    // from `frame` below.
     speed_factor: 1.0,
     // Charge the cycles the video circuit steals on RAM accesses (P2.11). This is the
     // faithful way to slow the machine down: code in ROM keeps the nominal speed, so the
     // ROM's tone loop still sounds at the right pitch while RAM code loses about 40% of
     // its cycles. Use either this or a speed factor below 1.0, not both.
     wait_states: true,
+    // Length of the video frame (P2.20): 'pc01' is the frame the video circuit makes -
+    // 320 x 80 x 16 = 409600 ticks of the 20 MHz oscillator, i.e. 20.48 ms at 48.83
+    // frames per second and 45056 CPU cycles at the nominal 2.2 MHz; 'legacy' is the
+    // 20 ms frame of 44800 cycles of the versions before it, in which the machine runs
+    // 2.4 % fast and its tones are 1.8 % sharp. `controls.frame_select` switches it while
+    // the machine runs; the frames themselves are in `src/config.js` (FRAMES).
+    frame: 'pc01',
     i8080: {
       clock_speed: 2.2 * 1000000,
-      frame_cycles: 44800,
     },
   },
   memory: {

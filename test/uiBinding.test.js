@@ -52,21 +52,39 @@ describe('UiBinding', () => {
     binding.terminate();
   });
 
+  it('forwards frame changes to the handler (P2.20)', () => {
+    const frame_select = new FakeControl({ value: 'pc01' });
+    const binding = new UiBinding({ frame_select });
+
+    const seen = [];
+    binding.onFrame((frame) => seen.push(frame));
+
+    frame_select.value = 'legacy';
+    frame_select.dispatchEvent(new Event('change'));
+
+    expect(seen).toEqual(['legacy']);
+    binding.terminate();
+  });
+
   it('syncs the controls to the configured initial values', () => {
     const machine_select = new FakeControl({ value: 'pc01_lvov_80_fixed' });
+    const frame_select = new FakeControl({ value: 'legacy' });
     const select = new FakeControl({ value: '1:1' });
     const checkbox = new FakeControl({ checked: true });
 
     new UiBinding({
       machine_select,
+      frame_select,
       aspect_ratio_select: select,
       auto_scale_checkbox: checkbox,
       machine: 'pc01_lvov_80',
+      frame: 'pc01',
       aspect_ratio: '4:3',
       auto_scale: false,
     });
 
     expect(machine_select.value).toBe('pc01_lvov_80');
+    expect(frame_select.value).toBe('pc01');
     expect(select.value).toBe('4:3');
     expect(checkbox.checked).toBe(false);
   });

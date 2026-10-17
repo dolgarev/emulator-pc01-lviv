@@ -81,8 +81,21 @@ describe('Beeper', () => {
     expect(target.buffers).toHaveLength(3);
     for (const buffer of target.buffers) {
       expect(buffer.sample_rate).toBe(48000);
-      expect(buffer.data).toHaveLength(960); // 20 ms at 48 kHz
+      expect(buffer.data).toHaveLength(983); // 20.48 ms at 48 kHz
     }
+  });
+
+  it('carries the sample budget of a frame that is not a whole number of samples (P2.20)', () => {
+    const target = createBeeper();
+    playTone(target, 1000, 25);
+
+    // 25 frames of 20.48 ms at 44100 Hz are 22579.2 samples: the buffers alternate
+    // around 903 (a fixed 903 would drain the lead of the sink, a fixed 904 would
+    // overrun it), so the average rate is exactly the device rate.
+    const lengths = target.buffers.map((buffer) => buffer.data.length);
+
+    expect(new Set(lengths)).toEqual(new Set([903, 904]));
+    expect(lengths.reduce((sum, length) => sum + length, 0)).toBe(22579);
   });
 
   it('falls back to 44100 Hz for sinks that do not report a sample rate', () => {
@@ -90,7 +103,7 @@ describe('Beeper', () => {
     playTone(target, 1000, 1);
 
     expect(target.buffers[0].sample_rate).toBe(44100);
-    expect(target.buffers[0].data).toHaveLength(882);
+    expect(target.buffers[0].data).toHaveLength(903); // 20.48 ms at 44100 Hz
   });
 
   it('continues the level run across frame boundaries', () => {
@@ -111,9 +124,9 @@ describe('Beeper', () => {
     const [first, second, third] = target.buffers.map((buffer) => buffer.data);
 
     expect(first[0]).toBeCloseTo(-amplitude, 6);
-    // ~220 samples (a quarter of the frame) at level 0, then the level flips.
-    expect(first[219]).toBeCloseTo(-amplitude, 6);
-    expect(first[221]).toBeCloseTo(amplitude, 6);
+    // ~226 samples (a quarter of the frame) at level 0, then the level flips.
+    expect(first[224]).toBeCloseTo(-amplitude, 6);
+    expect(first[226]).toBeCloseTo(amplitude, 6);
     expect(first.at(-1)).toBeCloseTo(amplitude, 6);
 
     // The first frame ends at level 1, so the second one starts there: the wave is
@@ -136,7 +149,7 @@ describe('Beeper', () => {
     beeper.play();
 
     expect(target.buffers).toHaveLength(1);
-    expect(target.buffers[0].data).toHaveLength(882);
+    expect(target.buffers[0].data).toHaveLength(903);
 
     const held = target.buffers[0].data;
     expect(held[0]).toBeCloseTo(-beeper.VOLUME / 2, 6);
@@ -200,7 +213,7 @@ describe('Beeper', () => {
     beeper.play();
 
     expect(target.buffers).toHaveLength(1);
-    expect(target.buffers[0].data).toHaveLength(882);
+    expect(target.buffers[0].data).toHaveLength(903);
     expect(warn).toHaveBeenCalledTimes(1); // warned once, not once per change
 
     warn.mockRestore();

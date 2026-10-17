@@ -329,9 +329,11 @@ export class ComputerProfileBuilder {
     this._ui ??= new UiBinding({
       load_button: this._dom.local_load_button,
       machine_select: this._dom.machine_select,
+      frame_select: this._dom.frame_select,
       aspect_ratio_select: this._dom.aspect_ratio_select,
       auto_scale_checkbox: this._dom.auto_scale_checkbox,
       machine: this._config.computer.profile,
+      frame: this._config.cpu.frame,
       aspect_ratio: aspectRatioName(this._config.screen.aspect_ratio) ?? '4:3',
       auto_scale: this._config.screen.auto_scale,
     });

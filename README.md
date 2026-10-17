@@ -122,6 +122,18 @@ Switching rebuilds the emulator from scratch and boots the chosen model into its
 dump is not replayed, because a dump names the machine it was taken from. The bundled dumps were
 saved on the serial machine.
 
+## Video frame
+
+The **Frame** selector picks the length of the emulated video frame (see [P2.20](CODE_REVIEW.md)):
+
+- **20.48 ms (48.83 Hz)** — the frame the video circuit makes: 409600 ticks of the 20 MHz
+  oscillator. The default, and the one the CPU keeps its documented 2.2 MHz in.
+- **20 ms (50 Hz)** — the approximation the emulator used before: the machine runs 2.4 % fast and
+  its tones are 1.8 % sharp.
+
+Unlike the machine, the choice is applied while the emulator runs, so the two frames can be
+compared by ear without a restart.
+
 ## Project structure
 
 ```

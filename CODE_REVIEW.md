@@ -87,8 +87,9 @@ Migration option comparison:
 2. Phase 3 leftovers: `ARCHITECTURE.md` (P3.4), tests for `io.js`
 3. Opportunistically: `i8080.js` modernization (P1.2), Web Worker (P2.5), rendering (P3.7 / P3.8)
 4. Emulation fidelity, from the real-hardware measurements of the forum thread: the frame
-   length (P2.20); the write contention (P2.18), the reset ROM mapping (P2.17) and the
-   deadlock on the ports below `0xC0` (P2.19) are done
+   length (P2.20, the 20 ms frame of the versions before is one click away in the UI), the
+   write contention (P2.18), the reset ROM mapping (P2.17) and the deadlock on the ports
+   below `0xC0` (P2.19) are done
 
 ---
 
@@ -474,28 +475,42 @@ and the dummy `OUT` do not, RESET releases it) and `test/storage.test.js` (loadi
 does not stall the machine). Note that the deadlock is part of the wait state model: with
 `cpu.wait_states` off the machine has no arbiter and does not hang.
 
-#### P2.20 The video frame is 20.48 ms (48.83 Hz), not 20 ms (50 Hz) — ⏳
+#### P2.20 The video frame is 20.48 ms (48.83 Hz), not 20 ms (50 Hz) — ✅ done
 
-`src/settings.js` fixes `frame_cycles: 44800` and `Config` derives `frame_duration = 20 ms`.
-`docs/timing.md`: the 20 MHz OSC feeds modulo-16, modulo-80 and modulo-320 counters, so a
-frame is `320 × 80 × 16 = 409600` OSC ticks = **20.48 ms**, i.e. `15625/320 = 48.83 Hz`
-(and ~45056 CPU cycles at the nominal 2.2 MHz, not 44800). The 2.4 % difference is in the
-same direction as the two items above and is visible in whole-program timings. Touching it
-means touching the audio budget too (`effective_clock_speed`, `frame_work_cycles`), so it
-needs its own change and a measurement - the forum's real-program timings are the oracle.
+The 20 MHz OSC feeds modulo-16, modulo-80 and modulo-320 counters, so a frame is
+`320 × 80 × 16 = 409600` OSC ticks = **20.48 ms**, i.e. `15625/320 = 48.83 Hz`, which is
+45056 CPU cycles at the nominal 2.2 MHz (not 44800). Measured on `almazy_lviv.lvt` with
+`npm run audio:melody -- --app docs/almazy_lviv.lvt`: 586 emulated frames in 12.02 s = 48.8
+frames per second, 4141 instructions per frame with the contention against 6086 without it -
+the forum's 4100/6051 scaled by the 0.57 % larger budget and keeping their 0.68× ratio.
 
-**Tried and rolled back.** Setting `frame_cycles: 45056`, dropping the `Math.round()` of the
-frame duration and carrying the fractional frame budget in `Beeper.play()` was implemented
-and measured on `almazy_lviv.lvt`: 586 emulated frames in 12.02 s = 48.8 frames per second
-instead of 49.9, and 4141 instructions per frame with the contention against 6086 without it
-- the forum's 4100/6051 scaled by the 0.57 % larger budget, with the same 0.68× between the
-two. The pitch drops the 1.8 % it should (`effective_clock_speed` from 2.24 MHz to exactly
-2 200 000). What kept it out is the sound: the melody of the test program picks up extra
-clicks that the 44800-cycle frame does not produce, and whether they are the hardware (the
-note lengths and the video frame do interact) or an artefact of the audio scheduling has not
-been settled. The frame length therefore stays as it is, and a second attempt should compare
-the wave files of the two runs (`npm run audio:melody -- --app docs/almazy_lviv.lvt --out
-x.wav`, which takes the real load path again) before it is committed.
+**Implemented:** the length of the frame belongs to `Config`, which keeps the frames in a
+`FRAMES` table - `pc01` (45056 cycles, 20.48 ms, the default) and `legacy` (44800 cycles,
+20 ms, what the versions before this item used) - and derives `frame_cycles`,
+`frame_duration`, `frame_work_cycles` and `effective_clock_speed` from the selected one in
+`set_frame()`. The CPU therefore runs at its documented 2.2 MHz instead of 2.24. Two things
+make the choice live instead of a rebuild: the frame loop reads those numbers from the config
+once per display frame instead of capturing them in `run()`, and the beeper sizes its segment
+buffer for the longest frame (`frame_work_cycles_max`). `Beeper.play()` also carries the
+fractional samples of a frame over: 20.48 ms is 903.168 samples at 44100 Hz, so the buffers
+alternate 903/904 while the average rate stays exactly the one of the device - a fixed 903
+would drain the lead of the audio queue by ~0.2 ms per second and a continuous tone would
+break up after a few minutes. The **Frame** selector picks between the two, and unlike the
+machine (P2.16) the choice is applied to the running profile, so they can be compared by ear
+without a restart.
+
+**Open question:** the faithful frame also drops the pitch of everything the program does by
+the 1.8 % the effective clock drops, and listening to `almazy_lviv.lvt` through it picks up
+extra clicks that the 20 ms frame does not produce. Whether they are the hardware - the note
+lengths of the program and the video frame do interact - or an artefact of the audio
+scheduling has not been settled. Both settings can be captured to a wave file with
+`npm run audio:melody -- --app docs/almazy_lviv.lvt --out <file>.wav`.
+
+**Covered by** `test/config.test.js` (the frame of the video circuit at every speed factor,
+and `set_frame()` switching the cycle budget and the effective clock both ways, with a
+`RangeError` for an unknown frame), `test/beeper.test.js` (983 samples at 48 kHz and 903 at
+44100 Hz, and the carried budget of 25 frames = 22579 samples alternating 903/904) and
+`test/uiBinding.test.js` (the Frame selector reaches its handler).
 
 ### P3 — Polish, features and rendering ideas
 
@@ -604,7 +619,7 @@ is a "check against the dump first" item, not a change to make.
 4. Work on the structural leftovers when the code is touched anyway: `i8080.js` modernization (P1.2),
    Web Worker (P2.5), dirty rectangles (P3.7), the remaining rendering ideas (P3.8).
 
-Only **P1.2, P2.5, P2.15 and P2.20, P3.4, P3.6, P3.7 and P3.14-P3.15** are open tasks.
+Only **P1.2, P2.5, P2.15, P3.4, P3.6, P3.7 and P3.14-P3.15** are open tasks.
 Everything else in the backlog is either done (see [Completed](#completed)) or a candidate
 list (P3.8, P3.9).
 

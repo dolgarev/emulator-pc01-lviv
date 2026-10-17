@@ -38,7 +38,9 @@ export class Beeper {
     this.VOLUME = 0.15;
 
     // One entry per level change, not per sample.
-    this.MAX_SEGMENTS = Math.ceil(config.cpu.frame_work_cycles / MIN_CYCLES_PER_CHANGE) + 2;
+    // The length of the frame can change while the machine runs (P2.20), so the buffer is
+    // sized for the longest of them.
+    this.MAX_SEGMENTS = Math.ceil(config.cpu.frame_work_cycles_max / MIN_CYCLES_PER_CHANGE) + 2;
     this.sound_buffer = new Float32Array(this.MAX_SEGMENTS);
 
     this.init();
@@ -51,6 +53,7 @@ export class Beeper {
   restart() {
     this.buffer_index = 0;
     this.sample_carry = 0;
+    this.frame_sample_carry = 0;
     this.wave_level = 0;
     this.prev_change_offset = 0;
     this.prev_beeper_state = 0;
@@ -78,9 +81,16 @@ export class Beeper {
     if (!this.config.beeper.allow_sound) return;
 
     const sample_rate = this.sample_rate;
-    // Exactly one frame of audio, whatever the emulated CPU speed is, so the sound
-    // stays in step with the emulation.
-    const frame_samples = Math.round((this.config.cpu.frame_duration * sample_rate) / 1000);
+    // Exactly one frame of audio, whatever the emulated CPU speed is, so the sound stays
+    // in step with the emulation. A frame of the video circuit is 20.48 ms, which is not
+    // a whole number of samples (903.168 of them at 44100 Hz), so the fraction is carried
+    // over and the buffers alternate around the mean: rounding every frame the same way
+    // would drain the lead of the sink by ~0.2 ms per second and a continuous tone would
+    // break up after a few minutes (P2.20).
+    const frame_budget =
+      (this.config.cpu.frame_duration * sample_rate) / 1000 + this.frame_sample_carry;
+    const frame_samples = Math.floor(frame_budget);
+    this.frame_sample_carry = frame_budget - frame_samples;
     const data = new Float32Array(frame_samples);
 
     this.generateSquareWave(data, sample_rate, segments);
