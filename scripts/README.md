@@ -11,7 +11,7 @@ aliases in `package.json`).
 | --- | --- |
 | `browser-check.mjs` | Serves `dist/`, boots it in headless Chrome over the DevTools protocol, presses a key and asserts that the canvas exists, that it is painted and that the console stayed clean. Non-zero exit on failure: `npm run build && npm run check` |
 | `audio-response.mjs` | Measures the frequency response of the `AudioSink` chain in a real browser (`OfflineAudioContext`), relative to the unfiltered output, for the current `speaker_model` and for `flat`. Needs Chrome: `npm run audio:response` |
-| `melody-audio.mjs` | Runs the headless core (from `test/helpers.js`), plays a tape image through the real dump path, records every buffer the beeper hands to the sink, writes a WAV of what the sink would output and prints the metrics used in the sound work: frames per second, instructions per frame, note frequencies, overlap, RMS. `npm run audio:melody -- --app <your-tape>.lvt` |
+| `melody-audio.mjs` | Runs the headless core (from `test/helpers.js`), plays a tape image through the real load path (header kind, `launch_tape()`), records every buffer the beeper hands to the sink, writes a WAV of what the sink would output and prints the metrics used in the sound work: frames per second, instructions per frame, note frequencies, overlap, RMS. `npm run audio:melody -- --app <your-tape>.lvt` |
 
 Notes:
 

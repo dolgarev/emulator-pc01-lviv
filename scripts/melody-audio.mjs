@@ -53,7 +53,6 @@ const { createCore } = await import(path.join(ROOT, 'test/helpers.js'));
 const { ComputerProfile } = await import(path.join(ROOT, 'src/computerProfile.js'));
 const { Rom } = await import(path.join(ROOT, 'src/rom.js'));
 const { Tape } = await import(path.join(ROOT, 'src/tape.js'));
-const { Dump } = await import(path.join(ROOT, 'src/dump.js'));
 
 class FakeTicker {
   constructor() {
@@ -132,9 +131,14 @@ const image = fs.readFileSync(APP);
 const data = new DataView(
   image.buffer.slice(image.byteOffset, image.byteOffset + image.byteLength)
 );
-const dump = Object.create(Dump.prototype);
-Object.assign(dump, { type: 'lvt', data });
-await profile.load_dump(dump);
+// The path a dropped file takes: Profile.load() reads the kind out of the file header and hands
+// a tape to launch_tape(), which boots BASIC once and applies the BLOAD entry. That boot is a
+// session of its own, so the counters and the recorded buffers start after it.
+await profile.load(data);
+frames = 0;
+instructions = 0;
+plays.length = 0;
+
 profile.run();
 
 const step_ms = 1000 / 60;
