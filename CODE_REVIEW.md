@@ -1353,3 +1353,16 @@ rewinding the schedule. Not scheduled.
 
 The reproduction harness behind the table is a throwaway script; if the audio-clock queue is brought back,
 it is the starting point for a regression check.
+
+#### P3.16 Unused 960 Grid System bundle — ✅ done
+
+`index.html` linked two files out of `public/assets/960gs/` (`css/reset.css`, `css/text.css`) but never
+`css/grid.css`, and the page does not use the grid classes (`.container_8`, `.grid_1`…`.grid_8`): the
+layout has been flexbox in `public/assets/css/main.css` since the SPA migration. So most of the bundle
+(a 4.1 KB grid stylesheet, the GPL/MIT license files and the README) was dead weight, and the whole
+package carried a dual-license obligation for roughly thirty lines of reset/typography.
+
+**Fix.** The reset and text defaults were carried over verbatim into `public/assets/css/base.css`, the two
+links in `index.html` were replaced by a single `/assets/css/base.css`, and `public/assets/960gs/` was
+removed (the README's third-party asset entry went with it). Rendering is unchanged; the credit for the
+original CSS is kept in the `base.css` header comment.

@@ -1,3 +1,13 @@
+/*
+  Base styles: browser reset + default typography.
+
+  Carried over from the 960 Grid System `css/reset.css` and `css/text.css`
+  (Nathan Smith, http://960.gs/, MIT/GPL) when the unused 960 Grid System
+  bundle was dropped (CODE_REVIEW.md P3.16). Only the reset and the text
+  defaults are kept; the grid itself (`grid.css`, `.container_N`/`.grid_N`)
+  was never linked from `index.html`.
+*/
+
 /* `XHTML, HTML4, HTML5 Reset
 ----------------------------------------------------------------------------------------------------*/
 
@@ -114,23 +124,11 @@ main,
 menu,
 nav,
 section {
-/*
-  Override the default (display: inline) for
-  browsers that do not recognize HTML5 tags.
-
-  IE8 (and lower) requires a shiv:
-  http://ejohn.org/blog/html5-shiv
-*/
   display: block;
 }
 
 b,
 strong {
-/*
-  Makes browsers agree.
-  IE + Opera = font-weight: bold.
-  Gecko + WebKit = font-weight: bolder.
-*/
   font-weight: bold;
 }
 
@@ -138,10 +136,6 @@ img {
   color: transparent;
   font-size: 0;
   vertical-align: middle;
-/*
-  For IE.
-  http://css-tricks.com/ie-fix-bicubic-scaling-for-images
-*/
   -ms-interpolation-mode: bicubic;
 }
 
@@ -151,12 +145,6 @@ ul {
 }
 
 li {
-/*
-  For IE6 + IE7:
-
-  "display: list-item" keeps bullets from
-  disappearing if hasLayout is triggered.
-*/
   display: list-item;
 }
 
@@ -205,9 +193,85 @@ sup {
 }
 
 svg {
-/*
-  For IE9. Without, occasionally draws shapes
-  outside the boundaries of <svg> rectangle.
-*/
   overflow: hidden;
+}
+
+/* `Basic HTML
+----------------------------------------------------------------------------------------------------*/
+
+body {
+  font: 13px/1.5 "Helvetica Neue", Arial, "Liberation Sans", FreeSans, sans-serif;
+}
+
+pre,
+code {
+  font-family: "DejaVu Sans Mono", Menlo, Consolas, monospace;
+}
+
+hr {
+  border: 0 solid #ccc;
+  border-top-width: 1px;
+  clear: both;
+  height: 0;
+}
+
+/* `Headings
+----------------------------------------------------------------------------------------------------*/
+
+h1 {
+  font-size: 25px;
+}
+
+h2 {
+  font-size: 23px;
+}
+
+h3 {
+  font-size: 21px;
+}
+
+h4 {
+  font-size: 19px;
+}
+
+h5 {
+  font-size: 17px;
+}
+
+h6 {
+  font-size: 15px;
+}
+
+/* `Spacing
+----------------------------------------------------------------------------------------------------*/
+
+ol {
+  list-style: decimal;
+}
+
+ul {
+  list-style: disc;
+}
+
+li {
+  margin-left: 30px;
+}
+
+p,
+dl,
+hr,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+ol,
+ul,
+pre,
+table,
+address,
+fieldset,
+figure {
+  margin-bottom: 10px;
 }

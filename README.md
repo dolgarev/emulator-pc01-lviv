@@ -161,8 +161,6 @@ public/data/                  ROM and dump binaries (.bin)
 - `public/assets/fontello/` — icon font generated with [Fontello](https://fontello.com) from Font Awesome
   (Copyright (C) 2012 Dave Gandy, SIL OFL 1.1) and other icon sets; the full list is in
   [`public/assets/fontello/LICENSE.txt`](public/assets/fontello/LICENSE.txt).
-- `public/assets/960gs/` — 960 Grid System (dual-licensed); this project uses the MIT option, see
-  [`public/assets/960gs/MIT_license.txt`](public/assets/960gs/MIT_license.txt).
 
 ## License
 
