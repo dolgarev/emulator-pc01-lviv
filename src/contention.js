@@ -10,8 +10,8 @@ import { assertInstance } from './utils/assert.js';
  * the pitch the ROM generates, no matter how much the RAM code around it is slowed.
  *
  * The numbers come from the documented behaviour: a repeating 7-step pattern of
- * 2, 2, 2, 3, 2, 2, 3 cycles per RAM access (2 2/7 on average), one extra cycle for a
- * write and one for an I/O access. See CODE_REVIEW.md, P2.11.
+ * 2, 2, 2, 3, 2, 2, 3 cycles per RAM access (2 2/7 on average), an extra 3/4 of a cycle for
+ * a write and one for an I/O access. See CODE_REVIEW.md, P2.11 and P2.18.
  *
  * The cycles are charged twice, and that is deliberate: they advance the shared Clock (so
  * the beeper sees the real timeline and a frame still holds 44800 ticks) and they are
@@ -21,7 +21,11 @@ import { assertInstance } from './utils/assert.js';
  * untouched.
  */
 const READ_PATTERN = [2, 2, 2, 3, 2, 2, 3];
-const WRITE_EXTRA = 1;
+// A RAM write costs 3/4 of a cycle on top of the pattern (P2.18). Fractional cycles would
+// spread through the whole timing model, so three writes in four pay one extra whole cycle
+// and the fourth pays none: the average is exact and no write is off by more than 1/4 cycle.
+const WRITE_EXTRA = 3;
+const WRITE_EXTRA_PERIOD = 4;
 const IO_EXTRA = 1;
 
 export class Contention {
@@ -29,6 +33,7 @@ export class Contention {
     assertInstance(clock, Clock, 'CONTENTION: Invalid CLOCK object');
     this.clock = clock;
     this.step = 0;
+    this.write_quarters = 0;
     this.pending = 0;
   }
 
@@ -37,7 +42,22 @@ export class Contention {
   }
 
   write() {
-    this.charge(READ_PATTERN[this.step++ % READ_PATTERN.length] + WRITE_EXTRA);
+    this.charge(READ_PATTERN[this.step++ % READ_PATTERN.length] + this.writeExtra());
+  }
+
+  /**
+   * The extra cycles of one RAM write. The machine charges 3/4 of a cycle per write; the
+   * model has no fractional cycles, so the quarters are accumulated and paid out as whole
+   * cycles - the sequence of extras is 0, 1, 1, 1, 0, 1, 1, 1 ... (P2.18).
+   *
+   * @returns {number} The whole cycles to charge for this write, 0 or 1.
+   */
+  writeExtra() {
+    this.write_quarters += WRITE_EXTRA;
+    const cycles = Math.floor(this.write_quarters / WRITE_EXTRA_PERIOD);
+    this.write_quarters -= cycles * WRITE_EXTRA_PERIOD;
+
+    return cycles;
   }
 
   io() {

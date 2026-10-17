@@ -33,15 +33,30 @@ describe('Contention (video/RAM wait states)', () => {
     expect(contention.take()).toBe(16);
   });
 
-  it('charges one extra cycle for a write and for an I/O access', () => {
-    const { clock, contention, io, memory } = createParts();
+  it('spreads the 3/4 of a cycle that a RAM write costs over four writes (P2.18)', () => {
+    const { clock, memory } = createParts();
 
-    memory.write(0x0000, 0x11); // 2 + 1
+    const charges = [];
+    for (let i = 0; i < 4; i++) {
+      const before = clock.totalCycles;
+      memory.write(0x0000, 0x11);
+      charges.push(clock.totalCycles - before);
+    }
+
+    // The read pattern gives 2, 2, 2, 3 and the write extra is paid in whole cycles:
+    // 0, 1, 1, 1 - three cycles per four writes, so 3/4 of a cycle on average.
+    expect(charges).toEqual([2, 3, 3, 4]);
+    expect(clock.totalCycles).toBe(12);
+  });
+
+  it('charges one extra cycle for an I/O access', () => {
+    const { clock, contention, io } = createParts();
+
     io.output(0xc2, 0xff); // 1 for the port itself
     io.input(0xc2); // and another
 
-    expect(clock.totalCycles).toBe(3 + 1 + 1);
-    expect(contention.take()).toBe(5);
+    expect(clock.totalCycles).toBe(1 + 1);
+    expect(contention.take()).toBe(2);
   });
 
   it('does not charge accesses to the ROM', () => {

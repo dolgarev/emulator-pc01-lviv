@@ -86,8 +86,8 @@ Migration option comparison:
 1. Start Phase 2: add PWA support (P3.6) — the last migration phase
 2. Phase 3 leftovers: `ARCHITECTURE.md` (P3.4), tests for `io.js`
 3. Opportunistically: `i8080.js` modernization (P1.2), Web Worker (P2.5), rendering (P3.7 / P3.8)
-4. Emulation fidelity, from the real-hardware measurements of the forum thread: the write
-   contention (P2.18) and the frame length (P2.20); the reset ROM mapping (P2.17) is done
+4. Emulation fidelity, from the real-hardware measurements of the forum thread: the frame
+   length (P2.20); the write contention (P2.18) and the reset ROM mapping (P2.17) are done
 
 ---
 
@@ -309,10 +309,11 @@ independent sources agree on the size of the effect:
   500…625 thousand ops/s" in other descriptions (≈0.5×).
 
 **Implemented** (`src/contention.js`, `cpu.wait_states`, on by default): every access to RAM charges a
-wait from the repeating 7-step pattern 2, 2, 2, 3, 2, 2, 3 (2 2/7 on average), a write costs one more
-and an I/O access costs one. The cycles are charged twice, and that is the mechanism: they advance the
-shared `Clock`, so a frame still holds 44800 ticks and the beeper sees the real timeline, and they are
-added to the cycle count of the instruction that caused them, so the frame budget buys less work.
+wait from the repeating 7-step pattern 2, 2, 2, 3, 2, 2, 3 (2 2/7 on average), a write costs 3/4 more
+(P2.18) and an I/O access costs one. The cycles are charged twice, and that is the mechanism: they
+advance the shared `Clock`, so a frame still holds 44800 ticks and the beeper sees the real timeline,
+and they are added to the cycle count of the instruction that caused them, so the frame budget buys
+less work.
 `I8080.run()` counts the cycles of its instructions locally and that core is an upstream port which stays
 untouched, so the second half lives in `Contention.attach(cpu)` - a wrapper around `cpu.instruction()`
 that adds the waits incurred inside the call. `Memory` charges on contended pages only (`is_rom`), which
@@ -397,15 +398,34 @@ frame now ends at `PC = 0xE124`, i.e. inside the cold start. Covered by `test/io
 `test/contention.test.js` (no waits charged inside the window) and `test/storage.test.js`
 (a snapshot restores the low RAM after a reset).
 
-#### P2.18 A RAM write is charged one extra cycle instead of 3/4 — ⏳
+#### P2.18 A RAM write is charged one extra cycle instead of 3/4 — ✅ done
 
-`src/contention.js` charges `WRITE_EXTRA = 1` on top of the read pattern. The real-hardware
+`src/contention.js` charged `WRITE_EXTRA = 1` on top of the read pattern. The real-hardware
 measurements collected in the thread above disagree: Pyk puts a RAM write at about +0.75
 cycle, and ivagor's fit over the real programs (Mandelbrot, Pi32, PiRk20 - each timed on a
 real machine) gives optima around `READ ≈ 2.277 / WRITE ≈ 0.745`, for which he chose the
 rational `16/7` and `3/4`. `READ_PATTERN = [2, 2, 2, 3, 2, 2, 3]` averages `2 2/7 = 2.286`
 and already matches (`16/7`); `WRITE_EXTRA` is the one parameter that is off, by ~1 % of the
 average speed. Implement as "3 extra cycles every 4 writes" so the average stays exact.
+
+**Implemented:** as "3 whole cycles every 4 writes". `WRITE_EXTRA` is now `3` out of
+`WRITE_EXTRA_PERIOD = 4`, accumulated in quarter cycles by `Contention.writeExtra()` and paid
+out as whole ones, so the extras of four consecutive writes are 0, 1, 1, 1. Whole cycles are
+what the model needs: a fractional charge would leak into every `Clock` tick, into the
+beeper's sample math and into the instruction counts the tests assert, so the quarters are
+distributed and no single write is off by more than 1/4 of a cycle. `READ_PATTERN` and
+`IO_EXTRA` are untouched - the read average and the port cost already matched the
+measurements.
+
+Measured over one frame of `cpu.frame_cycles` with the loop from `test/contention.test.js`: a
+read-only RAM loop stays at 6656 instructions per frame (the write path is not involved) and a
+write-heavy loop (one `MVI M` per eight reads) goes from 3345 to 3361, i.e. +0.5 %. P2.11's
+figures for `almazy_lviv.lvt` (6051 against 4100 instructions per frame) were taken with the
+old constant and are read-dominated, so they stay valid within that fraction; its wording of
+the write cost now points here.
+
+Covered by `test/contention.test.js`: the four writes of a period cost 2, 3, 3, 4 cycles with
+the pattern (12 in total, 3/4 of a cycle extra on average) and an I/O access still costs one.
 
 #### P2.19 `IN`/`OUT` below `0xC0` should stall the CPU — ⏳
 
@@ -535,7 +555,7 @@ is a "check against the dump first" item, not a change to make.
 4. Work on the structural leftovers when the code is touched anyway: `i8080.js` modernization (P1.2),
    Web Worker (P2.5), dirty rectangles (P3.7), the remaining rendering ideas (P3.8).
 
-Only **P1.2, P2.5, P2.15 and P2.18-P2.20, P3.4, P3.6, P3.7 and P3.14-P3.15** are open tasks.
+Only **P1.2, P2.5, P2.15 and P2.19-P2.20, P3.4, P3.6, P3.7 and P3.14-P3.15** are open tasks.
 Everything else in the backlog is either done (see [Completed](#completed)) or a candidate
 list (P3.8, P3.9).
 
