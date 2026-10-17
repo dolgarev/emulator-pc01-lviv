@@ -50,8 +50,9 @@ export class IO {
 
     //Ports 0xE0-0xE4 were used to work with the FDD controller in
     //Chameleon DOS and Dmitry Skachkov's CP/M-80 (the ~CS2 block of the decoder).
-    //~CS3 (0xF0..0xFF) reaches the X1 connector, where the PK-02 board hangs its
-    //port 0xF0 latch (P2.13) - no profile models that board yet (P2.16).
+    //~CS3 (0xF0..0xFF) is the X1 connector: the PK-02 board hangs its port 0xF0
+    //latch there (P2.13), so the device exists only in a profile that has it.
+    this.extended_port_latch = config.io.extended_port_latch;
 
     //port 0xC0
     //[http://lvovpc.cu.cc/article.shtml?id=2]
@@ -117,14 +118,19 @@ export class IO {
     const register = port & REGISTER_MASK;
 
     // 0x00: ~CS0, the main PPI. 0x01: ~CS1, the keyboard PPI - both decode A1/A0,
-    // so they answer on a 4-address window. 0x02: ~CS2 and 0x03: ~CS3 are wired to
-    // X1, where this machine has no device: nothing drives the bus there.
+    // so they answer on a 4-address window. 0x03: ~CS3, the PK-02 latch - its clock
+    // comes from ~CS3 alone, so A1/A0 do not reach it and all sixteen addresses
+    // write the one register; a serial machine has nothing wired there at all.
+    // 0x02: ~CS2 is wired to X1, where this machine has no device.
     switch ((port & BLOCK_SELECT_MASK) >> BLOCK_SHIFT) {
       case 0:
         return this.PPI_BASE_PORT | register;
 
       case 1:
         return this.KEYBOARD_SELECT_PORT | register;
+
+      case 3:
+        return this.extended_port_latch ? this.EXTENDED_MODE_PORT : NO_DEVICE;
 
       default:
         return NO_DEVICE;

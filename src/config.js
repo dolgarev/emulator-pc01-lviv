@@ -26,6 +26,12 @@ export class Config {
             model: 'i8080',
             allow_interrupts: false,
           },
+          io: {
+            // The PK-02 board hangs its port 0xF0 latch (video modes, extended RAM
+            // banks) on the X1 connector; the serial machine has nothing there
+            // (P2.13, P2.14). The port decoding itself is the same in every profile.
+            extended_port_latch: false,
+          },
           memory: {
             map: 80,
             hide_0_mem_bank: true,
@@ -62,6 +68,11 @@ export class Config {
           cpu: {
             model: 'i8080',
             allow_interrupts: false,
+          },
+          io: {
+            // "Серийная модель с некоторыми доработками": this machine carries the
+            // PK-02 board, so the port 0xF0 latch exists here (P2.13, P2.14).
+            extended_port_latch: true,
           },
           memory: {
             map: 80,

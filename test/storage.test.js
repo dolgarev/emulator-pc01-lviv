@@ -42,6 +42,24 @@ describe('Storage', () => {
     expect(() => storage.set_snapshot('nope')).toThrow();
   });
 
+  // The port 0xF0 latch is what carries the video modes (P2.13) and the extended RAM
+  // banks, and Storage used to replay the ports through IO.input()/IO.output(), i.e.
+  // through the address decoding (P2.14).
+  it('round-trips the port 0xF0 latch of the machine with the upgrades', () => {
+    const { storage, io } = createCore('pc01_lvov_80_fixed');
+
+    io.output(io.EXTENDED_MODE_PORT, io.HIGH_RESOLUTION_BIT | io.BLANK_SCREEN_BIT);
+
+    const snapshot = storage.get_snapshot();
+    const data = new DataView(Uint8Array.from(snapshot).buffer);
+
+    io.output(io.EXTENDED_MODE_PORT, 0x00);
+
+    storage.set_snapshot(data);
+
+    expect(io.ports[io.EXTENDED_MODE_PORT]).toBe(io.HIGH_RESOLUTION_BIT | io.BLANK_SCREEN_BIT);
+  });
+
   it('forces the default palette when a snapshot carries none', () => {
     const { storage, io } = createCore();
     const size = 17 + 0x14000 + 0x100 + 12;

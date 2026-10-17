@@ -60,7 +60,7 @@ describe('IO speaker output', () => {
 // selected" case (code review P2.14).
 describe('IO port decoding', () => {
   it('selects the blocks from A5/A4, enables them with A7/A6 and ignores A2/A3', () => {
-    const { io } = createIO();
+    const { io } = createIO('pc01_lvov_80_fixed');
 
     const table = [
       // The main PPI and the keyboard PPI decode A1/A0.
@@ -76,17 +76,18 @@ describe('IO port decoding', () => {
       [0xcf, 0xc3],
       [0xd4, 0xd0],
       [0xdf, 0xd3],
-      // ~CS2 and ~CS3 reach the X1 connector, where this machine has no device.
+      // The PK-02 latch is clocked by ~CS3 alone, so all sixteen addresses
+      // write the one register.
+      [0xf0, 0xf0],
+      [0xf3, 0xf0],
+      [0xff, 0xf0],
+      // ~CS2 and everything below 0xC0 select nothing.
       [0xe0, -1],
       [0xef, -1],
-      [0xf0, -1],
-      [0xf3, -1],
-      [0xff, -1],
-      // Everything below 0xC0 selects nothing either.
       [0x00, -1],
       [0xbf, -1],
       // Only the low byte reaches the decoder (the 8080 duplicates it anyway).
-      [0x1f0, -1],
+      [0x1f0, 0xf0],
     ];
 
     for (const [port, expected] of table) {
@@ -109,16 +110,31 @@ describe('IO port decoding', () => {
     expect(io.input(0xc0)).toBe(0);
   });
 
-  it('keeps a write to the X1 latch address away from the keyboard PPI', () => {
+  it('keeps the port 0xF0 latch out of the serial machine', () => {
     const { io } = createIO();
 
-    io.output(0xd0, 0x01); // keyboard column select
     io.output(0xf0, 0x08);
 
+    expect(io.ports[io.EXTENDED_MODE_PORT]).toBe(0);
+    expect(io.ports[io.KEYBOARD_SELECT_PORT]).toBe(0);
+    expect(io.input(0xf0)).toBe(0xff);
+  });
+
+  it('writes the port 0xF0 latch of the machine with the PK-02 board', () => {
+    const { io } = createIO('pc01_lvov_80_fixed');
+    const bits = io.HIGH_RESOLUTION_BIT | io.BLANK_SCREEN_BIT;
+
+    io.output(0xd0, 0x01); // keyboard column select
+    io.output(0xf0, bits);
+
+    expect(io.ports[io.EXTENDED_MODE_PORT]).toBe(bits);
+    expect(io.input(io.EXTENDED_MODE_PORT)).toBe(bits);
     // The old brief decoding folded 0xF0 onto the keyboard PPI port A.
     expect(io.ports[io.KEYBOARD_SELECT_PORT]).toBe(0x01);
+
+    // A1/A0 do not reach the latch: a mirror writes it too.
+    io.output(0xf7, 0x00);
     expect(io.ports[io.EXTENDED_MODE_PORT]).toBe(0);
-    expect(io.input(io.EXTENDED_MODE_PORT)).toBe(0xff);
   });
 
   it('reads a register through its A2/A3 mirrors', () => {

@@ -82,6 +82,13 @@ describe('Config', () => {
     expect(config.rom.image).toBe(1990);
   });
 
+  it('gives the port 0xF0 latch only to the machine with the upgrades (P2.14)', () => {
+    expect(new Config(new Settings('default'), 'pc01_lvov_80').io.extended_port_latch).toBe(false);
+    expect(new Config(new Settings('default'), 'pc01_lvov_80_fixed').io.extended_port_latch).toBe(
+      true
+    );
+  });
+
   it('applies the fixed-model profile differences', () => {
     const config = new Config(new Settings('default'), 'pc01_lvov_80_fixed');
 

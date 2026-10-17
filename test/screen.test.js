@@ -193,4 +193,26 @@ describe('Screen high resolution and blanking (P2.13)', () => {
     // 4 dots per byte again: (bit 7, bit 3) and (bit 6, bit 2) select the colours.
     expect(Array.from(frame.slice(0, 4))).toEqual([rgb[2], rgb[2], rgb[0], rgb[0]]);
   });
+
+  it('is driven by OUT 0F0H on the machine that has the latch (P2.14)', () => {
+    const { screen, io } = createCore('pc01_lvov_80_fixed');
+
+    io.output(io.EXTENDED_MODE_PORT, io.HIGH_RESOLUTION_BIT);
+
+    expect(screen.draw()).toHaveLength(512 * 256);
+
+    io.output(io.EXTENDED_MODE_PORT, 0x00);
+
+    expect(screen.draw()).toHaveLength(0x10000);
+  });
+
+  it('ignores OUT 0F0H on the serial machine, which has no device there (P2.14)', () => {
+    const { screen, io } = createCore();
+
+    io.output(io.EXTENDED_MODE_PORT, io.HIGH_RESOLUTION_BIT | io.BLANK_SCREEN_BIT);
+    const frame = screen.draw();
+
+    expect(frame).toHaveLength(0x10000);
+    expect(io.ports[io.EXTENDED_MODE_PORT]).toBe(0);
+  });
 });

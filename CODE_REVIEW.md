@@ -740,10 +740,10 @@ invalidates its per-byte cache on a mode change. `Viewport.renderScreen()` follo
 the horizontal stretch in the new mode, so the picture keeps both its aspect ratio and its size on
 screen. Covered by tests in `test/screen.test.js` and `test/viewport.test.js`.
 
-The latch is a register of the PK-02 board, so `Screen` and `Memory` only ever see it under a machine
-model that has that board (P2.14, P2.16): on the serial machine the address selects nothing and a
-write to it is lost, which is why the modes and the extended RAM banks are not reachable in the
-shipped build (P2.16).
+The latch is a register of the PK-02 board, so `Screen` and `Memory` only ever see it under a profile
+that models that board's port `0xF0` device (P2.14): on the serial machine the address selects nothing
+and a write to it is lost, which is why the modes and the extended RAM banks are not reachable in the
+default profile (P2.16).
 
 #### P2.14 I/O port decoding: `A5`, the `A7`/`A6` enable and "nothing selected" — ✅ done
 
@@ -783,10 +783,9 @@ circuit, and `fixed` is the wrong place for the choice: the decoding belongs to 
 - "Nothing selected" is a state the emulator does not have yet: a read returns the floating bus
   (`0xFF`; the same value `IO.restart()` already puts into `ports[MEDIA_PORT]` for "nothing
   connected") and a write is lost.
-- `0xF0..0xFF` reaches the `X1` connector, where the PK-02 board hangs its port `0xF0` latch
-  (P2.13). No profile models that board yet, so the block selects nothing (P2.16). When it is
-  modelled the latch will need no `A1`/`A0` decoding: it is clocked by `~CS3` alone, so all sixteen
-  addresses write the one register. Whether `IN 0F0H` returns the latch is an assumption — the output
+- `0xF0..0xFF` selects the PK-02 latch, and only in a profile that has the upgrade (P2.16); unlike a
+  PPI it is clocked by `~CS3` alone, so `A1`/`A0` do not reach it and all sixteen
+  addresses write the one register. `IN 0F0H` returning the latch is an assumption — the output
   enable of the `8282` is not visible in the scanned sheet (`docs/Lviv PK-02 Upgrade.pdf`), which
   only shows the latch clocked by the write strobe.
 - Keep the read of a write-only PPI control register as it is (it returns 0 rather than the floating
@@ -795,17 +794,21 @@ circuit, and `fixed` is the wrong place for the choice: the decoding belongs to 
 Snapshots need no format change. `Storage.get_state()` reads all 256 ports through `IO.input()` and
 `Storage.set_snapshot()` replays them through `IO.output()`, and the strict decoding turns that pair
 into exactly the right thing: a read of an address that selects nothing answers the floating bus and
-a write to it is lost, so a dump carries the state of the devices the machine has, and the filler an
-older `.sav` keeps in the unused cells cannot reach them. The old mask did the opposite: the `0xFF`
-filler of `0xE0..0xEF` folded onto `0xC0..0xD3` and overwrote the real registers of the machine,
-which is why the palette had to be patched back to its default on every load.
+a write to it is lost, so a dump carries the state of the devices the machine has — the `0xF0` latch
+of the upgraded machine included — and the filler an older `.sav` keeps in the unused cells cannot
+reach them. The old mask did the opposite: the `0xFF` filler of `0xE0..0xEF` folded onto
+`0xC0..0xD3` and overwrote the real registers of the machine, which is why the palette had to be
+patched back to its default on every load.
 
 **Implementation:** `src/io.js` (`decode_port()`, `BLOCK_ENABLE_MASK`, `BLOCK_SELECT_MASK`,
 `REGISTER_MASK`, `FLOATING_BUS`, `NO_DEVICE` and comments citing `docs/cpu_pio.md`), `src/config.js`
-(the `io` key of both profiles is gone with the flag), `test/config.test.js`, five cases in
-`test/io.test.js` (the block table, the `A2`/`A3` mirrors, nothing selected — `X1` included,
-`OUT 0F0H` no longer reaching `0xD0`, the bit set/reset register through a mirror) and the palette
-workaround in `test/storage.test.js`. `src/storage.js` only gained a comment.
+(`io.extended_port_latch` replaces `io.allow_brief_decoding`), `test/config.test.js`, six cases in
+`test/io.test.js` (the block table, the `A2`/`A3` mirrors, nothing selected, the latch absent on the
+serial machine and present on the upgraded one, `OUT 0F0H` no longer reaching `0xD0`, the bit
+set/reset register through a mirror), two integration cases in `test/screen.test.js` (`OUT 0F0H`
+switching the video mode of P2.13 on the upgraded machine, and being lost on the serial one) and two
+in `test/storage.test.js` (a snapshot round-trip of the latch, the palette workaround).
+`src/storage.js` only gained a comment.
 
 Verified against the build without the change by running both bundled dumps (`mtrack`, `aerco1`)
 through the real `ComputerProfile` for 360 frames and hashing the memory, the video memory, the
