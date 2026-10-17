@@ -45,6 +45,36 @@ describe('fitScale', () => {
   });
 });
 
+describe('Viewport high-resolution geometry (P2.13)', () => {
+  const fake_viewport = (width) =>
+    Object.assign(Object.create(Viewport.prototype), {
+      ASPECT_RATIO: 4 / 3,
+      CANVAS_WIDTH: width,
+      CANVAS_HEIGHT: 256,
+      SCALE: 2,
+      auto_scale: false,
+      canvas: { style: {} },
+      redraw() {},
+    });
+
+  it('halves the horizontal stretch of a dot in 512×256', () => {
+    expect(fake_viewport(256).dot_aspect_ratio()).toBeCloseTo(4 / 3);
+    expect(fake_viewport(512).dot_aspect_ratio()).toBeCloseTo(2 / 3);
+  });
+
+  it('keeps the displayed size of the picture', () => {
+    const normal = fake_viewport(256);
+    const high_res = fake_viewport(512);
+
+    normal.apply_resolution();
+    high_res.apply_resolution();
+
+    // Twice as many, half as wide dots: the same 4:3 picture on screen.
+    expect(high_res.canvas.style.width).toBe(normal.canvas.style.width);
+    expect(high_res.canvas.style.height).toBe(normal.canvas.style.height);
+  });
+});
+
 describe('Viewport.normalizeAspectRatio', () => {
   it('keeps a positive finite number', () => {
     expect(Viewport.normalizeAspectRatio(16 / 9)).toBeCloseTo(16 / 9);

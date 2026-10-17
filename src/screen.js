@@ -6,6 +6,11 @@ import { assertInstance } from './utils/assert.js';
 const VRAM_SIZE = 0x4000;
 const PIXELS_PER_BYTE = 4;
 
+// A video line is 64 video-memory bytes and a frame is 256 lines, so the
+// framebuffer is 64 × pixels_per_byte dots wide and 256 dots tall.
+const BYTES_PER_LINE = 64;
+const LINES_PER_FRAME = VRAM_SIZE / BYTES_PER_LINE;
+
 const BLACK = 0;
 const BLUE = 1;
 const GREEN = 2;
@@ -32,6 +37,7 @@ export class Screen {
     this.init();
 
     this.cache_palette = void 0;
+    this.cache_blank = false;
     this.cache = new Uint8Array(VRAM_SIZE);
     this.reset_cache();
 
@@ -60,11 +66,9 @@ export class Screen {
   static cache_grayscale = [];
 
   init() {
-    // Switched to Uint32Array based on the "Canvas Pixel Manipulation" benchmark
-    //[http://jsperf.com/canvas-pixel-manipulation/98]
-    this.ps32 = new Uint32Array(VRAM_SIZE * PIXELS_PER_BYTE);
-
-    this.ps32.fill(0xff000000);
+    // The framebuffer is either the stock 256×256 (4 dots per RAM byte) or the
+    // PK-02 upgrade 512×256 (8 dots per byte) — see set_high_resolution().
+    this.set_high_resolution(false);
 
     for (let byte = 0; byte < 0x100; byte++) {
       Screen.cache_color[byte] = this.parse_color(byte);
@@ -97,6 +101,31 @@ export class Screen {
       }
       Screen.cache_grayscale[palette] = grayscale;
     }
+  }
+
+  /**
+   * Selects the framebuffer geometry (CODE_REVIEW.md P2.13).
+   *
+   * The stock PC-01 shifts 4 dots out of every video-memory byte at 5 MHz. The
+   * PK-02 "512×256 and Blanking" upgrade drives the shift clock at 10 MHz and
+   * feeds `Q7` of the shift register into the colour demultiplexer instead of
+   * `Q3`: the same 64 bytes per line become 8 dots each (512 dots wide), and the
+   * two select inputs of the demultiplexer see one and the same bit, so only the
+   * first and the last of the 4 palette colours stay reachable (one bit per dot).
+   *
+   * The buffer is reallocated here, so the caller has to repaint (reset_cache).
+   */
+  set_high_resolution(state) {
+    this.hi_res = Boolean(state);
+    this.pixels_per_byte = this.hi_res ? PIXELS_PER_BYTE * 2 : PIXELS_PER_BYTE;
+    this.width = BYTES_PER_LINE * this.pixels_per_byte;
+    this.height = LINES_PER_FRAME;
+
+    // Switched to Uint32Array based on the "Canvas Pixel Manipulation" benchmark
+    //[http://jsperf.com/canvas-pixel-manipulation/98]
+    this.ps32 = new Uint32Array(VRAM_SIZE * this.pixels_per_byte);
+
+    this.ps32.fill(0xff000000);
   }
 
   restart() {
@@ -193,6 +222,22 @@ export class Screen {
   // CSS filters were dropped for the grayscale output: the -webkit-grayscale
   // filter produces a too-dark image and slows rendering down noticeably.
   draw() {
+    const extended = this.io.ports[this.io.EXTENDED_MODE_PORT];
+    const hi_res = (extended & this.io.HIGH_RESOLUTION_BIT) !== 0;
+    const blank = (extended & this.io.BLANK_SCREEN_BIT) !== 0;
+
+    // A resolution switch replaces the pixel buffer, and both switches change
+    // what a video-memory byte means on screen, so the per-byte cache goes too.
+    if (hi_res !== this.hi_res) {
+      this.set_high_resolution(hi_res);
+      this.reset_cache();
+    }
+
+    if (blank !== this.cache_blank) {
+      this.cache_blank = blank;
+      this.reset_cache();
+    }
+
     const cache = this.cache;
     const cache_color = Screen.cache_color;
     const palette = this.io.input(this.io.PALETTE_PORT) & 0x7f;
@@ -202,17 +247,44 @@ export class Screen {
     const grayscale = Screen.cache_grayscale[palette];
     const ps32 = this.ps32;
     const vram = this.vram_page;
+    const pixels_per_byte = this.pixels_per_byte;
     let dirty = this.dirty;
+
+    // Screen blanking (P2.13): the port bit is inverted into `-BLANK-SCR`, which
+    // drives the master reset of the pixel shift register and clears every dot.
+    // The picture becomes a flat field of the background colour while the video
+    // memory and the CPU keep running untouched.
+    if (blank) {
+      if (is_valid) return null;
+
+      ps32.fill(is_color ? rgb[0] : grayscale[0]);
+      this.cacheValid = true;
+      this.cache_palette = palette;
+      this.dirty = false;
+
+      return ps32;
+    }
 
     for (let i = 0, pos = 0; i < VRAM_SIZE; i++) {
       const byte = vram.mem[i];
 
       if (is_valid && byte === cache[i]) {
-        pos += 4;
+        pos += pixels_per_byte;
       } else {
         const cc = cache_color[byte];
 
-        if (is_color) {
+        if (hi_res) {
+          // 512×256 (P2.13): at 10 MHz all 8 bits of the byte leave the shift
+          // register within the same line time, bit 7 first. The colour
+          // demultiplexer takes both of its select inputs from one and the same
+          // bit, so a dot is either the first or the last palette colour.
+          const on = is_color ? rgb[3] : grayscale[3];
+          const off = is_color ? rgb[0] : grayscale[0];
+
+          for (let mask = 0x80; mask; mask >>= 1) {
+            ps32[pos++] = byte & mask ? on : off;
+          }
+        } else if (is_color) {
           ps32[pos++] = rgb[cc & 0x03];
           ps32[pos++] = rgb[(cc >> 2) & 0x03];
           ps32[pos++] = rgb[(cc >> 4) & 0x03];

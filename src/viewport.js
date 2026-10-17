@@ -5,6 +5,11 @@ import { assertInstance } from './utils/assert.js';
 // setAspectRatio() (CODE_REVIEW.md P3.8.3).
 const ASPECT_RATIO = 4 / 3;
 
+// The aspect ratio above belongs to the reference framebuffer of the PC-01
+// (256×256). The PK-02 high-resolution mode (P2.13) packs twice as many dots
+// into the same line time, so its dots are half as wide — see dot_aspect_ratio().
+const REFERENCE_WIDTH = 256;
+
 const ASPECT_RATIOS = {
   '1:1': 1,
   '4:3': 4 / 3,
@@ -161,6 +166,19 @@ export class Viewport {
     this.apply_resolution();
   }
 
+  /**
+   * Horizontal stretch applied to a single emulated dot so that the picture fits
+   * the configured display aspect ratio (P3.8.3).
+   *
+   * The configured ratio describes the reference 256×256 framebuffer. In the
+   * high-resolution mode (P2.13) a line holds 512 dots instead of 256 within the
+   * same line time, so the dots are half as wide and the stretch is halved: the
+   * picture keeps both its aspect ratio and its size on screen.
+   */
+  dot_aspect_ratio() {
+    return (this.ASPECT_RATIO * REFERENCE_WIDTH) / this.CANVAS_WIDTH;
+  }
+
   set_resolution(
     width = this.CANVAS_WIDTH,
     height = this.CANVAS_HEIGHT,
@@ -180,6 +198,7 @@ export class Viewport {
    * from the container size; otherwise the fixed SCALE is used.
    */
   apply_resolution() {
+    const dot_aspect = this.dot_aspect_ratio();
     let scale = this.SCALE;
 
     if (this.auto_scale) {
@@ -188,16 +207,16 @@ export class Viewport {
         this.container.clientHeight,
         this.CANVAS_WIDTH,
         this.CANVAS_HEIGHT,
-        this.ASPECT_RATIO
+        dot_aspect
       );
     }
 
     this.canvas.width = this.CANVAS_WIDTH;
     this.canvas.height = this.CANVAS_HEIGHT;
 
-    // The aspect ratio stretches the width only: the framebuffer is 256×256
-    // pixels, which the CRT displayed with non-square pixels.
-    const scaledWidth = this.CANVAS_WIDTH * scale * this.ASPECT_RATIO;
+    // The aspect ratio stretches the width only: the framebuffer is displayed
+    // with non-square pixels, the way the CRT showed it.
+    const scaledWidth = this.CANVAS_WIDTH * scale * dot_aspect;
     const scaledHeight = this.CANVAS_HEIGHT * scale;
 
     this.canvas.style.width = `${scaledWidth}px`;
@@ -264,7 +283,26 @@ export class Viewport {
   }
 
   renderScreen(screen) {
-    this.render(screen.draw());
+    const pixels = screen.draw();
+
+    // A program can switch the PC-01 between 256×256 and 512×256 (P2.13) at any
+    // time; the canvas and its ImageData view have to follow the framebuffer.
+    if (screen.width !== this.CANVAS_WIDTH || screen.height !== this.CANVAS_HEIGHT) {
+      this.set_framebuffer_resolution(screen.width, screen.height);
+    }
+
+    this.render(pixels);
+  }
+
+  /**
+   * Adopts the resolution of the emulated screen. The ImageData buffer is
+   * dropped so that render() rebuilds it for the new size; the frame that comes
+   * with the switch is painted right after this call.
+   */
+  set_framebuffer_resolution(width, height) {
+    this.image_data = void 0;
+
+    this.set_resolution(width, height);
   }
 
   takeScreenshoot(cb) {

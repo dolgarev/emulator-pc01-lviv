@@ -335,6 +335,25 @@ The measurement planned as the first step here was done with the test harness ra
 browser: the accesses per frame are charged in `Memory`/`IO` and counted by the tests in
 `test/contention.test.js`.
 
+#### P2.14 Port `0xF0` is unreachable with the brief I/O decoding — ⏳
+
+The PC-01 decodes `A4` and `A5` to select the four peripheral blocks (`docs/cpu_pio.md` in the `lvov`
+repository): `~CS0` = `0xC0..0xCF` (main PPI), `~CS1` = `0xD0..0xDF` (keyboard PPI, on the keyboard
+PCB), `~CS2` = `0xE0..0xEF` and `~CS3` = `0xF0..0xFF` (both routed to the `X1` connector, where the
+PK-02 board hangs its latch). The emulator models the decoding with `PPI_BASE_PORT + (port & mask)`
+and `allow_brief_decoding` picks `0x13` instead of `0x33`, dropping `A5`: `OUT 0xF0` then lands on the
+keyboard PPI port A (`0xD0`) and `io.ports[0xF0]` stays 0 forever, although `src/memory.js` reads it
+for the extended RAM banks and `src/screen.js` for the video bits (P2.13). `Storage.set_snapshot()`
+has the same problem: it replays the ports through `IO.output()`.
+
+Found while wiring P2.13; the brief decoding is the long-standing default of the project, not a
+migration regression.
+
+**Fix:** use the full mask in the default profile (`allow_brief_decoding: false`), which maps each of
+the four 16-address blocks onto itself (`0xC0..0xCF` -> `0xC0..0xC3`, `0xD0..0xDF` -> `0xD0..0xD3`,
+`0xE0..0xEF`, `0xF0..0xFF`) and leaves software that only uses `0xC0..0xD3` untouched. Add tests for
+the four blocks and for a snapshot round-trip of the port.
+
 ### P3 — Polish, features and rendering ideas
 
 #### P3.4 Typing and documentation — ⏳
@@ -690,6 +709,42 @@ within a frame.
 Measured in headless Chrome: the app boots, `Space` starts Moon Tracker (28 777 painted pixels),
 60 rAF/s, no console errors; `k = 1.0` would give 44800 cycles per frame, the default `0.6` gives
 26880 (1.34 MHz, +13.3 ms per frame).
+
+#### P2.13 512×256 video mode and screen blanking (PK-02 upgrade) — ✅ done
+
+The PK-02 add-on board documented in `docs/Lviv PK-02 Upgrade.pdf` carries a latch on port `0xF0`
+and two gates around the pixel shift register of the main board. The latch is the same register the
+emulator already reads for the extended RAM banks (`src/memory.js`), and two of its bits were
+declared in `src/io.js` but never used:
+
+| Bit | Signal | Effect |
+| --- | --- | --- |
+| `0x8` | `512X256` | high-resolution mode |
+| `0x10` | `BLANK-SCR` | screen blanking |
+
+Reconstruction (verified against the schematic and `sch/video.kicad_sch` of the `lvov` repository):
+
+- `D49'` (74153) replaces the shift clock of `D55` (74198) with 10 MHz instead of 5 MHz and feeds
+  `Q7` into the colour demultiplexer input `A0` (`D56` pin 13) instead of `Q3`. Both demultiplexer
+  select inputs are then driven by the same bit, so a dot carries **one** bit and only the first and
+  the last of the four palette colours are reachable. A line still holds 64 bytes and 256 lines —
+  the framebuffer becomes **512×256**, at half the dot width, i.e. the same 4:3 picture.
+- `D2:F` inverts `BLANK-SCR` into `-BLANK-SCR`, which drives the master reset of the shift register
+  (on the stock board that pin is a `no_connect`): every dot is cleared, so the screen shows a flat
+  field of the background colour while the video memory and the CPU keep running.
+
+Implementation: `Screen.set_high_resolution()` allocates the 8-dots-per-byte buffer, `Screen.draw()`
+re-reads the port every frame, maps a byte to 8 dots (bit 7 leftmost) or blanks the whole frame, and
+invalidates its per-byte cache on a mode change. `Viewport.renderScreen()` follows `screen.width` /
+`screen.height` and rebuilds its `ImageData` when they change; `Viewport.dot_aspect_ratio()` halves
+the horizontal stretch in the new mode, so the picture keeps both its aspect ratio and its size on
+screen. Covered by tests in `test/screen.test.js` and `test/viewport.test.js`.
+
+Note (open): with the default profile the port `0xF0` latch is not reachable — `io.allow_brief_decoding`
+uses the address mask `0x13`, which folds `0xE0…0xFF` onto `0xC0…0xD3`, while the hardware decodes
+`A5` as well (`~CS0` = `0xC0..CF`, `~CS1` = `0xD0..DF`, `~CS2` = `0xE0..EF`, `~CS3` = `0xF0..FF`,
+`docs/cpu_pio.md` of the `lvov` repository). The video modes and the extended RAM banks therefore wait
+for P2.14 to become reachable from emulated code.
 
 ### P3 — Polish, features and rendering ideas
 

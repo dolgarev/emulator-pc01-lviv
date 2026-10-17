@@ -25,7 +25,8 @@ The project began in 2014 as the author's first step into the world of Open Sour
   took cycles on every RAM access, see [P2.11](CODE_REVIEW.md))
 - Paged memory (maps: 80, 144, 256 KiB) with RAM / ROM / VRAM
 - i8255A programmable peripheral interface (I/O ports, partial address decoding)
-- Video output to `<canvas>` (256×256, color and grayscale modes, switchable palettes)
+- Video output to `<canvas>` (256×256, color and grayscale modes, switchable palettes), plus the
+  512×256 mode and the screen blanking of the PK-02 upgrade (see [P2.13](CODE_REVIEW.md))
 - Sound via the Web Audio API: the beeper as a raw 1-bit square wave, with an optional model of the
   built-in ЗП-1 piezo emitter (`beeper.speaker_model` in `src/settings.js`, see
   [P3.11](CODE_REVIEW.md))
