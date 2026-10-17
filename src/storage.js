@@ -81,6 +81,9 @@ export class Storage {
     let offset = 0x240;
 
     this.io.restart();
+    // A snapshot is a machine that has already performed I/O writes, so the initial ROM
+    // mapping of RESET is not armed and the memory restored below is RAM (P2.17).
+    this.io.initial_rom_mapping = false;
     offset = this.memory.transfer(0x0000, 0xbfff, data, offset);
     offset = this.memory.transfer(0xc000, 0xffff, data, offset, this.memory.get_rom_page(), 'burn');
     offset = this.memory.transfer(0x4000, 0x7fff, data, offset + 0x29, this.memory.get_vram_page());
@@ -120,6 +123,9 @@ export class Storage {
     let offset = 0x11;
 
     this.io.restart();
+    // A snapshot is a machine that has already performed I/O writes, so the initial ROM
+    // mapping of RESET is not armed and the memory restored below is RAM (P2.17).
+    this.io.initial_rom_mapping = false;
     offset = this.memory.transfer(0x0000, 0xbfff, data, offset);
     offset = this.memory.transfer(0xc000, 0xffff, data, offset, this.memory.get_rom_page(), 'burn');
     offset = this.memory.transfer(0x4000, 0x7fff, data, offset, this.memory.get_vram_page());

@@ -42,6 +42,21 @@ describe('Storage', () => {
     expect(() => storage.set_snapshot('nope')).toThrow();
   });
 
+  it('set_snapshot() restores the low RAM after a reset (P2.17)', () => {
+    const { storage, io, memory } = createCore();
+
+    // The memory image starts right after the 17-byte header, so byte 17 is 0x0000.
+    const snapshot = Uint8Array.from(storage.get_snapshot());
+    snapshot[17] = 0xc9;
+
+    io.restart(); // RESET: the ROM would answer for 0x0000 right now
+
+    storage.set_snapshot(new DataView(snapshot.buffer));
+
+    // The snapshot is a machine that has booted, so the ROM is back in the top bank.
+    expect(memory.read(0x0000)).toBe(0xc9);
+  });
+
   // The port 0xF0 latch is what carries the video modes (P2.13) and the extended RAM
   // banks, and Storage used to replay the ports through IO.input()/IO.output(), i.e.
   // through the address decoding (P2.14).

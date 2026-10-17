@@ -92,6 +92,12 @@ export class IO {
   restart() {
     this.ports.fill(0);
 
+    // RESET sets the initial-reset flip-flop (D5A, cleared by the I/O write strobe on
+    // D5.1). While it is set it holds ~ROM_OE low, the ROM answers for every address and
+    // its 16 KiB are mapped into all four banks; the first I/O write leaves the ROM in
+    // the top bank only (docs/memories.md, CODE_REVIEW.md P2.17).
+    this.initial_rom_mapping = true;
+
     this.ignore_cntrl_bit = this.config.beeper.ignore_control_bit;
     this.ports[this.PALETTE_PORT] = 0x8f;
     this.ports[this.MEDIA_PORT] = 0xff;
@@ -191,6 +197,11 @@ export class IO {
 
   output(port, w8) {
     this.contention?.io();
+
+    // The flip-flop of P2.17 is addressless: the I/O write strobe clears it before the
+    // address decoder is reached. The ROM depends on that - its very first instruction
+    // is a dummy `OUT 00H`, and 0x00 selects no device at all (P2.14).
+    this.initial_rom_mapping = false;
 
     const decoded = this.decode_port(port);
 

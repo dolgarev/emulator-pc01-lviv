@@ -56,6 +56,28 @@ describe('IO speaker output', () => {
   });
 });
 
+// The initial-reset flip-flop (D5A) is set by RESET and cleared by the I/O write strobe
+// on D5.1 - before the address decoder (code review P2.17).
+describe('IO reset state', () => {
+  it('arms the ROM mapping on restart and clears it on the first write', () => {
+    const { io } = createIO();
+
+    expect(io.initial_rom_mapping).toBe(true);
+
+    io.input(0xc2); // a read is not the write strobe
+    expect(io.initial_rom_mapping).toBe(true);
+
+    io.output(0x00, 0x00); // the ROM's dummy OUT: the port selects no device at all
+    expect(io.initial_rom_mapping).toBe(false);
+
+    io.output(0xc2, 0xff); // and it stays cleared
+    expect(io.initial_rom_mapping).toBe(false);
+
+    io.restart(); // RESET arms it again
+    expect(io.initial_rom_mapping).toBe(true);
+  });
+});
+
 // The four blocks D28 selects from A5/A4, the A7/A6 enable and the "nothing
 // selected" case (code review P2.14).
 describe('IO port decoding', () => {

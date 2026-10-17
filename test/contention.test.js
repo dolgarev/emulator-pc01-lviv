@@ -7,7 +7,7 @@ import { IO } from '../src/io.js';
 import { Memory } from '../src/memory.js';
 import { Beeper } from '../src/beeper.js';
 import { Keyboard } from '../src/keyboard.js';
-import { createCore, load } from './helpers.js';
+import { createCore, load, boot } from './helpers.js';
 
 const createParts = () => {
   const config = new Config(new Settings('default'), 'pc01_lvov_80');
@@ -16,6 +16,8 @@ const createParts = () => {
   const beeper = new Beeper(config, clock);
   const io = new IO(config, beeper, new Keyboard(), contention);
   const memory = new Memory(config, io, contention);
+
+  boot(io);
 
   return { config, clock, contention, io, memory };
 };
@@ -50,6 +52,18 @@ describe('Contention (video/RAM wait states)', () => {
 
     memory.read(0x0000); // RAM page
     expect(clock.totalCycles).toBeGreaterThan(0);
+  });
+
+  it('does not charge the reset-time ROM mapping either (P2.17)', () => {
+    const { clock, contention, io, memory } = createParts();
+
+    io.restart(); // RESET: the ROM answers for every address
+
+    memory.read(0x0000);
+    memory.write(0x0000, 0x11);
+
+    expect(clock.totalCycles).toBe(0);
+    expect(contention.take()).toBe(0);
   });
 
   it('adds the wait cycles to the instruction that caused them', () => {

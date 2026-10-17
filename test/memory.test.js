@@ -41,6 +41,49 @@ describe('Memory', () => {
     expect(memory.read(0x0100)).toBe(0x00);
   });
 
+  it('maps the ROM into all four banks until the first I/O write (P2.17)', () => {
+    const { io, memory } = createCore();
+    const rom = memory.get_rom_page();
+    const banks = [0x0000, 0x4000, 0x8000, 0xc000];
+    const read = () => banks.map((addr) => memory.read(addr));
+
+    rom.burn(0x0000, 0xc3); // the reset vector of rom-1990.bin
+    io.restart(); // RESET arms the initial-reset flip-flop
+
+    expect(read()).toEqual([0xc3, 0xc3, 0xc3, 0xc3]);
+
+    // A write is lost in that state: the ROM is mapped and the EPROM is not writable.
+    memory.write(0x0000, 0x11);
+
+    // The ROM's own first instruction: a dummy write to a port that selects no device.
+    io.output(0x00, 0x00);
+
+    expect(read()).toEqual([0x00, 0x00, 0x00, 0xc3]);
+  });
+
+  it('boots from the reset vector instead of running through empty RAM (P2.17)', () => {
+    const { io, memory, cpu } = createCore();
+    const rom = memory.get_rom_page();
+
+    // rom-1990.bin: 0x0000 is `JMP 0xE000`, and 0xE000 (ROM offset 0x2000) is `OUT 00H`.
+    rom.burn(0x0000, 0xc3);
+    rom.burn(0x0001, 0x00);
+    rom.burn(0x0002, 0xe0);
+    rom.burn(0x2000, 0xd3);
+    rom.burn(0x2001, 0x00);
+
+    io.restart();
+    cpu.restart();
+
+    cpu.instruction(); // JMP 0xE000 - a low address answers the ROM, not empty RAM
+    expect(cpu.pc).toBe(0xe000);
+
+    cpu.instruction(); // the dummy OUT clears the flip-flop on its own
+
+    expect(io.initial_rom_mapping).toBe(false);
+    expect(memory.read(0x0000)).toBe(0x00); // the RAM is back
+  });
+
   it('transfer() copies an Array and returns the new offset', () => {
     const { memory } = createCore();
 

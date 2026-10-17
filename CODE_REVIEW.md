@@ -86,8 +86,8 @@ Migration option comparison:
 1. Start Phase 2: add PWA support (P3.6) — the last migration phase
 2. Phase 3 leftovers: `ARCHITECTURE.md` (P3.4), tests for `io.js`
 3. Opportunistically: `i8080.js` modernization (P1.2), Web Worker (P2.5), rendering (P3.7 / P3.8)
-4. Emulation fidelity, from the real-hardware measurements of the forum thread in P2.17:
-   the reset ROM mapping (P2.17), the write contention (P2.18), the frame length (P2.20)
+4. Emulation fidelity, from the real-hardware measurements of the forum thread: the write
+   contention (P2.18) and the frame length (P2.20); the reset ROM mapping (P2.17) is done
 
 ---
 
@@ -345,7 +345,7 @@ does not drive the bus is not a device that drives zeroes, so the faithful answe
 of P2.14. `Storage.set_snapshot()` carries a workaround built on the same assumption: it treats a
 returned `0xFF` at port `0xC1` (the palette) as "not readable" and forces the default palette.
 
-#### P2.17 The ROM is not mapped in all four banks until the first I/O write — ⏳
+#### P2.17 The ROM is not mapped in all four banks until the first I/O write — ✅ done
 
 `memory.js` resolves the four 16 KiB banks directly, so a low address always answers RAM.
 That contradicts the boot circuit: the `D5A` flip-flop is cleared by RESET and holds
@@ -372,6 +372,30 @@ returns `rom_page_index` for every bank. Reads are then served by the ROM and ar
 contended, because the RAM cycle never starts; writes are lost, because the EPROM is not
 writable. A restored snapshot describes a machine that has already performed I/O writes,
 so the snapshot loaders clear the flag explicitly.
+
+**Implemented:** as planned. The clear sits at the top of `IO.output()`, ahead of
+`decode_port()`, because the strobe is addressless; and the write is lost in
+`MemPage.write()` because the ROM page is not writable - the EPROM is not either.
+
+Two callers needed the flag put right explicitly. `Storage.set_snapshot()` and
+`Storage.set_e3_snapshot()` call `io.restart()` to reset the ports, but a snapshot is a
+machine that has already performed its I/O writes, so they clear the flag right after.
+The test harness does the same through a new `boot(io)` helper in `test/helpers.js`, which
+`createCore()` calls: until that write the ROM answers for every address, so a test that
+places code in RAM would otherwise write into the ROM image. It clears the flag directly
+rather than through `io.output()` so that the machines whose timing is under test are not
+charged an I/O wait cycle.
+
+Verified with the real `rom-1990.bin`: at reset all four banks read `0xC3` (the `JMP` of
+the reset vector) and the CPU executes `0x0000: JMP 0xE000` as its first instruction;
+the second instruction, the ROM's own `OUT 00H` at `0xE000`, clears the flip-flop, after
+which `0x0000` reads RAM again and `0xC000` still reads the ROM. Where the machine used to
+wander through 48 KiB of empty RAM and only arrive at `0xC000` after 7 frames, a single
+frame now ends at `PC = 0xE124`, i.e. inside the cold start. Covered by `test/io.test.js`
+(the flip-flop arms on reset, ignores reads, clears on the first write to any port),
+`test/memory.test.js` (the four banks, a lost write, and the boot from the reset vector),
+`test/contention.test.js` (no waits charged inside the window) and `test/storage.test.js`
+(a snapshot restores the low RAM after a reset).
 
 #### P2.18 A RAM write is charged one extra cycle instead of 3/4 — ⏳
 
@@ -511,7 +535,7 @@ is a "check against the dump first" item, not a change to make.
 4. Work on the structural leftovers when the code is touched anyway: `i8080.js` modernization (P1.2),
    Web Worker (P2.5), dirty rectangles (P3.7), the remaining rendering ideas (P3.8).
 
-Only **P1.2, P2.5, P2.15 and P2.17-P2.20, P3.4, P3.6, P3.7 and P3.14-P3.15** are open tasks.
+Only **P1.2, P2.5, P2.15 and P2.18-P2.20, P3.4, P3.6, P3.7 and P3.14-P3.15** are open tasks.
 Everything else in the backlog is either done (see [Completed](#completed)) or a candidate
 list (P3.8, P3.9).
 

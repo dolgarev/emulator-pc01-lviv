@@ -166,6 +166,15 @@ export class Memory {
 
   get_mem_page_index(addr) {
     const io = this.io;
+
+    // RESET maps the ROM into all four banks: the initial-reset flip-flop keeps ~ROM_OE
+    // low, so the ROM answers for every address until the CPU writes an I/O port for the
+    // first time (docs/memories.md, CODE_REVIEW.md P2.17). Reads are then served by the
+    // ROM and are not contended, and a write is lost because the EPROM is not writable.
+    if (io.initial_rom_mapping) {
+      return this.rom_page_index;
+    }
+
     const mem_page = (addr & PAGE_MASK) >>> PAGE_SHIFT;
     let mem_page_index = mem_page;
 

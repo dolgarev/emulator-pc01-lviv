@@ -14,14 +14,14 @@ import { Screen } from '../src/screen.js';
 /**
  * Builds a headless emulator core (no DOM / browser APIs) and returns the
  * wired components. Mirrors what ComputerProfileBuilder creates in the shell.
- */
-/**
- * Builds a headless emulator core (no DOM / browser APIs) and returns the
- * wired components. Mirrors what ComputerProfileBuilder creates in the shell.
  *
  * The video/RAM contention (P2.11) is off by default here: the CPU tests assert exact
  * cycle counts, and the contention is a property of the machine rather than of the core.
  * Pass `{ wait_states: true }` to include it.
+ *
+ * The returned core has completed its power-on reset, so the ROM sits in the top bank
+ * (P2.17). `io.restart()` puts it back into the reset state, where the ROM answers for
+ * every address until the first I/O write.
  */
 export function createCore(profile = 'pc01_lvov_80', { wait_states = false } = {}) {
   const settings = new Settings('default');
@@ -38,7 +38,22 @@ export function createCore(profile = 'pc01_lvov_80', { wait_states = false } = {
   const storage = new Storage(cpu, memory, io);
   const screen = new Screen(config, io, memory);
 
+  boot(io);
+
   return { settings, config, clock, beeper, keyboard, io, memory, traps, cpu, storage, screen };
+}
+
+/**
+ * Puts the core into the state the ROM reaches with its very first instruction, a dummy
+ * `OUT 00H`: the initial-reset flip-flop is cleared and the ROM stays in the top bank only
+ * (P2.17). Until that write the ROM answers for every address, so a test that places code
+ * in RAM has to boot the core first.
+ *
+ * The flag is cleared directly instead of through `io.output()` so that the harness does
+ * not charge an I/O wait cycle to the machines whose timing is under test.
+ */
+export function boot(io) {
+  io.initial_rom_mapping = false;
 }
 
 /** Writes a byte sequence into memory at the given origin. */
