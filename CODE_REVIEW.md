@@ -484,6 +484,19 @@ same direction as the two items above and is visible in whole-program timings. T
 means touching the audio budget too (`effective_clock_speed`, `frame_work_cycles`), so it
 needs its own change and a measurement - the forum's real-program timings are the oracle.
 
+**Tried and rolled back.** Setting `frame_cycles: 45056`, dropping the `Math.round()` of the
+frame duration and carrying the fractional frame budget in `Beeper.play()` was implemented
+and measured on `almazy_lviv.lvt`: 586 emulated frames in 12.02 s = 48.8 frames per second
+instead of 49.9, and 4141 instructions per frame with the contention against 6086 without it
+- the forum's 4100/6051 scaled by the 0.57 % larger budget, with the same 0.68× between the
+two. The pitch drops the 1.8 % it should (`effective_clock_speed` from 2.24 MHz to exactly
+2 200 000). What kept it out is the sound: the melody of the test program picks up extra
+clicks that the 44800-cycle frame does not produce, and whether they are the hardware (the
+note lengths and the video frame do interact) or an artefact of the audio scheduling has not
+been settled. The frame length therefore stays as it is, and a second attempt should compare
+the wave files of the two runs (`npm run audio:melody -- --app docs/almazy_lviv.lvt --out
+x.wav`, which takes the real load path again) before it is committed.
+
 ### P3 — Polish, features and rendering ideas
 
 #### P3.4 Typing and documentation — ⏳
