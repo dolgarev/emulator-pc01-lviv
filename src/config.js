@@ -26,9 +26,6 @@ export class Config {
             model: 'i8080',
             allow_interrupts: false,
           },
-          io: {
-            allow_brief_decoding: true,
-          },
           memory: {
             map: 80,
             hide_0_mem_bank: true,
@@ -65,9 +62,6 @@ export class Config {
           cpu: {
             model: 'i8080',
             allow_interrupts: false,
-          },
-          io: {
-            allow_brief_decoding: true,
           },
           memory: {
             map: 80,

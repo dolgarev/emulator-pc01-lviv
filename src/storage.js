@@ -124,6 +124,10 @@ export class Storage {
     offset = this.memory.transfer(0xc000, 0xffff, data, offset, this.memory.get_rom_page(), 'burn');
     offset = this.memory.transfer(0x4000, 0x7fff, data, offset, this.memory.get_vram_page());
 
+    // Every address that selects no device (0x00..0xBF, 0xE0..0xEF) is dropped by the
+    // decoding, so this replays exactly the state of the devices the machine has -
+    // including the port 0xF0 latch of the PK-02 board, which the old address mask used
+    // to fold onto the keyboard PPI (P2.14).
     for (let port = 0x00; port <= 0xff; port++) {
       this.io.output(port, data.getUint8(offset++));
     }

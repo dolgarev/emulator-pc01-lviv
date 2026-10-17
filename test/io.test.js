@@ -55,3 +55,95 @@ describe('IO speaker output', () => {
     expect(levels).toEqual([1, 0]);
   });
 });
+
+// The four blocks D28 selects from A5/A4, the A7/A6 enable and the "nothing
+// selected" case (code review P2.14).
+describe('IO port decoding', () => {
+  it('selects the blocks from A5/A4, enables them with A7/A6 and ignores A2/A3', () => {
+    const { io } = createIO();
+
+    const table = [
+      // The main PPI and the keyboard PPI decode A1/A0.
+      [0xc0, 0xc0],
+      [0xc1, 0xc1],
+      [0xc2, 0xc2],
+      [0xc3, 0xc3],
+      [0xd0, 0xd0],
+      [0xd3, 0xd3],
+      // A2/A3 are not decoded at all.
+      [0xc5, 0xc1],
+      [0xca, 0xc2],
+      [0xcf, 0xc3],
+      [0xd4, 0xd0],
+      [0xdf, 0xd3],
+      // ~CS2 and ~CS3 reach the X1 connector, where this machine has no device.
+      [0xe0, -1],
+      [0xef, -1],
+      [0xf0, -1],
+      [0xf3, -1],
+      [0xff, -1],
+      // Everything below 0xC0 selects nothing either.
+      [0x00, -1],
+      [0xbf, -1],
+      // Only the low byte reaches the decoder (the 8080 duplicates it anyway).
+      [0x1f0, -1],
+    ];
+
+    for (const [port, expected] of table) {
+      expect(io.decode_port(port), `port ${port.toString(16)}`).toBe(expected);
+    }
+  });
+
+  it('reads the floating bus and drops the write when nothing is selected', () => {
+    const { io } = createIO();
+
+    io.output(0x00, 0x42);
+    io.output(0xe0, 0x42);
+
+    expect(io.ports[0xc0]).toBe(0);
+    expect(io.ports[0xe0]).toBe(0);
+    expect(io.input(0x00)).toBe(0xff);
+    expect(io.input(0xe0)).toBe(0xff);
+
+    // The registers that are selected still answer.
+    expect(io.input(0xc0)).toBe(0);
+  });
+
+  it('keeps a write to the X1 latch address away from the keyboard PPI', () => {
+    const { io } = createIO();
+
+    io.output(0xd0, 0x01); // keyboard column select
+    io.output(0xf0, 0x08);
+
+    // The old brief decoding folded 0xF0 onto the keyboard PPI port A.
+    expect(io.ports[io.KEYBOARD_SELECT_PORT]).toBe(0x01);
+    expect(io.ports[io.EXTENDED_MODE_PORT]).toBe(0);
+    expect(io.input(io.EXTENDED_MODE_PORT)).toBe(0xff);
+  });
+
+  it('reads a register through its A2/A3 mirrors', () => {
+    const { io } = createIO();
+
+    io.output(0xc0, 0x5a); // main PPI port A
+    io.output(0xd0, 0x3c); // keyboard column select
+
+    expect(io.input(0xc4)).toBe(0x5a);
+    expect(io.input(0xc8)).toBe(0x5a);
+    expect(io.input(0xcc)).toBe(0x5a);
+    expect(io.input(0xd4)).toBe(0x3c);
+    expect(io.input(0xdc)).toBe(0x3c);
+  });
+
+  it('keeps the bit set/reset mode of a control word inside its own PPI', () => {
+    const { io } = createIO();
+
+    io.output(0xc2, 0x00); // port C: known state (restart() preloads the media port)
+    io.output(0xc3, 0x0f); // BSR: set bit 7 of port C
+
+    expect(io.ports[0xc2]).toBe(0x80);
+
+    io.output(0xcf, 0x0e); // through the A2/A3 mirror: reset the same bit
+
+    expect(io.ports[0xc2]).toBe(0x00);
+  });
+});

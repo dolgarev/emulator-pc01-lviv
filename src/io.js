@@ -10,6 +10,22 @@ const BSR_BIT_MASK = 0x0e;
 const BSR_BIT_SHIFT = 1;
 const BSR_SET_BIT = 0x01;
 
+// I/O port decoding (P2.14). D28 (74155) selects one of the four peripheral blocks
+// from A5 and A4, and it is enabled only while A7 and A6 are high: ~ROM_OE goes low
+// when A15 and A14 are high, and because an I/O cycle puts the 8-bit port address on
+// both halves of the address bus, that is the documented trick which decodes A7 and
+// A6 without extra gates (docs/cpu_pio.md of the lvov repository).
+const BLOCK_ENABLE_MASK = 0xc0; // A7, A6: nothing is selected outside 0xC0..0xFF
+const BLOCK_SELECT_MASK = 0x30; // A5, A4: ~CS0 .. ~CS3
+const BLOCK_SHIFT = 4;
+const REGISTER_MASK = 0x03; // A1, A0: the register inside a PPI
+
+// A read of an address that selects no device (or of a device that does not drive
+// the bus) answers with the floating bus. Nothing pulls it low, so all bits read
+// high - the same value IO.restart() puts into the media port for "no tape here".
+const FLOATING_BUS = 0xff;
+const NO_DEVICE = -1;
+
 export class IO {
   constructor(config, beeper, keyboard, contention = undefined) {
     assertInstance(config, Config, 'IO: Invalid CONFIG object');
@@ -32,8 +48,10 @@ export class IO {
     this.BLANK_SCREEN_BIT = 0x10; //1 - on, 0 - off
     this.INTERRUPT_BIT = 0x20; //1 - on, 0 - off
 
-    // Ports 0xE0-0xE4 were used to work with the FDD controller in
-    // Chameleon DOS and Dmitry Skachkov's CP/M-80.
+    //Ports 0xE0-0xE4 were used to work with the FDD controller in
+    //Chameleon DOS and Dmitry Skachkov's CP/M-80 (the ~CS2 block of the decoder).
+    //~CS3 (0xF0..0xFF) reaches the X1 connector, where the PK-02 board hangs its
+    //port 0xF0 latch (P2.13) - no profile models that board yet (P2.16).
 
     //port 0xC0
     //[http://lvovpc.cu.cc/article.shtml?id=2]
@@ -73,13 +91,44 @@ export class IO {
   restart() {
     this.ports.fill(0);
 
-    this.decoding_mask = this.config.io.allow_brief_decoding ? 0x13 : 0x33;
     this.ignore_cntrl_bit = this.config.beeper.ignore_control_bit;
     this.ports[this.PALETTE_PORT] = 0x8f;
     this.ports[this.MEDIA_PORT] = 0xff;
 
     this.beeper_level = undefined;
     this.updateSound();
+  }
+
+  /**
+   * Decodes an I/O port address into the canonical index of the device it selects,
+   * or NO_DEVICE when no ~CS is active (P2.14). A2/A3 are not decoded by the
+   * hardware, so 0xC4, 0xC8 and 0xCC are the same register as 0xC0.
+   *
+   * @param {number} port the address the CPU put on the bus
+   * @returns {number} the port index of the selected device, or NO_DEVICE
+   */
+  decode_port(port) {
+    port &= 0xff;
+
+    if ((port & BLOCK_ENABLE_MASK) !== BLOCK_ENABLE_MASK) {
+      return NO_DEVICE;
+    }
+
+    const register = port & REGISTER_MASK;
+
+    // 0x00: ~CS0, the main PPI. 0x01: ~CS1, the keyboard PPI - both decode A1/A0,
+    // so they answer on a 4-address window. 0x02: ~CS2 and 0x03: ~CS3 are wired to
+    // X1, where this machine has no device: nothing drives the bus there.
+    switch ((port & BLOCK_SELECT_MASK) >> BLOCK_SHIFT) {
+      case 0:
+        return this.PPI_BASE_PORT | register;
+
+      case 1:
+        return this.KEYBOARD_SELECT_PORT | register;
+
+      default:
+        return NO_DEVICE;
+    }
   }
 
   // The speaker level is PC0 OR NOT PB7. The circuit is on the rebuilt schematic
@@ -104,49 +153,50 @@ export class IO {
   input(port) {
     this.contention?.io();
 
-    port &= 0xff;
+    const decoded = this.decode_port(port);
 
-    // The PC-01 "Lviv" implements partial I/O port address decoding
-    //[http://lvovpc.ho.ua/forum/viewtopic.php?p=2219#p2219]
-    port = this.PPI_BASE_PORT + (port & this.decoding_mask);
+    if (decoded === NO_DEVICE) {
+      // No device is selected, so nothing drives the bus.
+      return FLOATING_BUS;
+    }
 
-    if (port === this.KEYBOARD_STATUS_PORT) {
-      this.ports[port] = this.keyboard.get(
+    if (decoded === this.KEYBOARD_STATUS_PORT) {
+      this.ports[decoded] = this.keyboard.get(
         this.ports[this.KEYBOARD_SELECT_PORT],
         this.KEYBOARD_SELECT_PORT
       );
-    } else if (port === this.KEYBOARD_DATA_PORT) {
-      this.ports[port] = this.keyboard.get(
+    } else if (decoded === this.KEYBOARD_DATA_PORT) {
+      this.ports[decoded] = this.keyboard.get(
         this.ports[this.KEYBOARD_DATA_PORT],
         this.KEYBOARD_DATA_PORT
       );
-    } else if ((port & this.PPI_CONTROL_REGISTER) === this.PPI_CONTROL_REGISTER) {
+    } else if ((decoded & REGISTER_MASK) === this.PPI_CONTROL_REGISTER) {
       // Per the i8255A/i8255A-5 datasheet, the Control Word Register is
       // write-only: "The Control Word Register can Only be written into.
       // No Read operation of the Control Word Register is allowed."
       //[http://www.classiccmp.org/rtellason/chipdata/8255.pdf]
-      // Read the datasheets, folks.
+      // Read the datasheets, folks. (A floating bus would be more faithful than
+      // the zeroes - P2.15.)
       return 0;
     }
 
-    return this.ports[port];
+    return this.ports[decoded];
   }
 
   output(port, w8) {
     this.contention?.io();
-    port &= 0xff;
 
-    // The PC-01 "Lviv" implements partial I/O port address decoding
-    //[http://lvovpc.ho.ua/forum/viewtopic.php?p=2219#p2219]
-    port = this.PPI_BASE_PORT + (port & this.decoding_mask);
+    const decoded = this.decode_port(port);
+
+    if (decoded === NO_DEVICE) {
+      // Nothing is selected: the write goes nowhere.
+      return;
+    }
 
     // Bit 7 == 0 selects the bit set/reset mode.
-    if (
-      (port & this.PPI_CONTROL_REGISTER) === this.PPI_CONTROL_REGISTER &&
-      (w8 & PPI_MODE_BIT) === 0
-    ) {
+    if ((decoded & REGISTER_MASK) === this.PPI_CONTROL_REGISTER && (w8 & PPI_MODE_BIT) === 0) {
       const mask = 0x01 << ((w8 & BSR_BIT_MASK) >> BSR_BIT_SHIFT),
-        target = port - 1;
+        target = decoded - 1;
 
       if (w8 & BSR_SET_BIT) {
         this.output(target, this.input(target) | mask);
@@ -155,11 +205,8 @@ export class IO {
       }
     }
 
-    if (port === this.MEDIA_PORT) {
-      // The beeper follows PC0 (see updateSound), so only remember the value here.
-    }
-
-    this.ports[port] = w8;
+    // The speaker follows PC0 (see updateSound), so only remember the value here.
+    this.ports[decoded] = w8;
 
     this.updateSound();
   }

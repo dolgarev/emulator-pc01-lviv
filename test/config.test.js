@@ -80,7 +80,6 @@ describe('Config', () => {
 
     expect(config.memory.map).toBe(80);
     expect(config.rom.image).toBe(1990);
-    expect(config.io.allow_brief_decoding).toBe(true);
   });
 
   it('applies the fixed-model profile differences', () => {

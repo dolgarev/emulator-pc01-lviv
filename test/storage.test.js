@@ -42,6 +42,23 @@ describe('Storage', () => {
     expect(() => storage.set_snapshot('nope')).toThrow();
   });
 
+  it('forces the default palette when a snapshot carries none', () => {
+    const { storage, io } = createCore();
+    const size = 17 + 0x14000 + 0x100 + 12;
+    const data = new DataView(new Uint8Array(size).buffer);
+    const base = 0x11 + 0x14000;
+
+    // A dump written by an older version fills the whole block with 0xFF (the value a
+    // write-only port read as), and the A2/A3 mirrors overwrite the palette with it.
+    for (let port = 0xc0; port <= 0xcf; port++) {
+      data.setUint8(base + port, 0xff);
+    }
+
+    storage.set_snapshot(data);
+
+    expect(io.ports[io.PALETTE_PORT]).toBe(0x8f);
+  });
+
   it('bload()/cload() reject files with the wrong type byte', () => {
     const { storage } = createCore();
     const data = new DataView(new Uint8Array(0x20).buffer);

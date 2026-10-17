@@ -335,24 +335,24 @@ The measurement planned as the first step here was done with the test harness ra
 browser: the accesses per frame are charged in `Memory`/`IO` and counted by the tests in
 `test/contention.test.js`.
 
-#### P2.14 Port `0xF0` is unreachable with the brief I/O decoding — ⏳
+#### P2.15 Reads of the write-only registers return the floating bus — ⏳
 
-The PC-01 decodes `A4` and `A5` to select the four peripheral blocks (`docs/cpu_pio.md` in the `lvov`
-repository): `~CS0` = `0xC0..0xCF` (main PPI), `~CS1` = `0xD0..0xDF` (keyboard PPI, on the keyboard
-PCB), `~CS2` = `0xE0..0xEF` and `~CS3` = `0xF0..0xFF` (both routed to the `X1` connector, where the
-PK-02 board hangs its latch). The emulator models the decoding with `PPI_BASE_PORT + (port & mask)`
-and `allow_brief_decoding` picks `0x13` instead of `0x33`, dropping `A5`: `OUT 0xF0` then lands on the
-keyboard PPI port A (`0xD0`) and `io.ports[0xF0]` stays 0 forever, although `src/memory.js` reads it
-for the extended RAM banks and `src/screen.js` for the video bits (P2.13). `Storage.set_snapshot()`
-has the same problem: it replays the ports through `IO.output()`.
+`IO.input()` answers `0` for the control register of a PPI (`0xC3`, `0xD3` and their `A2`/`A3`
+mirrors), with a correct comment that the i8255A control word register is write-only. A device that
+does not drive the bus is not a device that drives zeroes, so the faithful answer is the floating bus
+of P2.14. `Storage.set_snapshot()` carries a workaround built on the same assumption: it treats a
+returned `0xFF` at port `0xC1` (the palette) as "not readable" and forces the default palette.
 
-Found while wiring P2.13; the brief decoding is the long-standing default of the project, not a
-migration regression.
+#### P2.16 The machine with the upgrades cannot be selected — ⏳
 
-**Fix:** use the full mask in the default profile (`allow_brief_decoding: false`), which maps each of
-the four 16-address blocks onto itself (`0xC0..0xCF` -> `0xC0..0xC3`, `0xD0..0xDF` -> `0xD0..0xD3`,
-`0xE0..0xEF`, `0xF0..0xFF`) and leaves software that only uses `0xC0..0xD3` untouched. Add tests for
-the four blocks and for a snapshot round-trip of the port.
+`src/main.js` always builds `new Emulator()`, i.e. the `default` settings and the `pc01_lvov_80`
+profile; the `pc01_lvov_80_fixed` machine is only reachable by constructing the emulator with
+`'standard_fixed'`, or by loading a dump that carries that profile (`Computer.restart(dump.profile)`).
+With the port `0xF0` latch being a property of the upgraded machine (P2.13, P2.14), the 512×256
+mode, the screen blanking and the extended RAM banks are unreachable in the shipped build.
+
+**Fix (needs a decision):** offer the machine as a choice — a URL parameter, a control in the page, or
+a new default — keep it in `settings`, and `restart(profile)` when it changes.
 
 ### P3 — Polish, features and rendering ideas
 
@@ -740,11 +740,78 @@ invalidates its per-byte cache on a mode change. `Viewport.renderScreen()` follo
 the horizontal stretch in the new mode, so the picture keeps both its aspect ratio and its size on
 screen. Covered by tests in `test/screen.test.js` and `test/viewport.test.js`.
 
-Note (open): with the default profile the port `0xF0` latch is not reachable — `io.allow_brief_decoding`
-uses the address mask `0x13`, which folds `0xE0…0xFF` onto `0xC0…0xD3`, while the hardware decodes
-`A5` as well (`~CS0` = `0xC0..CF`, `~CS1` = `0xD0..DF`, `~CS2` = `0xE0..EF`, `~CS3` = `0xF0..FF`,
-`docs/cpu_pio.md` of the `lvov` repository). The video modes and the extended RAM banks therefore wait
-for P2.14 to become reachable from emulated code.
+The latch is a register of the PK-02 board, so `Screen` and `Memory` only ever see it under a machine
+model that has that board (P2.14, P2.16): on the serial machine the address selects nothing and a
+write to it is lost, which is why the modes and the extended RAM banks are not reachable in the
+shipped build (P2.16).
+
+#### P2.14 I/O port decoding: `A5`, the `A7`/`A6` enable and "nothing selected" — ✅ done
+
+The four peripheral blocks are selected by `D28` (74155) from `A5` and `A4`, and the decoder is only
+enabled while `A7` and `A6` are high: `~ROM_OE` goes low when `A15` and `A14` are high, and because
+during an I/O cycle the 8080 puts the 8-bit port address on both halves of the address bus, that is
+the documented trick which decodes `A7`/`A6` without extra gates (`docs/cpu_pio.md` in the `lvov`
+repository).
+
+| Block | Range | Device |
+| --- | --- | --- |
+| `~CS0` | `0xC0..0xCF` | main PPI (D30) |
+| `~CS1` | `0xD0..0xDF` | keyboard PPI, on the keyboard PCB |
+| `~CS2` | `0xE0..0xEF` | `X1` connector — wired to the FDD controller of the Chameleon era, empty on the serial machine |
+| `~CS3` | `0xF0..0xFF` | `X1` connector — the port `0xF0` latch of the PK-02 board (P2.13) |
+
+`A1`/`A0` pick the register inside a PPI and `A2`/`A3` are not decoded at all (`0xC4`, `0xC8` and
+`0xCC` are the same register as `0xC0`).
+
+The emulator instead builds the port index arithmetically, as `PPI_BASE_PORT + (port & mask)`, and
+`io.allow_brief_decoding` picks the mask `0x13` instead of `0x33`, i.e. it drops `A5` altogether:
+`OUT 0xF0` then lands on the keyboard PPI port A (`0xD0`) and `ports[0xF0]` stays 0 forever, although
+`src/memory.js` reads it for the extended RAM banks and `src/screen.js` for the video bits (P2.13).
+Nor does anything check the `A7`/`A6` enable: `IN 00H` reads the main PPI in the emulator, while the
+hardware selects no block at all and leaves the data bus floating.
+
+The flag is not a jumper or a register of the real machine — it is a modelling switch, `true` in
+every profile since the pre-Vite `js/config.js` (commit `b0876bf`) with no item recording where it
+came from. The two address masks it chooses between are two different *wrong* models of the same
+circuit, and `fixed` is the wrong place for the choice: the decoding belongs to the machine model.
+
+**Fix:** decode the four blocks explicitly and drop the flag from both profiles:
+
+- Replace the mask with a `decode_port()` that returns the canonical port index of the selected
+  device, or "no device" — `A7`/`A6` not both high, and the block of `0xE0..0xEF` (nothing is wired
+  to it in this machine), select nothing.
+- "Nothing selected" is a state the emulator does not have yet: a read returns the floating bus
+  (`0xFF`; the same value `IO.restart()` already puts into `ports[MEDIA_PORT]` for "nothing
+  connected") and a write is lost.
+- `0xF0..0xFF` reaches the `X1` connector, where the PK-02 board hangs its port `0xF0` latch
+  (P2.13). No profile models that board yet, so the block selects nothing (P2.16). When it is
+  modelled the latch will need no `A1`/`A0` decoding: it is clocked by `~CS3` alone, so all sixteen
+  addresses write the one register. Whether `IN 0F0H` returns the latch is an assumption — the output
+  enable of the `8282` is not visible in the scanned sheet (`docs/Lviv PK-02 Upgrade.pdf`), which
+  only shows the latch clocked by the write strobe.
+- Keep the read of a write-only PPI control register as it is (it returns 0 rather than the floating
+  bus): that is P2.15, and the two behaviour changes should not travel in one commit.
+
+Snapshots need no format change. `Storage.get_state()` reads all 256 ports through `IO.input()` and
+`Storage.set_snapshot()` replays them through `IO.output()`, and the strict decoding turns that pair
+into exactly the right thing: a read of an address that selects nothing answers the floating bus and
+a write to it is lost, so a dump carries the state of the devices the machine has, and the filler an
+older `.sav` keeps in the unused cells cannot reach them. The old mask did the opposite: the `0xFF`
+filler of `0xE0..0xEF` folded onto `0xC0..0xD3` and overwrote the real registers of the machine,
+which is why the palette had to be patched back to its default on every load.
+
+**Implementation:** `src/io.js` (`decode_port()`, `BLOCK_ENABLE_MASK`, `BLOCK_SELECT_MASK`,
+`REGISTER_MASK`, `FLOATING_BUS`, `NO_DEVICE` and comments citing `docs/cpu_pio.md`), `src/config.js`
+(the `io` key of both profiles is gone with the flag), `test/config.test.js`, five cases in
+`test/io.test.js` (the block table, the `A2`/`A3` mirrors, nothing selected — `X1` included,
+`OUT 0F0H` no longer reaching `0xD0`, the bit set/reset register through a mirror) and the palette
+workaround in `test/storage.test.js`. `src/storage.js` only gained a comment.
+
+Verified against the build without the change by running both bundled dumps (`mtrack`, `aerco1`)
+through the real `ComputerProfile` for 360 frames and hashing the memory, the video memory, the
+screen and the CPU state: identical, byte for byte. The only visible difference is the answer of
+`IN 0F0H` — the floating bus now, instead of the keyboard register the old mask folded it onto — and
+the snapshot, which stores the floating bus in the cells that select nothing.
 
 ### P3 — Polish, features and rendering ideas
 
