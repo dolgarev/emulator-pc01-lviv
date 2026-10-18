@@ -1,7 +1,7 @@
 // Plays a tape image with the headless core and writes what the sink would output.
 //
 //   node scripts/melody-audio.mjs [--app <file.lvt>] [--seconds 12] [--out melody.wav]
-//                                 [--no-wait-states]
+//                                 [--frame <name>] [--no-wait-states]
 //
 // The core comes from test/helpers.js, so this drives the same components the tests do. Every
 // buffer the beeper hands to the sink is recorded with the wall clock of the animation frame
@@ -25,6 +25,9 @@ const APP = path.resolve(ROOT, option('app', 'public/data/apps/almazy_lviv.lvt')
 const SECONDS = Number(option('seconds', 12));
 const OUT = path.resolve(process.cwd(), option('out', 'melody.wav'));
 const WAIT_STATES = !args.includes('--no-wait-states');
+// The frame of the machine (P2.20): without `--frame` the tool runs the frame the settings
+// ask for, which is the 20 ms / 50 Hz one by default.
+const FRAME = option('frame', null);
 
 const RATE = 48000;
 
@@ -81,6 +84,12 @@ class FakeTicker {
 const core = createCore('pc01_lvov_80', { wait_states: WAIT_STATES });
 const { config, beeper, keyboard, io, memory, traps, cpu, storage, screen } = core;
 const ticker = new FakeTicker();
+
+if (FRAME) {
+  // '50hz' (20 ms, the default) or '48.83hz' (20.48 ms, the frame of the video circuit);
+  // anything else throws before the run starts.
+  config.set_frame(FRAME);
+}
 
 const plays = [];
 beeper.sink = {
@@ -229,7 +238,7 @@ console.log(`app        ${APP}`);
 console.log(
   `machine    ${frames} emulated frames (${(frames / wall).toFixed(1)}/s), ` +
     `${instructions} instructions (${(instructions / frames).toFixed(0)} per frame), ` +
-    `wait states ${WAIT_STATES ? 'on' : 'off'}`
+    `${config.cpu.frame} frame, wait states ${WAIT_STATES ? 'on' : 'off'}`
 );
 console.log(
   `audio      ${plays.length} buffers handed over, ${audio_seconds.toFixed(2)} s of audio ` +

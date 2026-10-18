@@ -22,3 +22,5 @@ Notes:
   part of the repository, so pass your own with `--app <file.lvt>`.
 - `melody-audio.mjs --no-wait-states` runs the machine without the video/RAM contention of
   P2.11, which is how the numbers of the two models were compared.
+- `melody-audio.mjs --frame <50hz|48.83hz>` picks the video frame (P2.20). Without it the tool
+  runs the frame the settings ask for, which is the 20 ms (`50hz`) one by default.
