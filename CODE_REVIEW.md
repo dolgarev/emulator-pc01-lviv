@@ -87,9 +87,10 @@ Migration option comparison:
 2. Phase 3 leftovers: `ARCHITECTURE.md` (P3.4), tests for `io.js`
 3. Opportunistically: `i8080.js` modernization (P1.2), Web Worker (P2.5), rendering (P3.7 / P3.8)
 4. Emulation fidelity, from the real-hardware measurements of the forum thread: the frame
-   length (P2.20, the 20 ms frame of the versions before is one click away in the UI), the
-   write contention (P2.18), the reset ROM mapping (P2.17) and the deadlock on the ports
-   below `0xC0` (P2.19) are done
+   length (P2.20, `settings.cpu.frame` — `50hz` by default, the faithful `48.83hz` through the
+   setting or `Config.set_frame()`), the write contention (P2.18), the reset ROM mapping
+   (P2.17) and the deadlock on the ports below `0xC0` (P2.19) are done; what is left of the
+   thread is the palette multicolour (P3.14) and the RAM content at power-on (P3.15)
 
 ---
 
