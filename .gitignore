@@ -4,3 +4,5 @@ dist/
 *.log
 .crush/
 AGENTS.md
+repomix-output.xml
+repomix.config.json
