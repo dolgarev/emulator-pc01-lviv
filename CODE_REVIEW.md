@@ -479,38 +479,47 @@ does not stall the machine). Note that the deadlock is part of the wait state mo
 
 The 20 MHz OSC feeds modulo-16, modulo-80 and modulo-320 counters, so a frame is
 `320 × 80 × 16 = 409600` OSC ticks = **20.48 ms**, i.e. `15625/320 = 48.83 Hz`, which is
-45056 CPU cycles at the nominal 2.2 MHz (not 44800). Measured on `almazy_lviv.lvt` with
-`npm run audio:melody -- --app docs/almazy_lviv.lvt`: 586 emulated frames in 12.02 s = 48.8
+45056 CPU cycles at the nominal 2.2 MHz (not 44800). Measured on `almazy_lviv.lvt` in the
+`48.83hz` frame with `npm run audio:melody -- --app docs/almazy_lviv.lvt --frame 48.83hz`:
+586 emulated frames in 12.02 s = 48.8
 frames per second, 4141 instructions per frame with the contention against 6086 without it -
 the forum's 4100/6051 scaled by the 0.57 % larger budget and keeping their 0.68× ratio.
 
 **Implemented:** the length of the frame belongs to `Config`, which keeps the frames in a
-`FRAMES` table - `pc01` (45056 cycles, 20.48 ms, the default) and `legacy` (44800 cycles,
-20 ms, what the versions before this item used) - and derives `frame_cycles`,
+`FRAMES` table - `50hz` (44800 cycles, 20 ms, what the versions before this item used) and
+`48.83hz` (45056 cycles, 20.48 ms, the frame of the video circuit) - and derives `frame_cycles`,
 `frame_duration`, `frame_work_cycles` and `effective_clock_speed` from the selected one in
-`set_frame()`. The CPU therefore runs at its documented 2.2 MHz instead of 2.24. Two things
+`set_frame()`. The default is `50hz` (`DEFAULT_FRAME` in `src/settings.js`): the faithful frame
+changes the timing and the pitch of every program and makes some of them click (see the open
+question below), so it is a setting away instead of the default, and choosing it is what makes the
+CPU run at its documented 2.2 MHz instead of 2.24. Two things
 make the choice live instead of a rebuild: the frame loop reads those numbers from the config
 once per display frame instead of capturing them in `run()`, and the beeper sizes its segment
 buffer for the longest frame (`frame_work_cycles_max`). `Beeper.play()` also carries the
 fractional samples of a frame over: 20.48 ms is 903.168 samples at 44100 Hz, so the buffers
 alternate 903/904 while the average rate stays exactly the one of the device - a fixed 903
 would drain the lead of the audio queue by ~0.2 ms per second and a continuous tone would
-break up after a few minutes. The **Frame** selector picks between the two, and unlike the
-machine (P2.16) the choice is applied to the running profile, so they can be compared by ear
+break up after a few minutes. The frame comes from `settings.cpu.frame` and there is no selector
+for it in the interface: because the choice is applied to the running profile instead of a rebuild
+(unlike the machine, P2.16) and `set_frame()` stays callable, the two can still be compared by ear
 without a restart.
 
 **Open question:** the faithful frame also drops the pitch of everything the program does by
 the 1.8 % the effective clock drops, and listening to `almazy_lviv.lvt` through it picks up
-extra clicks that the 20 ms frame does not produce. Whether they are the hardware - the note
-lengths of the program and the video frame do interact - or an artefact of the audio
-scheduling has not been settled. Both settings can be captured to a wave file with
-`npm run audio:melody -- --app docs/almazy_lviv.lvt --out <file>.wav`.
+extra clicks that the 20 ms frame does not produce. Replaying the hand-over log of both frames
+through the `AudioSink` policy (60 s at a 60, 120 and 144 Hz display) rules the audio scheduling
+out as the source: no buffer is ever dropped, no level flip lands on a buffer join, and the only
+difference between the two frames is a handful of sub-millisecond gaps in the first second of a
+cold start. What is left is the program itself - the note lengths of the program and the video
+frame do interact - and the fact that the emulator plays the raw 1-bit wave, in which every short
+pulse is a full amplitude step (see P3.11). Both settings can be captured to a wave file with
+`npm run audio:melody -- --app docs/almazy_lviv.lvt --frame <50hz|48.83hz> --out <file>.wav`.
 
-**Covered by** `test/config.test.js` (the frame of the video circuit at every speed factor,
-and `set_frame()` switching the cycle budget and the effective clock both ways, with a
-`RangeError` for an unknown frame), `test/beeper.test.js` (983 samples at 48 kHz and 903 at
-44100 Hz, and the carried budget of 25 frames = 22579 samples alternating 903/904) and
-`test/uiBinding.test.js` (the Frame selector reaches its handler).
+**Covered by** `test/config.test.js` (the 20 ms frame as the default, the frame taken from
+`settings.cpu.frame`, and `set_frame()` switching the cycle budget and the effective clock both
+ways, with a `RangeError` for an unknown frame) and `test/beeper.test.js` (983 samples at 48 kHz
+and 903 at 44100 Hz, the carried budget of 25 frames = 22579 samples alternating 903/904, and the
+whole 960/882 samples of a 20 ms frame).
 
 ### P3 — Polish, features and rendering ideas
 

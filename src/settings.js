@@ -1,3 +1,10 @@
+// The frame the emulator starts in (P2.20): '50hz' is the 20 ms frame of 44800 cycles the
+// versions before P2.20 used, '48.83hz' is the frame the video circuit makes. Both are in
+// the `FRAMES` table of `src/config.js`. The faithful frame slows the timing of every
+// program by 2.4 % and drops its pitch by 1.8 %, so the 20 ms frame stays the default and
+// the faithful one is a setting away.
+export const DEFAULT_FRAME = '50hz';
+
 const DEFAULT_SETTINGS = {
   viewport: {
     container: {
@@ -15,12 +22,6 @@ const DEFAULT_SETTINGS = {
     // from (P2.16); its options carry the profile names.
     machine_select: {
       id: 'machine_select',
-    },
-    // Length of the video frame (P2.20): the 20.48 ms frame of the video circuit or the
-    // 20 ms approximation the emulator used before. Unlike the machine (P2.16), the
-    // choice is applied to the profile the emulator is already running.
-    frame_select: {
-      id: 'frame_select',
     },
     aspect_ratio_select: {
       id: 'aspect_ratio_select',
@@ -62,13 +63,11 @@ const DEFAULT_SETTINGS = {
     // ROM's tone loop still sounds at the right pitch while RAM code loses about 40% of
     // its cycles. Use either this or a speed factor below 1.0, not both.
     wait_states: true,
-    // Length of the video frame (P2.20): 'pc01' is the frame the video circuit makes -
-    // 320 x 80 x 16 = 409600 ticks of the 20 MHz oscillator, i.e. 20.48 ms at 48.83
-    // frames per second and 45056 CPU cycles at the nominal 2.2 MHz; 'legacy' is the
-    // 20 ms frame of 44800 cycles of the versions before it, in which the machine runs
-    // 2.4 % fast and its tones are 1.8 % sharp. `controls.frame_select` switches it while
-    // the machine runs; the frames themselves are in `src/config.js` (FRAMES).
-    frame: 'pc01',
+    // Length of the video frame (P2.20). The frames themselves are in the `FRAMES` table
+    // of `src/config.js` and the default is in `DEFAULT_FRAME` above. It is not exposed in
+    // the interface: set it here (or call `Config.set_frame()` on a running machine) to
+    // compare the two by ear.
+    frame: DEFAULT_FRAME,
     i8080: {
       clock_speed: 2.2 * 1000000,
     },

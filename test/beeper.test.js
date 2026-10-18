@@ -4,9 +4,13 @@ import { Clock } from '../src/clock.js';
 import { Config } from '../src/config.js';
 import { Settings } from '../src/settings.js';
 
-function createBeeper({ speed_factor = 0.6, sample_rate = undefined } = {}) {
+// The frame whose 20.48 ms is not a whole number of samples is the one that exercises the
+// carried budget, so it is the one the beeper tests use by default; `frame` picks the 20 ms
+// default of the emulator instead (P2.20).
+function createBeeper({ speed_factor = 0.6, sample_rate = undefined, frame = '48.83hz' } = {}) {
   const settings = new Settings('default');
   settings.cpu.speed_factor = speed_factor;
+  settings.cpu.frame = frame;
 
   const config = new Config(settings, 'pc01_lvov_80');
   const clock = new Clock();
@@ -104,6 +108,18 @@ describe('Beeper', () => {
 
     expect(target.buffers[0].sample_rate).toBe(44100);
     expect(target.buffers[0].data).toHaveLength(903); // 20.48 ms at 44100 Hz
+  });
+
+  it('emits exactly the frame worth of samples in the 20 ms default frame (P2.20)', () => {
+    const at_48000 = createBeeper({ sample_rate: 48000, frame: '50hz' });
+    playTone(at_48000, 1000, 3);
+
+    const at_44100 = createBeeper({ frame: '50hz' });
+    playTone(at_44100, 1000, 3);
+
+    // 20 ms is a whole number of samples at both device rates, so nothing is carried.
+    expect(at_48000.buffers.map((buffer) => buffer.data.length)).toEqual([960, 960, 960]);
+    expect(at_44100.buffers.map((buffer) => buffer.data.length)).toEqual([882, 882, 882]);
   });
 
   it('continues the level run across frame boundaries', () => {

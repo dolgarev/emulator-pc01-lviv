@@ -1,17 +1,19 @@
-import { Settings } from './settings.js';
+import { DEFAULT_FRAME, Settings } from './settings.js';
 import { assertInstance } from './utils/assert.js';
 
-// The video frame of the machine (P2.20) or the approximation this emulator used
-// before it. `pc01` is the frame the video circuit makes: 320 x 80 x 16 = 409600 ticks
-// of the 20 MHz oscillator, i.e. 20.48 ms at 48.83 frames per second, which is 45056 CPU
-// cycles at the nominal 2.2 MHz - so `effective_clock_speed` comes out exactly 2 200 000
-// and the tones keep the documented pitch. `legacy` is the 20 ms frame of 44800 cycles
-// the emulator used before P2.20: the machine runs 2.4 % fast and its tones are 1.8 %
-// sharp. The two can be switched while the machine runs (see `set_frame()`), which is the
-// point of having them here.
+// The video frame of the machine (P2.20) or the approximation this emulator used before it.
+// The names are the frame rates and the table keeps the exact durations: '48.83hz' is
+// 15625/320 Hz, i.e. 20.48 ms exactly. `48.83hz` is the frame the video circuit makes:
+// 320 x 80 x 16 = 409600 ticks of the 20 MHz oscillator, which is 45056 CPU cycles at the
+// nominal 2.2 MHz - so `effective_clock_speed` comes out exactly 2 200 000 and the tones
+// keep the documented pitch of the ROM. `50hz` is the 20 ms frame of 44800 cycles the
+// emulator used before P2.20: the machine runs 2.4 % fast and its tones are 1.8 % sharp. It
+// is the default (`DEFAULT_FRAME`), the faithful frame being a setting away. Either way the
+// frame comes from `settings.cpu.frame`: there is no selector for it in the interface, but
+// `set_frame()` still applies another one to a running machine.
 const FRAMES = {
-  pc01: { cycles: 45056, duration: 20.48 },
-  legacy: { cycles: 44800, duration: 20 },
+  '50hz': { cycles: 44800, duration: 20 },
+  '48.83hz': { cycles: 45056, duration: 20.48 },
 };
 
 export class Config {
@@ -171,9 +173,9 @@ export class Config {
       settings.rom.image = emu_settings.rom.image;
     }
 
-    // The frame the machine starts in: the one of the video circuit unless the settings
-    // ask for the legacy approximation (P2.20).
-    settings.cpu.frame = emu_settings.cpu.frame ?? 'pc01';
+    // The frame the machine starts in: the 20 ms / 50 Hz approximation unless the settings
+    // ask for the faithful one (P2.20).
+    settings.cpu.frame = emu_settings.cpu.frame ?? DEFAULT_FRAME;
 
     Object.assign(this, settings);
     this.set_frame(settings.cpu.frame);
@@ -181,11 +183,13 @@ export class Config {
   }
 
   /**
-   * Switches the length of the video frame while the machine runs (P2.20). The frame loop
-   * reads these numbers on every display frame and the beeper carries the fractional
-   * samples of a frame over, so nothing has to be rebuilt - only the cycle budget and the
-   * pitch (`effective_clock_speed`) change.
-   * @param {string} name - Key of FRAMES: 'pc01' (the frame of the machine) or 'legacy'.
+   * Applies one of the frames of `FRAMES` to the machine (P2.20). `Config` calls it for
+   * `settings.cpu.frame`; called later it switches the frame of a running machine. The
+   * frame loop reads these numbers on every display frame and the beeper carries the
+   * fractional samples of a frame over, so nothing has to be rebuilt - only the cycle
+   * budget and the pitch (`effective_clock_speed`) change.
+   * @param {string} name - Key of FRAMES: '50hz' (the default approximation) or '48.83hz'
+   *   (the frame the video circuit makes).
    */
   set_frame(name) {
     const frame = FRAMES[name];

@@ -6,17 +6,14 @@ export class UiBinding {
   constructor({
     load_button,
     machine_select,
-    frame_select,
     aspect_ratio_select,
     auto_scale_checkbox,
     machine,
-    frame,
     aspect_ratio,
     auto_scale,
   } = {}) {
     this.load_handler = undefined;
     this.machine_handler = undefined;
-    this.frame_handler = undefined;
     this.aspect_ratio_handler = undefined;
     this.auto_scale_handler = undefined;
     this.listener_controller = new AbortController();
@@ -45,22 +42,6 @@ export class UiBinding {
         (evt) => {
           if (typeof this.machine_handler === 'function') {
             this.machine_handler(evt.target.value);
-          }
-        },
-        { signal: this.listener_controller.signal }
-      );
-    }
-
-    if (frame_select) {
-      if (typeof frame === 'string' && frame !== '') {
-        frame_select.value = frame;
-      }
-
-      frame_select.addEventListener(
-        'change',
-        (evt) => {
-          if (typeof this.frame_handler === 'function') {
-            this.frame_handler(evt.target.value);
           }
         },
         { signal: this.listener_controller.signal }
@@ -119,13 +100,6 @@ export class UiBinding {
       throw new Error('UI_BINDING: Handler must be a function');
     }
     this.machine_handler = handler;
-  }
-
-  onFrame(handler) {
-    if (typeof handler !== 'function') {
-      throw new Error('UI_BINDING: Handler must be a function');
-    }
-    this.frame_handler = handler;
   }
 
   onAutoScale(handler) {

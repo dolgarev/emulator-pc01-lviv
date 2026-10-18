@@ -125,9 +125,6 @@ export class ComputerProfile {
     if (this.ui instanceof UiBinding) {
       this.ui.onAspectRatio((value) => this.viewport.setAspectRatio(value));
       this.ui.onAutoScale((checked) => this.viewport.setAutoScale(checked));
-      // Unlike the machine (P2.16), the length of the frame is a property of the running
-      // profile: the loop reads it on every display frame (P2.20).
-      this.ui.onFrame((frame) => this.config.set_frame(frame));
       // The machine is not a property of the running profile: choosing another model
       // rebuilds the whole machine, which is the job of whoever owns this profile
       // (P2.16).
@@ -234,7 +231,7 @@ export class ComputerProfile {
 
           // One buffer of audio per emulated frame. The animation frame rate (60 Hz
           // on a typical display) is not the frame rate of the emulated machine
-          // (48.83 Hz, or 50 Hz with the legacy frame); the sound has to follow the
+          // (48.83 Hz, or 50 Hz with the `50hz` frame); the sound has to follow the
           // emulation, not the display.
           beeper.play();
         }

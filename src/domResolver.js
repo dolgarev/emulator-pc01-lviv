@@ -40,10 +40,6 @@ export class DomResolver {
         )
       : undefined;
 
-    this.frame_select = settings.controls.frame_select
-      ? DomResolver.resolve(settings.controls.frame_select.id, HTMLSelectElement, 'FRAME_SELECT')
-      : undefined;
-
     this.aspect_ratio_select = settings.controls.aspect_ratio_select
       ? DomResolver.resolve(
           settings.controls.aspect_ratio_select.id,

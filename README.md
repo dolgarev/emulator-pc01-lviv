@@ -124,15 +124,17 @@ saved on the serial machine.
 
 ## Video frame
 
-The **Frame** selector picks the length of the emulated video frame (see [P2.20](CODE_REVIEW.md)):
+The emulated video frame is **20 ms (50 Hz)** by default — the approximation the emulator used
+before [P2.20](CODE_REVIEW.md), in which the machine runs 2.4 % fast and its tones are 1.8 %
+sharp. `cpu.frame` in `src/settings.js` also takes `'48.83hz'`, the **20.48 ms** frame the video
+circuit makes: 409600 ticks of the 20 MHz oscillator, 45056 CPU cycles at the documented 2.2 MHz.
+The faithful frame is not the default because it slows the timing of every program by 2.4 %, drops
+its pitch by 1.8 % and makes some of them click audibly ([P2.20](CODE_REVIEW.md) records the open
+question). Neither frame is exposed in the interface.
 
-- **20.48 ms (48.83 Hz)** — the frame the video circuit makes: 409600 ticks of the 20 MHz
-  oscillator. The default, and the one the CPU keeps its documented 2.2 MHz in.
-- **20 ms (50 Hz)** — the approximation the emulator used before: the machine runs 2.4 % fast and
-  its tones are 1.8 % sharp.
-
-Unlike the machine, the choice is applied while the emulator runs, so the two frames can be
-compared by ear without a restart.
+Because the length of the frame belongs to the running profile rather than to the machine, it can
+be switched while the emulator runs (`Config.set_frame()`), so the two can be compared by ear
+without a restart.
 
 ## Project structure
 
