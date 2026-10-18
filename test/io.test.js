@@ -132,6 +132,25 @@ describe('IO port decoding', () => {
     expect(io.input(0xc0)).toBe(0);
   });
 
+  it('reads the write-only control register as the floating bus (P2.15)', () => {
+    const { io } = createIO();
+
+    io.output(0xc3, 0x80); // mode-set: the control word is not readable back
+    io.output(0xd3, 0x80);
+
+    // The 8255 leaves the data bus undriven during such a read, so it floats high.
+    // A2/A3 are not decoded, so their mirrors reach the same register.
+    for (const port of [0xc3, 0xc7, 0xcb, 0xcf, 0xd3, 0xd7, 0xdb, 0xdf]) {
+      expect(io.input(port), `port ${port.toString(16)}`).toBe(0xff);
+    }
+
+    // The registers of the same parts that do drive the bus keep answering.
+    io.output(0xc0, 0x3c);
+    io.output(0xc1, 0x03);
+    expect(io.input(0xc0)).toBe(0x3c);
+    expect(io.input(0xc1)).toBe(0x03);
+  });
+
   it('keeps the port 0xF0 latch out of the serial machine', () => {
     const { io } = createIO();
 

@@ -210,9 +210,11 @@ export class IO {
       // write-only: "The Control Word Register can Only be written into.
       // No Read operation of the Control Word Register is allowed."
       //[http://www.classiccmp.org/rtellason/chipdata/8255.pdf]
-      // Read the datasheets, folks. (A floating bus would be more faithful than
-      // the zeroes - P2.15.)
-      return 0;
+      // Read the datasheets, folks. A device that does not drive the bus is not a
+      // device that drives zeroes, though: the 8255 leaves the data bus undriven,
+      // so it floats high - the same value the undecoded addresses answer with
+      // (P2.15).
+      return FLOATING_BUS;
     }
 
     return this.ports[decoded];

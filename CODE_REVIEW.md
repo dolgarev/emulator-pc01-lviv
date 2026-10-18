@@ -341,14 +341,6 @@ The measurement planned as the first step here was done with the test harness ra
 browser: the accesses per frame are charged in `Memory`/`IO` and counted by the tests in
 `test/contention.test.js`.
 
-#### P2.15 Reads of the write-only registers return the floating bus — ⏳
-
-`IO.input()` answers `0` for the control register of a PPI (`0xC3`, `0xD3` and their `A2`/`A3`
-mirrors), with a correct comment that the i8255A control word register is write-only. A device that
-does not drive the bus is not a device that drives zeroes, so the faithful answer is the floating bus
-of P2.14. `Storage.set_snapshot()` carries a workaround built on the same assumption: it treats a
-returned `0xFF` at port `0xC1` (the palette) as "not readable" and forces the default palette.
-
 #### P2.17 The ROM is not mapped in all four banks until the first I/O write — ✅ done
 
 `memory.js` resolves the four 16 KiB banks directly, so a low address always answers RAM.
@@ -629,7 +621,7 @@ is a "check against the dump first" item, not a change to make.
 4. Work on the structural leftovers when the code is touched anyway: `i8080.js` modernization (P1.2),
    Web Worker (P2.5), dirty rectangles (P3.7), the remaining rendering ideas (P3.8).
 
-Only **P1.2, P2.5, P2.15, P3.4, P3.6, P3.7 and P3.14-P3.15** are open tasks.
+Only **P1.2, P2.5, P3.4, P3.6, P3.7 and P3.14-P3.15** are open tasks.
 Everything else in the backlog is either done (see [Completed](#completed)) or a candidate
 list (P3.8, P3.9).
 
@@ -981,7 +973,8 @@ circuit, and `fixed` is the wrong place for the choice: the decoding belongs to 
   enable of the `8282` is not visible in the scanned sheet (`docs/Lviv PK-02 Upgrade.pdf`), which
   only shows the latch clocked by the write strobe.
 - Keep the read of a write-only PPI control register as it is (it returns 0 rather than the floating
-  bus): that is P2.15, and the two behaviour changes should not travel in one commit.
+  bus): that is P2.15, and the two behaviour changes should not travel in one commit. (P2.15
+  has since changed the read of that register to the floating bus.)
 
 Snapshots need no format change. `Storage.get_state()` reads all 256 ports through `IO.input()` and
 `Storage.set_snapshot()` replays them through `IO.output()`, and the strict decoding turns that pair
@@ -1007,6 +1000,29 @@ through the real `ComputerProfile` for 360 frames and hashing the memory, the vi
 screen and the CPU state: identical, byte for byte. The only visible difference is the answer of
 `IN 0F0H` — the floating bus now, instead of the keyboard register the old mask folded it onto — and
 the snapshot, which stores the floating bus in the cells that select nothing.
+
+#### P2.15 Reads of the write-only registers return the floating bus — ✅ done
+
+`IO.input()` answered `0` for the control register of a PPI (`0xC3`, `0xD3` and their `A2`/`A3`
+mirrors). The i8255A control word register really is write-only - the datasheet only forbids the
+read - but the chip leaves the data bus **undriven** during such a cycle, and a device that does
+not drive the bus is not a device that drives zeroes: with nothing pulling the lines, the TTL
+inputs read high.
+
+**Fixed:** `IO.read_port()` answers `FLOATING_BUS` (`0xFF`) for that register, the same value the
+undecoded addresses of P2.14 answer with. The real machine was not measured directly: neither
+`docs/*.md` of the hardware repository nor the forum thread says anything about what an unread
+register drives, so a test ROM on real hardware (`tests/01_hello_pio.asm` in the hardware repo) is
+what would settle it.
+
+`Storage.set_snapshot()` keeps its palette workaround - a `.sav` written by an older version
+carries `0xFF` in the whole `0xC0..0xCF` block and the `A2`/`A3` mirrors of those cells overwrite
+the palette with it - and the fix does not touch port `0xC1`, which our model answers with the
+written latch.
+
+**Covered by** `test/io.test.js` (the control registers and their `A2`/`A3` mirrors answer the
+floating bus, while the data registers of the same parts keep answering their latch) and
+`test/storage.test.js` (the palette workaround of an old dump).
 
 #### P2.16 The machine with the upgrades cannot be selected — ✅ done
 
