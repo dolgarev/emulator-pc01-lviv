@@ -134,6 +134,25 @@ export class Memory {
     page.write(addr, w8);
   }
 
+  // Debugger access (P3.17): the MCP server reads memory without charging the wait states
+  // a real CPU access would cost, so an inspection leaves the clock and the contention
+  // arbiter exactly where they were (CODE_REVIEW.md B5). `read`/`write` above are the CPU's
+  // path; `peek`/`poke` are the debugger's.
+  peek(addr) {
+    return this.pages[this.get_mem_page_index(addr)].read(addr);
+  }
+
+  // Returns true when the byte was actually stored, false when the selected page is not
+  // writable (the ROM, or RAM hidden behind the initial-reset ROM mapping). The caller uses
+  // the result to report a rejected write instead of claiming one that silently did nothing
+  // (CODE_REVIEW.md B15).
+  poke(addr, w8) {
+    const page = this.pages[this.get_mem_page_index(addr)];
+    if (!page.is_writable) return false;
+    page.write(addr, w8);
+    return true;
+  }
+
   transfer(begin, end, data, offset = 0, mem_page, method = 'write') {
     const self = mem_page instanceof MemPage ? mem_page : this;
 

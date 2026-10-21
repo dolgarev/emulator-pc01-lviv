@@ -32,6 +32,31 @@ describe('Memory', () => {
     log.mockRestore();
   });
 
+  it('peek() and poke() are non-contending debugger accesses (B5)', () => {
+    const { memory, clock, contention } = createCore(undefined, { wait_states: true });
+
+    memory.write(0x1234, 0xab);
+    const pending = contention.pending;
+    const cycles = clock.totalCycles;
+
+    expect(memory.peek(0x1234)).toBe(0xab);
+    expect(memory.poke(0x1234, 0xcd)).toBe(true);
+    expect(memory.peek(0x1234)).toBe(0xcd);
+
+    // Neither the read nor the write charged the wait-state arbiter or the clock.
+    expect(contention.pending).toBe(pending);
+    expect(clock.totalCycles).toBe(cycles);
+  });
+
+  it('poke() reports a rejected write to the read-only ROM page (B15)', () => {
+    const { memory, contention } = createCore(undefined, { wait_states: true });
+    const pending = contention.pending;
+
+    expect(memory.poke(0xc000, 0x5a)).toBe(false);
+    expect(memory.peek(0xc000)).toBe(0x00);
+    expect(contention.pending).toBe(pending);
+  });
+
   it('restart() clears the RAM pages', () => {
     const { memory } = createCore();
     memory.write(0x0100, 0x55);

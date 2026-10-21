@@ -51,6 +51,31 @@ describe('Screen', () => {
     expect(screen.draw()).toBeInstanceOf(Uint32Array);
   });
 
+  it('takeFrame() returns a frame without running the CPU (B6)', () => {
+    const { screen, cpu } = createCore();
+    const pcBefore = cpu.get_state().PC;
+
+    const frame = screen.takeFrame();
+
+    expect(frame).toBeInstanceOf(Uint32Array);
+    expect(cpu.get_state().PC).toBe(pcBefore);
+  });
+
+  it('takeFrame() returns the framebuffer even when nothing changed (B6)', () => {
+    const { screen, memory } = createCore();
+    const vram = memory.get_vram_page();
+
+    screen.draw(); // first paint
+    vram.write(0x4000, 0x5a);
+    screen.draw(); // consumes the change
+
+    // draw() returns null here, but takeFrame() still hands back the picture.
+    const frame = screen.takeFrame();
+
+    expect(frame).toBeInstanceOf(Uint32Array);
+    expect(frame).toHaveLength(0x10000);
+  });
+
   it('change_palette updates the palette port', () => {
     const { screen, io } = createCore();
     const before = io.ports[io.PALETTE_PORT] & 0x7f;

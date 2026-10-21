@@ -32,6 +32,10 @@ const core = createCore(process.env.EMU_PROFILE || 'pc01_lvov_80', {
 // patcher's verify.mjs / screenshots.mjs do.
 core.beeper.process = () => {};
 
+// Upper bound shared by the `cycles` schema and the runtime check, so a debugger cannot ask
+// for a run long enough to block the stdio transport for minutes (CODE_REVIEW.md B13).
+const MAX_CYCLES = 10_000_000;
+
 // ---------------------------------------------------------------- helpers
 
 function hex(value, width = 2) {
@@ -67,12 +71,22 @@ function parseBytes(args) {
   }
   if (typeof args.hex === 'string') {
     const text = args.hex.replace(/\s+/g, '');
+    if (text.length === 0) {
+      throw new Error('hex must not be empty');
+    }
+    if (!/^[0-9a-fA-F]+$/.test(text)) {
+      throw new Error('hex must contain only hex digits (0-9, a-f, A-F), without a 0x prefix');
+    }
     if (text.length % 2 !== 0) {
       throw new Error('hex must have an even number of digits');
     }
     const bytes = [];
     for (let i = 0; i < text.length; i += 2) {
-      bytes.push(parseInt(text.slice(i, i + 2), 16));
+      const byte = parseInt(text.slice(i, i + 2), 16);
+      if (!Number.isFinite(byte)) {
+        throw new Error(`hex contains an invalid byte at offset ${i}`);
+      }
+      bytes.push(byte);
     }
     return bytes;
   }
@@ -129,19 +143,12 @@ function pngBuffer(width, height, rgba) {
   ]);
 }
 
-// The game (and any program that blanks the video between frames, port 0xF0) can make a
-// single draw() come back empty, so step the CPU a little until a frame is visible.
+// `Screen.takeFrame()` returns the current framebuffer without advancing the machine:
+// `draw()` is incremental (null = "nothing changed"), but the pixel buffer always holds the
+// last rendered picture, and the refresh touches no clock, CPU or memory state, so a
+// screenshot must not run the CPU or change the machine (CODE_REVIEW.md B6).
 function frameToPng(scale) {
-  let ps32 = null;
-  for (let attempt = 0; attempt < 200 && !ps32; attempt += 1) {
-    ps32 = core.screen.draw();
-    if (!ps32) {
-      core.cpu.run(1000);
-    }
-  }
-  if (!ps32) {
-    throw new Error('the emulator screen stayed blank');
-  }
+  const ps32 = core.screen.takeFrame();
 
   const srcWidth = core.screen.width;
   const srcHeight = core.screen.height;
@@ -180,27 +187,44 @@ const HANDLERS = {
     }
     assertSnapshot(buffer);
     core.storage.set_snapshot(new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength));
+    // The snapshot restores memory, ports and the CPU, but a held key or a partially
+    // rendered frame would survive the switch, so clear both (CODE_REVIEW.md B7).
+    core.keyboard.restart();
     core.screen.restart();
     core.beeper.restart();
-    core.beeper.process = () => {};
     return text(`loaded ${buffer.length} bytes\n${stateText()}`);
   },
 
   async run_cycles(args) {
-    const requested = intArg(args.cycles, 'cycles', { min: 1, max: 0x7fffffff });
-    const actual = core.cpu.run(requested);
+    const requested = intArg(args.cycles, 'cycles', { min: 1, max: MAX_CYCLES });
+    // Run in chunks, yielding to the event loop between them, so a long request does not
+    // block the stdio transport and starve other tool calls (CODE_REVIEW.md B13).
+    const CHUNK = 500_000;
+    let actual = 0;
+    let remaining = requested;
+    while (remaining > 0) {
+      const slice = Math.min(CHUNK, remaining);
+      actual += core.cpu.run(slice);
+      remaining -= slice;
+      if (remaining > 0) {
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+    }
     return text(`ran ${actual} cycles (requested ${requested})\n${stateText()}`);
   },
 
   async read_memory(args) {
     const address = intArg(args.address, 'address');
-    const length = args.length === undefined ? 1 : intArg(args.length, 'length', { min: 1 });
+    const length =
+      args.length === undefined ? 1 : intArg(args.length, 'length', { min: 1, max: 65536 });
     if (address + length > 0x10000) {
       throw new Error(`read past end of RAM (0x${hex(address, 4)} + ${length})`);
     }
     const bytes = [];
     for (let i = 0; i < length; i += 1) {
-      bytes.push(core.memory.read(address + i));
+      // `peek` is the debugger access: it must not charge wait states or move the clock,
+      // so reading memory leaves the machine exactly as it was (CODE_REVIEW.md B5).
+      bytes.push(core.memory.peek(address + i));
     }
     return text(`0x${hex(address, 4)}: ${hexDump(bytes)}`);
   },
@@ -211,14 +235,28 @@ const HANDLERS = {
     if (address + bytes.length > 0x10000) {
       throw new Error(`write past end of RAM (0x${hex(address, 4)} + ${bytes.length})`);
     }
-    const previous = bytes.map((byte, i) => {
-      const previousByte = core.memory.read(address + i);
-      core.memory.write(address + i, byte);
-      return previousByte;
-    });
-    return text(
-      `wrote ${bytes.length} byte(s) at 0x${hex(address, 4)}; previous: ${hexDump(previous)}`
-    );
+    const previous = [];
+    const rejected = [];
+    for (let i = 0; i < bytes.length; i += 1) {
+      const addr = address + i;
+      previous.push(core.memory.peek(addr));
+      // `poke` reports whether the byte was actually stored: the ROM (and any RAM hidden
+      // behind the initial-reset ROM mapping) is read-only, so the tool must not claim a
+      // write that silently did nothing (CODE_REVIEW.md B15).
+      if (!core.memory.poke(addr, bytes[i])) {
+        rejected.push(addr);
+      }
+    }
+    const written = bytes.length - rejected.length;
+    const summary = `wrote ${written} of ${bytes.length} byte(s) at 0x${hex(address, 4)}; previous: ${hexDump(previous)}`;
+    if (rejected.length > 0) {
+      const list = rejected.map((addr) => `0x${hex(addr, 4)}`).join(', ');
+      return {
+        content: [{ type: 'text', text: `${summary}\nnot writable: ${list}` }],
+        isError: true,
+      };
+    }
+    return text(summary);
   },
 
   async read_port(args) {
@@ -238,9 +276,13 @@ const HANDLERS = {
     if (typeof key !== 'string' || key === '') {
       throw new Error('`key` must be a non-empty string (a KeyboardEvent.code, e.g. "Enter")');
     }
+    const modifier =
+      args.modifier === undefined ? 0 : intArg(args.modifier, 'modifier', { min: 0, max: 0x07 });
     const pressed = args.pressed !== false;
-    core.io.keyboard.press(key, pressed);
-    return text(`${pressed ? 'pressed' : 'released'} ${key}\n${stateText()}`);
+    core.io.keyboard.press(key, pressed, modifier);
+    return text(
+      `${pressed ? 'pressed' : 'released'} ${key}${modifier ? ` (modifier ${modifier})` : ''}\n${stateText()}`
+    );
   },
 
   async key_tap(args) {
@@ -248,11 +290,21 @@ const HANDLERS = {
     if (typeof key !== 'string' || key === '') {
       throw new Error('`key` must be a non-empty string (a KeyboardEvent.code, e.g. "Space")');
     }
-    const cycles = args.cycles === undefined ? 0 : intArg(args.cycles, 'cycles', { min: 0 });
-    core.io.keyboard.press(key, true);
+    const modifier =
+      args.modifier === undefined ? 0 : intArg(args.modifier, 'modifier', { min: 0, max: 0x07 });
+    // Default to a touch over one video frame (44800/45056 cycles) so a program that polls
+    // the keyboard once per frame actually sees the key; 0 is still available for an instant
+    // click (CODE_REVIEW.md B16).
+    const cycles =
+      args.cycles === undefined
+        ? 50000
+        : intArg(args.cycles, 'cycles', { min: 0, max: MAX_CYCLES });
+    core.io.keyboard.press(key, true, modifier);
     const actual = cycles > 0 ? core.cpu.run(cycles) : 0;
-    core.io.keyboard.press(key, false);
-    return text(`tapped ${key} for ${actual} cycles\n${stateText()}`);
+    core.io.keyboard.press(key, false, modifier);
+    return text(
+      `tapped ${key}${modifier ? ` (modifier ${modifier})` : ''} for ${actual} cycles\n${stateText()}`
+    );
   },
 
   async screenshot(args) {
@@ -274,11 +326,14 @@ const HANDLERS = {
   },
 
   async reset() {
+    // Match ComputerProfile.reset() (CODE_REVIEW.md B7): a reset is a power-on, so RAM,
+    // the keyboard matrix and the peripherals all clear, not just the CPU.
+    core.beeper.restart();
+    core.keyboard.restart();
     core.io.restart();
+    core.memory.restart();
     core.cpu.restart();
     core.screen.restart();
-    core.beeper.restart();
-    core.beeper.process = () => {};
     return text(
       `reset to power-on state (ROM mapped everywhere until the first OUT)\n${stateText()}`
     );
@@ -309,14 +364,21 @@ const TOOLS = [
     inputSchema: {
       type: 'object',
       properties: {
-        cycles: { type: 'integer', minimum: 1, description: 'CPU cycles to execute.' },
+        cycles: {
+          type: 'integer',
+          minimum: 1,
+          maximum: MAX_CYCLES,
+          description: 'CPU cycles to execute (max 10,000,000).',
+        },
       },
       required: ['cycles'],
     },
   },
   {
     name: 'read_memory',
-    description: 'Read `length` bytes of RAM starting at `address` (0x0000..0xFFFF).',
+    description:
+      'Read `length` bytes of memory starting at `address` (0x0000..0xFFFF). This is a ' +
+      'debugger access: it does not run the CPU or charge wait states.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -329,12 +391,18 @@ const TOOLS = [
   {
     name: 'write_memory',
     description:
-      'Write bytes into RAM at `address`. Provide `bytes` (array of 0..255) or `hex` (a hex string).',
+      'Write bytes into memory at `address`. Provide `bytes` (array of 0..255) or `hex` (a ' +
+      'hex string). Does not run the CPU or charge wait states; writing into a read-only ' +
+      'page (ROM) is reported as an error.',
     inputSchema: {
       type: 'object',
       properties: {
         address: { type: 'integer', minimum: 0, maximum: 65535 },
-        bytes: { type: 'array', items: { type: 'integer', minimum: 0, maximum: 255 } },
+        bytes: {
+          type: 'array',
+          maxItems: 65536,
+          items: { type: 'integer', minimum: 0, maximum: 255 },
+        },
         hex: { type: 'string' },
       },
       required: ['address'],
@@ -367,12 +435,19 @@ const TOOLS = [
     name: 'key_press',
     description:
       'Press or release a key by its KeyboardEvent.code ("Enter", "Space", "ArrowLeft", ' +
-      '"KeyA", "Digit0", ...). `pressed` defaults to true.',
+      '"KeyA", "Digit0", ...). `pressed` defaults to true. `modifier` is a bit mask: 1 = ' +
+      'Alt, 2 = Ctrl, 4 = Shift (release with the same mask you pressed with).',
     inputSchema: {
       type: 'object',
       properties: {
         key: { type: 'string' },
         pressed: { type: 'boolean', description: 'true = press down, false = release.' },
+        modifier: {
+          type: 'integer',
+          minimum: 0,
+          maximum: 7,
+          description: 'Bit mask: 1 = Alt, 2 = Ctrl, 4 = Shift. Default 0.',
+        },
       },
       required: ['key'],
     },
@@ -381,12 +456,20 @@ const TOOLS = [
     name: 'key_tap',
     description:
       'Press a key, run `cycles` CPU cycles while it is held, then release it. `cycles` ' +
-      'defaults to 0 (press and release immediately).',
+      'defaults to 50000 (~one video frame) so a program polling the keyboard once per ' +
+      'frame sees the press; use 0 for an instant click. `modifier` is a bit mask: 1 = ' +
+      'Alt, 2 = Ctrl, 4 = Shift.',
     inputSchema: {
       type: 'object',
       properties: {
         key: { type: 'string' },
-        cycles: { type: 'integer', minimum: 0 },
+        cycles: { type: 'integer', minimum: 0, maximum: MAX_CYCLES },
+        modifier: {
+          type: 'integer',
+          minimum: 0,
+          maximum: 7,
+          description: 'Bit mask: 1 = Alt, 2 = Ctrl, 4 = Shift. Default 0.',
+        },
       },
       required: ['key'],
     },
@@ -395,7 +478,7 @@ const TOOLS = [
     name: 'screenshot',
     description:
       'Render the framebuffer to a PNG (nearest-neighbour upscaled by `scale`, default 2) ' +
-      'and return it as base64 image content.',
+      'and return it as base64 image content. Reads the screen without running the CPU.',
     inputSchema: {
       type: 'object',
       properties: {

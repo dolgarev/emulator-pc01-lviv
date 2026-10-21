@@ -312,6 +312,16 @@ export class Screen {
     return null;
   }
 
+  // Returns the current framebuffer without advancing the machine (CODE_REVIEW.md B6).
+  // `draw()` is incremental and returns null when nothing changed, but the pixel buffer
+  // always holds the last rendered picture; the refresh reads video memory and updates the
+  // pixel cache only - it touches no clock, CPU or memory state - so a debugger can snapshot
+  // the screen without disturbing the emulated machine.
+  takeFrame() {
+    this.draw();
+    return this.ps32;
+  }
+
   change_color_mode(state = !this.allow_color_mode) {
     const prev_state = this.allow_color_mode;
     this.allow_color_mode = state;
