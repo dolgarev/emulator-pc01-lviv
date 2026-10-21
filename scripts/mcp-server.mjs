@@ -83,7 +83,7 @@ function assertSnapshot(buffer) {
   if (buffer.length < 0x1411d) {
     throw new Error(`not a snapshot: ${buffer.length} bytes is too short`);
   }
-  if (buffer.subarray(0, 10).toString('latin1') !== 'LVOV/DUMP') {
+  if (buffer.subarray(0, 9).toString('latin1') !== 'LVOV/DUMP') {
     throw new Error('not an LVOV snapshot (header must start with "LVOV/DUMP")');
   }
 }
