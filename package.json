@@ -16,6 +16,7 @@
     "check": "node scripts/browser-check.mjs",
     "audio:response": "node scripts/audio-response.mjs",
     "audio:melody": "node scripts/melody-audio.mjs",
+    "mcp": "node scripts/mcp-server.mjs",
     "prepare": "husky"
   },
   "repository": {
@@ -45,5 +46,8 @@
       "prettier --write",
       "eslint --fix"
     ]
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1"
   }
 }

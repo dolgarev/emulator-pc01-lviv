@@ -141,6 +141,7 @@ without a restart.
 ```
 src/
   main.js                     entry point
+  core.js                     headless public API (createCore, boot, load)
   emulator.js                 top-level wiring
   computer.js                 machine lifecycle
   computerProfile.js          main loop, snapshots, UI coordination
@@ -156,6 +157,38 @@ src/
   config.js, settings.js      configuration
 public/data/                  ROM and dump binaries (.bin)
 ```
+
+## Automation and AI tools (headless core + MCP)
+
+The emulator core is DOM-free and can run headlessly in Node, which is how the bundled
+scripts and external dev tooling drive it. The public entry point is
+[`src/core.js`](src/core.js):
+
+```js
+import { createCore } from './src/core.js';
+
+// the hardware-faithful machine: video/RAM contention (P2.11) + the 48.83 Hz frame (P2.20)
+const core = createCore('pc01_lvov_80', { wait_states: true, frame: '48.83hz' });
+core.storage.set_snapshot(new DataView(snapshotBytes));
+core.io.keyboard.press('Enter', true);
+core.cpu.run(2_500_000);
+const value = core.memory.read(0xaf10);
+```
+
+`createCore(profile, { wait_states, frame })` builds the same machine the browser shell
+wires, minus the DOM/audio/tape layers. The two knobs are independent and both default to
+the test-friendly approximation: `wait_states: false` (no contention) and `frame: '50hz'`
+(20 ms). Set `wait_states: true` for the video/RAM contention (P2.11) and
+`frame: '48.83hz'` for the frame the video circuit actually produces (P2.20); together they
+give the hardware-faithful machine. The returned components (`cpu`, `memory`, `io`,
+`keyboard`, `screen`, ...) are documented in the file.
+
+For AI tools there is an MCP server ([`scripts/mcp-server.mjs`](scripts/mcp-server.mjs),
+`npm run mcp`) that speaks the Model Context Protocol over stdio and exposes the core as
+tools — `load_snapshot`, `run_cycles`, `read_memory`, `write_memory`, `read_port`,
+`write_port`, `key_press`, `key_tap`, `screenshot`, `dump_state`, `reset`. Register it in
+any MCP client with `command: node`, `args: ["<repo>/scripts/mcp-server.mjs"]`. See
+[`scripts/README.md`](scripts/README.md) for the full list and environment options.
 
 ## Documentation and development notes
 

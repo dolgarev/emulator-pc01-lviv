@@ -1420,3 +1420,38 @@ package carried a dual-license obligation for roughly thirty lines of reset/typo
 links in `index.html` were replaced by a single `/assets/css/base.css`, and `public/assets/960gs/` was
 removed (the README's third-party asset entry went with it). Rendering is unchanged; the credit for the
 original CSS is kept in the `base.css` header comment.
+
+#### P3.17 Headless core as a public API + MCP server for dev tooling — ✅ done
+
+The game work drove the emulator entirely headlessly, but through `test/helpers.js`: a test
+harness rather than a stable API, importable only from inside the repository. External dev
+tools had no supported entry point, and AI agents had no way to talk to the machine.
+
+**Fix.** The headless core moved to `src/core.js` as a first-class, documented API.
+`createCore(profile, { wait_states, frame })` builds the same machine the browser
+shell wires and returns the components as a plain object; `boot()` clears the initial ROM
+mapping (P2.17) and `load()` writes a byte sequence into RAM. `test/helpers.js` re-exports
+it unchanged, so every existing test and script keeps working, and `melody-audio.mjs` now
+imports the public path. The two timing knobs are independent and both default to the
+test-friendly approximation: `wait_states: false` (no contention) and `frame: '50hz'`
+(20 ms), so CPU tests keep asserting exact cycle counts. The hardware-faithful machine is
+`{ wait_states: true, frame: '48.83hz' }` — the video/RAM contention (P2.11) plus the frame
+the video circuit actually produces (P2.20) — and either knob can be set on its own.
+
+A Model Context Protocol server (`scripts/mcp-server.mjs`, `npm run mcp`) layers a thin
+JSON-RPC adapter over that API using `@modelcontextprotocol/sdk` over stdio, so an MCP
+client (Claude Desktop, Claude Code, Cursor, a VS Code agent) can drive the machine: load a
+snapshot, run cycles, read/write memory and I/O ports, press keys, capture a frame as PNG
+and reset. The tool set is `load_snapshot`, `run_cycles`, `read_memory`, `write_memory`,
+`read_port`, `write_port`, `key_press`, `key_tap`, `screenshot`, `dump_state`, `reset`.
+
+A Unix-socket API was considered and deferred: for Node tooling the in-process library is
+strictly more convenient than IPC, and a future language-agnostic or long-lived interface
+is better served by exposing the same MCP server over Streamable HTTP than by inventing a
+bespoke socket protocol. Watching the live browser instance is a separate concern that
+belongs to the Chrome DevTools Protocol, not a socket.
+
+**Tests.** `test/core.test.js` covers the public API surface and its timing knobs
+(defaults, `wait_states`, `frame`), `boot()` and `load()`; the full suite
+passes through the `test/helpers.js` re-export unchanged. The MCP server was smoke-tested
+against the SDK over stdio (`initialize` → `tools/list` → `tools/call`).

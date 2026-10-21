@@ -3,7 +3,8 @@
 //   node scripts/melody-audio.mjs [--app <file.lvt>] [--seconds 12] [--out melody.wav]
 //                                 [--frame <name>] [--no-wait-states]
 //
-// The core comes from test/helpers.js, so this drives the same components the tests do. Every
+// The core comes from src/core.js (the public headless API, P3.17), so this drives the same
+// components the tests do. Every
 // buffer the beeper hands to the sink is recorded with the wall clock of the animation frame
 // that produced it, and the output is the sum of those buffers placed where they are handed
 // over - which is what the sink does with source.start(0). The metrics printed are the ones
@@ -52,7 +53,7 @@ globalThis.fetch = async (url) => {
   };
 };
 
-const { createCore } = await import(path.join(ROOT, 'test/helpers.js'));
+const { createCore } = await import(path.join(ROOT, 'src/core.js'));
 const { ComputerProfile } = await import(path.join(ROOT, 'src/computerProfile.js'));
 const { Rom } = await import(path.join(ROOT, 'src/rom.js'));
 const { Tape } = await import(path.join(ROOT, 'src/tape.js'));
