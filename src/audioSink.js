@@ -68,10 +68,26 @@ export class AudioSink {
     this.warned_suspended = false;
     this.next_start_time = 0;
     this.warned_lead = false;
+    // Sources handed to the audio clock and not finished yet. Kept so reset() can stop
+    // them: rewinding next_start_time alone leaves them playing (CODE_REVIEW.md P3.18).
+    this.sources = new Set();
   }
 
   // Called when the machine restarts: audio queued for the previous run is dropped.
   reset() {
+    for (const source of this.sources) {
+      // A stopped source fires onended asynchronously in a real AudioContext; the handler
+      // is detached first so it cannot disconnect a source that reset() already dropped.
+      source.onended = null;
+      try {
+        source.stop();
+      } catch {
+        // Already finished: there is nothing left to stop.
+      }
+      source.disconnect();
+    }
+    this.sources.clear();
+
     this.next_start_time = 0;
     this.warned_lead = false;
   }
@@ -194,6 +210,14 @@ export class AudioSink {
 
       source.start(this.next_start_time);
       this.next_start_time += samples.length / rate;
+
+      // Track what is still scheduled and unregister it once it has played out. The
+      // handler is cleared by reset() before it stops the source.
+      this.sources.add(source);
+      source.onended = () => {
+        this.sources.delete(source);
+        source.disconnect();
+      };
     } catch (error) {
       console.error('AUDIO_SINK: Failed to play sound:', error);
     }

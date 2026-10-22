@@ -7,10 +7,12 @@ import { Settings } from '../src/settings.js';
 function createContext({ sample_rate = 44100 } = {}) {
   const starts = [];
   const filters = [];
+  const sources = [];
 
   return {
     starts,
     filters,
+    sources,
     time: 0,
     state: 'running',
     sampleRate: sample_rate,
@@ -29,8 +31,21 @@ function createContext({ sample_rate = 44100 } = {}) {
     },
 
     createBufferSource() {
-      const source = { buffer: undefined, connect: vi.fn() };
-      source.start = (when) => starts.push(when);
+      const source = {
+        buffer: undefined,
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+        stopped: false,
+        started: false,
+      };
+      source.start = (when) => {
+        source.started = true;
+        starts.push(when);
+      };
+      source.stop = vi.fn(() => {
+        source.stopped = true;
+      });
+      sources.push(source);
       return source;
     },
 
@@ -101,6 +116,38 @@ describe('AudioSink', () => {
     }
 
     warn.mockRestore();
+  });
+
+  it('stops the buffers scheduled for the previous run on reset', () => {
+    const { sink, context } = createSink();
+
+    sink.play(frame(), 44100);
+    sink.play(frame(), 44100);
+    expect(sink.sources.size).toBe(2);
+
+    sink.reset();
+
+    // Rewinding the schedule alone left these playing on top of the new run (P3.18).
+    expect(sink.sources.size).toBe(0);
+    expect(context.sources.map((source) => source.stopped)).toEqual([true, true]);
+    expect(context.sources.every((source) => source.disconnect.mock.calls.length === 1)).toBe(true);
+
+    // The next buffer starts from the new audio clock, not from the old queue.
+    context.time = 0.01;
+    sink.play(frame(), 44100);
+    expect(context.starts.at(-1)).toBeCloseTo(0.06, 6);
+  });
+
+  it('unregisters a source once it has played out', () => {
+    const { sink, context } = createSink();
+
+    sink.play(frame(), 44100);
+    const [source] = context.sources;
+
+    source.onended();
+
+    expect(sink.sources.size).toBe(0);
+    expect(source.disconnect).toHaveBeenCalledTimes(1);
   });
 
   it('reports the sample rate of the output device', () => {

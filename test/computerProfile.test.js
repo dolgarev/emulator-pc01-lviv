@@ -330,3 +330,49 @@ describe('ComputerProfile.load of a malformed file (P2.21)', () => {
     expect(messages).toEqual(['Invalid file structure.']);
   });
 });
+
+describe('ComputerProfile snapshot restore and the beeper (P3.18)', () => {
+  function createProfileWithCore() {
+    const core = createCore();
+
+    return {
+      core,
+      profile: new ComputerProfile({
+        config: core.config,
+        storage: core.storage,
+        beeper: core.beeper,
+      }),
+    };
+  }
+
+  it('restarts the beeper with the clock so the next segment is not negative', () => {
+    const { core, profile } = createProfileWithCore();
+    const snapshot = new DataView(Uint8Array.from(core.storage.get_snapshot()).buffer);
+
+    core.cpu.run(1000);
+    core.beeper.prev_change_offset = 900; // an open run from the previous machine state
+    core.beeper.prev_beeper_state = 1;
+
+    profile.set_snapshot(snapshot);
+
+    expect(core.beeper.prev_change_offset).toBe(0);
+    expect(core.beeper.prev_beeper_state).toBe(0);
+
+    // Before the fix the clock was back at 0 while the beeper still remembered 900, so the
+    // first segment was -900 CPU cycles and its PCM length came out negative.
+    core.beeper.process(1);
+    expect(core.beeper.sound_buffer[0]).toBe(0);
+  });
+
+  it('restarts the beeper after an Emulator 3000 snapshot too', () => {
+    const { core, profile } = createProfileWithCore();
+
+    core.beeper.prev_change_offset = 1234;
+    core.beeper.prev_beeper_state = 1;
+
+    profile.set_e3_snapshot(new DataView(new Uint8Array(0x20000).buffer));
+
+    expect(core.beeper.prev_change_offset).toBe(0);
+    expect(core.beeper.prev_beeper_state).toBe(0);
+  });
+});

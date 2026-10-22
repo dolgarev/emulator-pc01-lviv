@@ -127,6 +127,8 @@ export class Storage {
     //this.io.ports[0xD3] = data.getUint8(offset + 0x56);
 
     this.cpu.restart();
+    // See set_snapshot(): the shared Clock is back at zero, so the beeper has to follow.
+    this.io.beeper.restart();
     this.cpu.set_state({
       A: data.getUint8(0x1ba),
       F: data.getUint8(0x1be),
@@ -177,6 +179,10 @@ export class Storage {
     }
 
     this.cpu.restart();
+    // The CPU restart resets the shared Clock. The beeper must not keep the frame offsets
+    // and the wave level of the previous machine, or its next segment comes out negative
+    // (CODE_REVIEW.md P3.18).
+    this.io.beeper.restart();
     this.cpu.set_state({
       B: data.getUint8(offset + 0x00),
       C: data.getUint8(offset + 0x01),

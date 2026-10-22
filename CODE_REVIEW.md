@@ -1486,3 +1486,35 @@ belongs to the Chrome DevTools Protocol, not a socket.
 (defaults, `wait_states`, `frame`), `boot()` and `load()`; the full suite
 passes through the `test/helpers.js` re-export unchanged. The MCP server was smoke-tested
 against the SDK over stdio (`initialize` → `tools/list` → `tools/call`).
+
+#### P3.18 Snapshot restore desynchronizes the beeper and leaves old audio playing — ✅ done
+
+**Symptoms.** Restoring a `.sav` or `.e3` snapshot while a note was sounding corrupted the first
+frame after the restore: `Storage.set_snapshot()` ends with `cpu.restart()`, which resets the shared
+`Clock` to zero, but `Beeper` kept `prev_change_offset` from the previous run (anything up to a
+frame, 45056 cycles). The next `process()` therefore computed `frameOffset - prev_change_offset`
+with a fresh offset and an old one; at `frameOffset` 0 the segment was negative. The segment still
+flipped the level, but its sample loop emitted nothing, so the run that was open when the file was
+saved vanished from the first frame and the phase moved. The audio queue had an independent half of
+the same problem: `AudioSink.reset()` rewound `next_start_time` and cleared `warned_lead` only. The
+`AudioBufferSourceNode`s already handed to the audio clock kept playing, so the tail of the old run
+was heard on top of the first frames of the restored one — the overlap P3.10 removed for the normal
+path, brought back by a snapshot.
+
+**Fix.** `Storage.set_snapshot()` and `set_e3_snapshot()` now restart the beeper right after
+`cpu.restart()` has reset the shared clock, so the two halves of the machine are put back in step at
+the place where they were torn apart (this covers every consumer of the headless core, not only the
+profile). `Beeper.restart()` clears the offsets, the wave level and the sample carries, and calls
+`AudioSink.reset()`, so the audio state follows the machine. `AudioSink` keeps the sources it has
+started in a `Set`: `onended` unregisters and disconnects a source that has played out, while
+`reset()` detaches the handler, calls `stop()` and `disconnect()` on every source still scheduled
+and clears the set before rewinding `next_start_time`. The handler is detached first because a
+stopped source in a real `AudioContext` fires `onended` asynchronously; the `try/catch` around
+`stop()` covers a source that has already finished.
+
+**Tests.** `test/audioSink.test.js` covers the queue: `reset()` stops both scheduled sources exactly
+once, disconnects them, empties the set, and the next buffer starts from the new clock with the usual
+50 ms lead; a source that ends on its own unregisters itself. `test/computerProfile.test.js` covers
+the snapshot path: after a snapshot taken with an open 900-cycle run, `prev_change_offset` is 0 and
+the next segment is 0 instead of -900, for both LVOV/DUMP and Emulator 3000. `npm run check` still
+passes, but it cannot hear audio; the overlap itself is only verifiable by ear or from a recording.
