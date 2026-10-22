@@ -57,6 +57,19 @@ describe('UiBinding', () => {
     binding.terminate();
   });
 
+  it('forwards screenshot clicks to the handler (P3.28)', () => {
+    const button = new FakeButton();
+    const binding = new UiBinding({ screenshot_button: button });
+
+    const seen = [];
+    binding.onScreenshot(() => seen.push('shot'));
+
+    button.click();
+
+    expect(seen).toEqual(['shot']);
+    binding.terminate();
+  });
+
   it('toggles auto-scale on click and names the next mode on the button', () => {
     const button = new FakeButton();
     const binding = new UiBinding({ auto_scale_button: button, auto_scale: false });

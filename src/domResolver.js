@@ -32,6 +32,14 @@ export class DomResolver {
       ? DomResolver.resolve(settings.controls.help_button.id, HTMLButtonElement, 'HELP_BUTTON')
       : undefined;
 
+    this.screenshot_button = settings.controls.screenshot_button
+      ? DomResolver.resolve(
+          settings.controls.screenshot_button.id,
+          HTMLButtonElement,
+          'SCREENSHOT_BUTTON'
+        )
+      : undefined;
+
     this.machine_select = settings.controls.machine_select
       ? DomResolver.resolve(
           settings.controls.machine_select.id,

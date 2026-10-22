@@ -310,6 +310,25 @@ describe('ComputerProfile main loop', () => {
   });
 });
 
+describe('ComputerProfile screenshot button (P3.28)', () => {
+  it('takes a screenshot when the toolbar button is clicked', async () => {
+    const screenshot_button = Object.assign(new EventTarget(), {
+      click() {
+        this.dispatchEvent(new Event('click'));
+      },
+    });
+    const ui = new UiBinding({ screenshot_button });
+    const { profile } = createProfile({ ui });
+
+    profile.shoot = vi.fn();
+
+    await profile.initAsync();
+    screenshot_button.click();
+
+    expect(profile.shoot).toHaveBeenCalledOnce();
+  });
+});
+
 describe('ComputerProfile machine selector (P2.16)', () => {
   it('hands the machine chosen in the UI to the owner of the profile', async () => {
     const machine_select = Object.assign(new EventTarget(), { value: 'standard' });
@@ -491,6 +510,15 @@ describe('ComputerProfile.shoot and the screenshot type (P3.19)', () => {
 
     expect(saved).toHaveLength(1);
     expect(saved[0]).toMatch(/\.png$/);
+  });
+
+  it('ignores a screenshot while another operation has suspended the machine', () => {
+    const { profile, requested } = createShootingProfile();
+    profile.is_suspended = true;
+
+    profile.shoot();
+
+    expect(requested()).toBeUndefined();
   });
 });
 

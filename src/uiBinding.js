@@ -19,6 +19,7 @@ const AUTO_SCALE_TITLES = {
 export class UiBinding {
   constructor({
     load_button,
+    screenshot_button,
     machine_select,
     aspect_ratio_button,
     auto_scale_button,
@@ -27,6 +28,7 @@ export class UiBinding {
     auto_scale,
   } = {}) {
     this.load_handler = undefined;
+    this.screenshot_handler = undefined;
     this.machine_handler = undefined;
     this.aspect_ratio_handler = undefined;
     this.auto_scale_handler = undefined;
@@ -42,6 +44,20 @@ export class UiBinding {
 
           if (typeof this.load_handler === 'function') {
             this.load_handler(evt);
+          }
+        },
+        { signal: this.listener_controller.signal }
+      );
+    }
+
+    if (screenshot_button) {
+      screenshot_button.addEventListener(
+        'click',
+        (evt) => {
+          evt.preventDefault();
+
+          if (typeof this.screenshot_handler === 'function') {
+            this.screenshot_handler(evt);
           }
         },
         { signal: this.listener_controller.signal }
@@ -133,6 +149,13 @@ export class UiBinding {
       throw new Error('UI_BINDING: Handler must be a function');
     }
     this.load_handler = handler;
+  }
+
+  onScreenshot(handler) {
+    if (typeof handler !== 'function') {
+      throw new Error('UI_BINDING: Handler must be a function');
+    }
+    this.screenshot_handler = handler;
   }
 
   onAspectRatio(handler) {

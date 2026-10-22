@@ -123,6 +123,9 @@ export class ComputerProfile {
     }
 
     if (this.ui instanceof UiBinding) {
+      // The toolbar button takes the same path as Ctrl+S, including the "tape is not
+      // connected" message when there is nowhere to save the file (P3.28).
+      this.ui.onScreenshot(() => this.shoot());
       this.ui.onAspectRatio((value) => this.viewport.setAspectRatio(value));
       this.ui.onAutoScale((checked) => this.viewport.setAutoScale(checked));
       // The machine is not a property of the running profile: choosing another model
@@ -306,6 +309,10 @@ export class ComputerProfile {
   }
 
   shoot() {
+    // A load or a previous screenshot already stopped the loop; resuming here would
+    // restart it in the middle of the other operation (P3.28).
+    if (this.is_suspended) return;
+
     if (!this.hasTape()) {
       // Without a tape drive there is nowhere to save the screenshot; Ctrl+S used to look
       // broken because this returned silently (CODE_REVIEW.md P3.22).

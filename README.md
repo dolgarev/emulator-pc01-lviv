@@ -70,6 +70,8 @@ Keyboard shortcuts (the same list is available in the in-app **HELP** dialog):
 | `Ctrl` + `+` | Increment palette |
 | `Ctrl` + `-` | Decrement palette |
 
+The **SNAP** toolbar button takes a screenshot, the same as `Ctrl` + `S`.
+
 The PC-01 keyboard has several keys that a modern keyboard does not. They are mapped to `Alt`
 combinations:
 

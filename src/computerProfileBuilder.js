@@ -328,6 +328,7 @@ export class ComputerProfileBuilder {
     this._ticker ??= new Ticker();
     this._ui ??= new UiBinding({
       load_button: this._dom.local_load_button,
+      screenshot_button: this._dom.screenshot_button,
       machine_select: this._dom.machine_select,
       aspect_ratio_button: this._dom.aspect_ratio_button,
       auto_scale_button: this._dom.auto_scale_button,

@@ -18,6 +18,10 @@ const DEFAULT_SETTINGS = {
     help_button: {
       id: 'help_button',
     },
+    // Saves a screenshot of the canvas, the same action as Ctrl+S (P3.28).
+    screenshot_button: {
+      id: 'screenshot_button',
+    },
     // Selects the machine, i.e. the `Config` profile the whole emulator is built
     // from (P2.16); its options carry the profile names.
     machine_select: {

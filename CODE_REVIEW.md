@@ -1735,3 +1735,12 @@ LOAD and HELP were labelled only with short words. All four mode buttons now car
 and Fit buttons (P3.8.3, P3.8.7). The buttons also share `min-width: 84px` with
 `box-sizing: border-box`, so their widths no longer jump when the label changes.
 
+#### P3.28 The toolbar had no screenshot button — ✅ done
+
+A screenshot could only be taken with `Ctrl`+`S`, which is easy to miss and is intercepted by the
+browser unless the page handles it. The toolbar now has a **SNAP** button with the title "Take a
+screenshot (Ctrl+S)". `Settings.controls.screenshot_button` and `DomResolver` resolve it like the
+other controls, `UiBinding` gains `onScreenshot()`, and `ComputerProfile` wires it to `shoot()`:
+the button therefore shares the suspend/save/resume path of the shortcut and the same "tape is
+not connected" message.
+
