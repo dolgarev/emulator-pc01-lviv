@@ -280,8 +280,10 @@ export class ComputerProfile {
 
     // There is no emulated frame to hand to the sink: play() would emit a full buffer of
     // mostly held level and shift the audio timeline by one frame (CODE_REVIEW.md P3.23).
-    // Drop the partial frame together with the audio already queued for it instead.
-    this.beeper.restart();
+    // Only the partial frame is dropped: the audio already queued belongs to emulated time
+    // that has already happened and plays out during the suspension, so the resume does not
+    // cut it off mid-tone (P3.24).
+    this.beeper.discard_frame();
 
     this.ticker.cancelAnimationFrame(this.animation_frame);
     this.animation_frame = void 0;
@@ -332,6 +334,12 @@ export class ComputerProfile {
 
   terminate() {
     this.suspend();
+
+    // The machine is going away, so the audio still queued for it must not play over the
+    // machine that replaces it - unlike a suspension, where the same machine comes back
+    // (CODE_REVIEW.md P3.24).
+    this.beeper.restart();
+
     this.viewport.terminate();
 
     if (this.hasTape()) {

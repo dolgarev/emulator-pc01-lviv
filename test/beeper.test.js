@@ -17,7 +17,11 @@ function createBeeper({ speed_factor = 0.6, sample_rate = undefined, frame = '48
   const buffers = [];
   const sink = {
     sample_rate,
+    resets: 0,
     play: (data, rate) => buffers.push({ data, sample_rate: rate }),
+    reset() {
+      this.resets += 1;
+    },
   };
 
   return { beeper: new Beeper(config, clock, sink), clock, config, buffers };
@@ -150,6 +154,44 @@ describe('Beeper', () => {
     expect(second[0]).toBeCloseTo(amplitude, 6);
     expect(second.at(-1)).toBeCloseTo(-amplitude, 6);
     expect(third[0]).toBeCloseTo(-amplitude, 6);
+  });
+
+  it('drops the partial frame but keeps the queued audio and the wave phase (P3.24)', () => {
+    const target = createBeeper({ sample_rate: 48000, frame: '50hz' });
+    const { beeper, clock, config } = target;
+    const frame = config.cpu.frame_work_cycles;
+    const resets = beeper.sink.resets;
+
+    // A frame that ends at level 1: this is the wave phase of the suspended machine.
+    clock.startFrame();
+    clock.addCycles(Math.round(frame / 2));
+    beeper.process(1);
+    clock.addCycles(frame - Math.round(frame / 2));
+    beeper.play();
+    expect(beeper.wave_level).toBe(1);
+
+    // The frame in progress when the machine is suspended: two segments collected.
+    clock.startFrame();
+    clock.addCycles(100);
+    beeper.process(0);
+    clock.addCycles(100);
+    beeper.process(1);
+    expect(beeper.buffer_index).toBe(2);
+
+    beeper.discard_frame();
+
+    expect(beeper.buffer_index).toBe(0);
+    expect(beeper.prev_change_offset).toBe(0);
+    // The ports keep their level across a suspension, so the wave continues the run it
+    // stopped in instead of restarting at the level of the previous run.
+    expect(beeper.prev_beeper_state).toBe(1);
+    expect(beeper.wave_level).toBe(1);
+    // The audio already queued stands for emulated time that has happened: it is not cut.
+    expect(beeper.sink.resets).toBe(resets);
+
+    // A new run still drops what the previous one queued.
+    beeper.restart();
+    expect(beeper.sink.resets).toBe(resets + 1);
   });
 
   it('measures the run length from the frame boundary, not from the last change', () => {

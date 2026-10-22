@@ -46,11 +46,15 @@ function createProfile({
   const beeper = {
     plays: 0,
     restarts: 0,
+    discards: 0,
     play() {
       this.plays += 1;
     },
     restart() {
       this.restarts += 1;
+    },
+    discard_frame() {
+      this.discards += 1;
     },
   };
 
@@ -145,7 +149,23 @@ describe('ComputerProfile main loop', () => {
     profile.suspend();
 
     expect(beeper.plays).toBe(1); // no buffer outside an emulated frame
-    expect(beeper.restarts).toBe(1); // the partial frame and its queued audio are dropped
+    expect(beeper.discards).toBe(1); // only the partial frame is dropped
+    expect(beeper.restarts).toBe(0); // the audio already queued keeps playing (P3.24)
+  });
+
+  it('drops the queued audio when the machine is terminated (P3.24)', () => {
+    const { profile, ticker, beeper } = createProfile({ frame_duration: 10 });
+
+    profile.run();
+    ticker.time = 10;
+    step(ticker);
+
+    profile.suspend();
+    profile.resume();
+    expect(beeper.restarts).toBe(0); // the same machine comes back after a suspension
+
+    profile.terminate();
+    expect(beeper.restarts).toBe(1); // the machine is gone, so its audio must not play on
   });
 
   it('caps the backlog after a long stall', () => {

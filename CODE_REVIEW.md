@@ -627,6 +627,29 @@ better initial state (a game that sweeps memory would see it). The thread itself
 settle the question - it also notes that the video memory *is* cleared at power-on - so this
 is a "check against the dump first" item, not a change to make.
 
+#### P3.25 `Beeper.restart()` leaves the ports and the tracked level out of step — ⏳
+
+Two leftovers of P3.18. Neither is audible on its own, but both are the same missing invariant:
+after a restart or a restore, the beeper's tracked line state must be the state the ports
+actually hold, and the restart must run *after* the shared clock.
+
+- `restart()` clears `prev_beeper_state`/`wave_level` to 0 while the ports keep their value, so
+  the first level change after a snapshot restore, a `reset()` or a `resume()` is swallowed:
+  `IO.updateSound()` returns early for a write that repeats `beeper_level`, and the run ending at
+  the first *real* change is then emitted at the wrong level. Measured: a snapshot taken with the
+  emitter line high comes back with `prev_beeper_state` 0 against `io.beeper_level` 1, and the
+  first pulse is inverted (before P3.18 the same state produced a negative segment instead).
+- `ComputerProfile.reset()` restarts the beeper *before* `io.restart()` and `cpu.restart()`, so
+  `io.restart()` records a segment against the old clock offset and the next segment comes out
+  negative. Measured on a 1000-cycle last frame: `sound_buffer[0]` = 500, then -500; on a real
+  frame the stale offset is up to `frame_work_cycles` (44800 cycles, ~20 ms). The negative length
+  is tolerated silently by `generateSquareWave()` today.
+  `Storage.set_snapshot()` already uses the correct order (`cpu.restart()` then
+  `beeper.restart()`); Ctrl+R is the last place that does not.
+
+The suspension path is already fixed (P3.24 keeps the level across a suspension), so the two
+places left are the snapshot restore and `ComputerProfile.reset()`.
+
 ---
 
 ## Key risks
@@ -652,7 +675,7 @@ is a "check against the dump first" item, not a change to make.
 4. Work on the structural leftovers when the code is touched anyway: `i8080.js` modernization (P1.2),
    Web Worker (P2.5), dirty rectangles (P3.7), the remaining rendering ideas (P3.8).
 
-Only **P1.2, P2.5, P3.4, P3.6, P3.7 and P3.14-P3.15** are open tasks.
+Only **P1.2, P2.5, P3.4, P3.6, P3.7, P3.14-P3.15 and P3.25** are open tasks.
 Everything else in the backlog is either done (see [Completed](#completed)) or a candidate
 list (P3.8, P3.9).
 
@@ -1626,3 +1649,28 @@ has suspended or replaced with a new loop. A normal frame still emits exactly on
 
 **Tests.** `test/computerProfile.test.js`: suspending after a frame keeps `plays` unchanged and
 calls `restart()`; a frame that resumes the machine from inside `cpu.run()` emits no buffer.
+
+#### P3.24 `suspend()` cuts the audio already queued for the running machine — ✅ done
+
+P3.23 cleared the suspended frame through `Beeper.restart()`, and `restart()` drops the queue of the
+sink as well (`AudioSink.reset()` stops every scheduled source and rewinds the schedule; P3.18).
+That is right where a run really ends - a snapshot, Ctrl+R, a terminated machine - but wrong for a
+suspension: the audio in the queue stands for emulated time that has already happened *with this
+machine*, and the same machine comes back. Measured with the queue at steady state (48 kHz sink,
+50 Hz frames): a lead of 50 ms (`MIN_LEAD_SECONDS`) over three scheduled sources, i.e. up to ~90 ms
+of PCM was thrown away and replaced by a 50 ms silence before the next buffer. The cut lands in the
+middle of a tone, so Ctrl+S clicks; a BLOAD/CLOAD trap discards the same tail when the load starts.
+
+**Fix.** `Beeper.discard_frame()` drops the segments of the frame in progress (`buffer_index`,
+`prev_change_offset`) and nothing else. The wave level and the line state stay, because the ports
+keep their value across a suspension - so the wave continues the run it stopped in instead of
+restarting at level 0 - and the sink is left alone, so its queue plays out while the machine is
+suspended and `resume()` continues from it. `ComputerProfile.suspend()` calls it. The queue is still
+dropped where the machine is gone: `terminate()` calls `beeper.restart()` (the machine that replaces
+it must not start over the old one's tail), as do `reset()`, `boot_basic()` and the snapshot
+restores.
+
+**Tests.** `test/beeper.test.js`: dropping a frame in progress leaves `buffer_index` and
+`prev_change_offset` at zero, keeps `wave_level`/`prev_beeper_state`, and does not call
+`sink.reset()`; `restart()` still does. `test/computerProfile.test.js`: `suspend()` drops the partial
+frame without restarting the beeper, and `terminate()` restarts it.

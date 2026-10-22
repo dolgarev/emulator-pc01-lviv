@@ -51,16 +51,34 @@ export class Beeper {
   }
 
   restart() {
-    this.buffer_index = 0;
+    this.discard_frame();
     this.sample_carry = 0;
     this.frame_sample_carry = 0;
     this.wave_level = 0;
-    this.prev_change_offset = 0;
     this.prev_beeper_state = 0;
     this.overflow_warned = false;
 
     // Audio queued for the previous run must not be played on top of the new one.
     this.sink?.reset?.();
+  }
+
+  /**
+   * Drops the segments collected for the frame in progress, leaving the audio already
+   * handed to the sink alone.
+   *
+   * A trap or a screenshot stops the machine in the middle of an emulated frame. The
+   * cycles of that frame are gone - they are not emulated again after the resume - so
+   * its partial segments must not be played then, and they are measured from a frame
+   * boundary the next frame no longer has (its offsets restart at zero).
+   *
+   * The wave level and the line state stay: the machine keeps the state of its ports
+   * across a suspension, so the wave must continue the run it stopped in. The queue in
+   * the sink stands for emulated time that has already happened and plays out while the
+   * machine is suspended; stopping it would click (CODE_REVIEW.md P3.24).
+   */
+  discard_frame() {
+    this.buffer_index = 0;
+    this.prev_change_offset = 0;
   }
 
   get sample_rate() {
