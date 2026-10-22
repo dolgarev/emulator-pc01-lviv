@@ -75,6 +75,40 @@ describe('Viewport high-resolution geometry (P2.13)', () => {
   });
 });
 
+describe('Viewport.takeScreenshoot (P3.19)', () => {
+  const fake_viewport = () => {
+    const calls = [];
+    const viewport = Object.assign(Object.create(Viewport.prototype), {
+      canvas: {
+        toBlob(callback, type) {
+          calls.push(type);
+          callback({ type });
+        },
+      },
+    });
+
+    return { viewport, calls };
+  };
+
+  it('passes the requested MIME type to canvas.toBlob', () => {
+    const { viewport, calls } = fake_viewport();
+    const blobs = [];
+
+    viewport.takeScreenshoot((blob) => blobs.push(blob), 'image/jpeg');
+
+    expect(calls).toEqual(['image/jpeg']);
+    expect(blobs[0].type).toBe('image/jpeg');
+  });
+
+  it('defaults to PNG', () => {
+    const { viewport, calls } = fake_viewport();
+
+    viewport.takeScreenshoot(() => {});
+
+    expect(calls).toEqual(['image/png']);
+  });
+});
+
 describe('Viewport.normalizeAspectRatio', () => {
   it('keeps a positive finite number', () => {
     expect(Viewport.normalizeAspectRatio(16 / 9)).toBeCloseTo(16 / 9);

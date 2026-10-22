@@ -299,7 +299,9 @@ export class ComputerProfile {
     this.viewport.takeScreenshoot(async (blob) => {
       try {
         if (blob) {
-          const extension = getFileExtension(srctype);
+          // The requested MIME type can be unsupported: canvas.toBlob() then falls back to
+          // PNG, so the name follows the type the browser actually produced (P3.19).
+          const extension = getFileExtension(blob.type || srctype);
           const filename = generateScreenshotFilename(extension);
           await this.tape.save(blob, filename);
         } else {

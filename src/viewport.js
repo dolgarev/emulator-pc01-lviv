@@ -305,7 +305,7 @@ export class Viewport {
     this.set_resolution(width, height);
   }
 
-  takeScreenshoot(cb) {
-    this.canvas.toBlob(cb);
+  takeScreenshoot(cb, type = 'image/png') {
+    this.canvas.toBlob(cb, type);
   }
 }

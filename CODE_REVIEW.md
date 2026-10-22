@@ -1518,3 +1518,22 @@ once, disconnects them, empties the set, and the next buffer starts from the new
 the snapshot path: after a snapshot taken with an open 900-cycle run, `prev_change_offset` is 0 and
 the next segment is 0 instead of -900, for both LVOV/DUMP and Emulator 3000. `npm run check` still
 passes, but it cannot hear audio; the overlap itself is only verifiable by ear or from a recording.
+
+#### P3.19 The screenshot MIME type never reaches `canvas.toBlob` — ✅ done
+
+`ComputerProfile.shoot()` read `config.screen.screenshot_type` and passed it to
+`generateScreenshotFilename(getFileExtension(srctype))`, but `Viewport.takeScreenshoot(cb)` accepted
+only the callback and called `canvas.toBlob(cb)`; the type parameter was dead, so the browser always
+encoded PNG. With `screenshot_type: 'image/jpeg'` the user got `*.jpg` containing PNG data, and
+`image/webp` was ignored in the same way. A browser that does not implement a requested encoder also
+falls back to PNG silently, so even a name derived from the requested type can lie about the
+contents.
+
+**Fix.** `takeScreenshoot(cb, type = 'image/png')` passes the type to `canvas.toBlob(cb, type)`, and
+`shoot()` derives the extension from `blob.type` (falling back to the requested type when a blob
+does not report one), so the name follows the encoding the browser actually produced. That also
+covers the JPEG/WebP → PNG fallback.
+
+**Tests.** `test/viewport.test.js` (the MIME type reaches `toBlob`, PNG by default) and
+`test/computerProfile.test.js` (the configured `image/jpeg` is requested and yields `*.jpg`; a PNG
+fallback while JPEG was requested yields `*.png`).

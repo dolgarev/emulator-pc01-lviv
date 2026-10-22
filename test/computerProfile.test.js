@@ -376,3 +376,52 @@ describe('ComputerProfile snapshot restore and the beeper (P3.18)', () => {
     expect(core.beeper.prev_beeper_state).toBe(0);
   });
 });
+
+describe('ComputerProfile.shoot and the screenshot type (P3.19)', () => {
+  function createShootingProfile({ configured = 'image/jpeg', produced = 'image/jpeg' } = {}) {
+    const saved = [];
+    let requested;
+
+    const profile = Object.assign(Object.create(ComputerProfile.prototype), {
+      config: { screen: { screenshot_type: configured } },
+      hasTape: () => true,
+      suspend() {},
+      resume() {},
+      viewport: {
+        takeScreenshoot(callback, type) {
+          requested = type;
+          callback({ type: produced });
+        },
+      },
+      tape: {
+        save(blob, filename) {
+          saved.push(filename);
+          return Promise.resolve();
+        },
+      },
+    });
+
+    return { profile, saved, requested: () => requested };
+  }
+
+  it('passes the configured type to the viewport and names the file after it', async () => {
+    const { profile, saved, requested } = createShootingProfile();
+
+    profile.shoot();
+    await Promise.resolve();
+
+    expect(requested()).toBe('image/jpeg');
+    expect(saved).toHaveLength(1);
+    expect(saved[0]).toMatch(/\.jpg$/);
+  });
+
+  it('follows the type the browser actually produced when it falls back to PNG', async () => {
+    const { profile, saved } = createShootingProfile({ produced: 'image/png' });
+
+    profile.shoot();
+    await Promise.resolve();
+
+    expect(saved).toHaveLength(1);
+    expect(saved[0]).toMatch(/\.png$/);
+  });
+});
