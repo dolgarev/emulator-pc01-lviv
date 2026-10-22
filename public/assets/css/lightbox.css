@@ -19,7 +19,7 @@
 }
 
 .lightbox > .content {
-    width: 90vw;
+    width: 50vw;
     height: 90vh;
 
     display: -webkit-flex;
