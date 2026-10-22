@@ -361,7 +361,7 @@ export class ComputerProfile {
 
     switch (data.getUint8(0x09)) {
       case 0x2f:
-        if (!validateFileHeader(data.buffer, 'LVOV/DUMP/2.0/H+')) {
+        if (!validateFileHeader(data, 'LVOV/DUMP/2.0/H+')) {
           return this.invalid_file('invalid LVOV snapshot header');
         }
         try {
@@ -372,7 +372,7 @@ export class ComputerProfile {
         return true;
 
       case 0x33:
-        if (!validateFileHeader(data.buffer, 'Emulator 3000')) {
+        if (!validateFileHeader(data, 'Emulator 3000')) {
           return this.invalid_file('invalid Emulator 3000 header');
         }
         try {

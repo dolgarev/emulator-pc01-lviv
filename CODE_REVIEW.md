@@ -1537,3 +1537,21 @@ covers the JPEG/WebP → PNG fallback.
 **Tests.** `test/viewport.test.js` (the MIME type reaches `toBlob`, PNG by default) and
 `test/computerProfile.test.js` (the configured `image/jpeg` is requested and yields `*.jpg`; a PNG
 fallback while JPEG was requested yields `*.png`).
+
+#### P3.20 `validateFileHeader()` reads from the start of the underlying buffer — ✅ done
+
+`ComputerProfile.load()` called `validateFileHeader(data.buffer, magic)` and the helper accepted
+only an `ArrayBuffer`, not the `DataView` it came from. A view with a non-zero `byteOffset` was
+therefore checked from byte 0 of the whole buffer: a valid snapshot held at an offset (a Node
+`Buffer` slice, a typed-array subarray, any caller that wraps a prefix) was rejected as a foreign
+header. The opposite could also happen - a view that did not contain the magic matched bytes that
+lie before its start.
+
+**Fix.** `validateFileHeader()` accepts an `ArrayBuffer` or any view into one and builds a
+`Uint8Array` from `byteOffset` and `byteLength`, so exactly the bytes the caller covers are
+inspected; the `ArrayBuffer` form is kept for existing callers. `ComputerProfile.load()` passes the
+`DataView` itself.
+
+**Tests.** `test/fileFormat.test.js`: a view at a non-zero offset into a larger buffer with a
+`JUNK` prefix is accepted; a view shifted past the magic is rejected; a `Uint8Array` view and a
+view shorter than the magic behave the same as the `ArrayBuffer` cases.

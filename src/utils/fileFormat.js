@@ -17,19 +17,26 @@ export const E3_SNAPSHOT_SIZE = 0x240 + 0xc000 + 0x4000 + 0x29 + 0x4000 + 0x4c +
 /**
  * Checks that `data` starts with the expected ASCII magic string.
  *
+ * Accepts an `ArrayBuffer` or any view into one (`DataView`, `Uint8Array`, a Node
+ * `Buffer`). For a view only the bytes it actually covers are inspected: a file that
+ * begins at a non-zero `byteOffset` of a larger buffer used to be checked from offset 0
+ * of the whole buffer, so a valid file was rejected (CODE_REVIEW.md P3.20).
+ *
  * The magic strings of the LVOV/DUMP and "Emulator 3000" snapshot formats are
  * compared as-is (16 and 13 bytes); no trailing NUL is required.
  *
- * @param {ArrayBuffer} data - File contents.
+ * @param {ArrayBuffer|ArrayBufferView} data - File contents or a view into them.
  * @param {string} magicString - Expected magic string.
  * @returns {boolean}
  */
 export const validateFileHeader = (data, magicString) => {
-  if (data.byteLength < magicString.length) {
+  const bytes = ArrayBuffer.isView(data)
+    ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+    : new Uint8Array(data);
+
+  if (bytes.byteLength < magicString.length) {
     return false;
   }
 
-  return (
-    new TextDecoder('utf-8').decode(new Uint8Array(data, 0, magicString.length)) === magicString
-  );
+  return new TextDecoder('utf-8').decode(bytes.subarray(0, magicString.length)) === magicString;
 };
