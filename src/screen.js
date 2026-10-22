@@ -16,12 +16,19 @@ const BLUE = 1;
 const GREEN = 2;
 const RED = 4;
 
-// Weights for RGB to grayscale conversion (emulating B/W TV)
-// NOTE: Boolean logic (&&) is used instead of multiplication - this is NOT a bug,
-// but an emulation feature that produces brighter images similar to real B/W TV
-const GRAYSCALE_RED_WEIGHT = 0x1d; // 29/255 ≈ 0.114 (BT.601 standard: 0.299)
-const GRAYSCALE_GREEN_WEIGHT = 0x96; // 150/255 ≈ 0.588 (BT.601 standard: 0.587)
-const GRAYSCALE_BLUE_WEIGHT = 0x4c; // 76/255 ≈ 0.298 (BT.601 standard: 0.114)
+// A Uint32 view of ImageData stores one pixel as 0xAABBGGRR, so these masks
+// select the channels by their actual position in the word.
+const PIXEL_RED_MASK = 0x000000ff;
+const PIXEL_GREEN_MASK = 0x0000ff00;
+const PIXEL_BLUE_MASK = 0x00ff0000;
+
+// Deliberately non-linear RGB to grayscale conversion (emulating B/W TV): a
+// non-zero channel contributes its whole level instead of being scaled by it.
+// Boolean logic is used instead of multiplication - this is NOT a bug, but an
+// emulation feature that produces brighter images similar to a real B/W TV.
+const GRAYSCALE_RED_LEVEL = 0x4c; // 76/255 ≈ 0.298 (BT.601 luma)
+const GRAYSCALE_GREEN_LEVEL = 0x96; // 150/255 ≈ 0.588
+const GRAYSCALE_BLUE_LEVEL = 0x1d; // 29/255 ≈ 0.114
 
 export class Screen {
   constructor(config, io, memory) {
@@ -94,9 +101,9 @@ export class Screen {
       for (let i = 0; i < 4; i++) {
         const p = rgb[i];
         const sum =
-          ~~(p & 0x00ff0000 && GRAYSCALE_RED_WEIGHT) +
-          ~~(p & 0x0000ff00 && GRAYSCALE_GREEN_WEIGHT) +
-          ~~(p & 0x0000ff && GRAYSCALE_BLUE_WEIGHT);
+          ~~(p & PIXEL_RED_MASK && GRAYSCALE_RED_LEVEL) +
+          ~~(p & PIXEL_GREEN_MASK && GRAYSCALE_GREEN_LEVEL) +
+          ~~(p & PIXEL_BLUE_MASK && GRAYSCALE_BLUE_LEVEL);
         grayscale[i] = 0xff000000 | (sum << 16) | (sum << 8) | sum;
       }
       Screen.cache_grayscale[palette] = grayscale;

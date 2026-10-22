@@ -21,6 +21,15 @@ describe('Screen', () => {
     }
   });
 
+  it('precomputes grayscale levels in the BT.601 channel order', () => {
+    // Palette 0x0F gives black, blue, green and red for colour indexes 0..3.
+    // The Uint32 pixel is ABGR, so this guards the channel masks and levels
+    // against being paired up in the wrong order.
+    expect(Array.from(Screen.cache_grayscale[0x0f])).toEqual([
+      0xff000000, 0xff1d1d1d, 0xff969696, 0xff4c4c4c,
+    ]);
+  });
+
   it('compute_color_index stays within the palette LUT range', () => {
     const { screen } = createCore();
 

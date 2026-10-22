@@ -805,10 +805,11 @@ exception is needed. The third-party licences under `public/assets/` are untouch
 
 #### P1.9 Grayscale formula in `screen.js` — ✅ (not a bug)
 
-`~~(p & 0x00ff0000 && GRAYSCALE_RED_WEIGHT) + …` uses logical `&&` rather than multiplication. This
+`~~((p & PIXEL_RED_MASK) && GRAYSCALE_RED_LEVEL) + …` uses logical `&&` rather than multiplication. This
 was investigated and confirmed to be an **intentional emulation feature**: it produces a brighter
 image resembling a real PC-01 black-and-white TV. Replacing it with correct weights makes the image
-too dark. The code is kept as is with an explanatory comment.
+too dark. The code is kept as is with an explanatory comment; the masks and levels are named after
+the ABGR layout of a `Uint32` `ImageData` pixel so that each level lands on its real channel.
 
 ### P2 — Structural improvements
 
