@@ -23,6 +23,28 @@ describe('Keyboard', () => {
     expect(keyboard.special_keys).toBe(0);
   });
 
+  it('maps Ctrl+A and Ctrl+F to the display shortcuts (P3.29)', () => {
+    const { keyboard } = createCore();
+
+    keyboard.press('KeyA', false, Keyboard.IS_CTRL);
+    expect(keyboard.special_keys).toBe(keyboard.IS_ASPECT);
+
+    keyboard.reset_special_keys();
+    keyboard.press('KeyF', false, Keyboard.IS_CTRL);
+    expect(keyboard.special_keys).toBe(keyboard.IS_AUTO_SCALE);
+  });
+
+  it('maps Ctrl+L and Ctrl+H to the toolbar shortcuts (P3.30)', () => {
+    const { keyboard } = createCore();
+
+    keyboard.press('KeyL', false, Keyboard.IS_CTRL);
+    expect(keyboard.special_keys).toBe(keyboard.IS_LOAD);
+
+    keyboard.reset_special_keys();
+    keyboard.press('KeyH', false, Keyboard.IS_CTRL);
+    expect(keyboard.special_keys).toBe(keyboard.IS_HELP);
+  });
+
   it('maps alt combinations to the PC-01 keys', () => {
     const { keyboard } = createCore();
 

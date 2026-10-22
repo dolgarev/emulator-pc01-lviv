@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { ComputerProfile } from '../src/computerProfile.js';
+import { Keyboard } from '../src/keyboard.js';
 import { UiBinding } from '../src/uiBinding.js';
 import { Notify } from '../src/notify.js';
 import { createCore } from './helpers.js';
@@ -33,6 +34,9 @@ function createProfile({
   frame_cycles = 1000,
   frame_work_cycles = frame_cycles,
   ui,
+  keyboard,
+  tape,
+  settings = { tape: { is_connected: false }, dnd: { is_connected: false } },
 } = {}) {
   const ticker = new FakeTicker();
   // The order in which the components are restarted by ComputerProfile.reset() (P3.25).
@@ -64,14 +68,19 @@ function createProfile({
   };
 
   const profile = new ComputerProfile({
-    settings: { tape: { is_connected: false }, dnd: { is_connected: false } },
+    settings,
     profile: 'test',
     config: {
       cpu: { frame_duration, frame_cycles, frame_work_cycles },
       traps: { profile: 'test' },
     },
     beeper,
-    keyboard: { special_keys: 0, reset() {}, reset_special_keys() {}, restart() {} },
+    keyboard: keyboard ?? {
+      special_keys: 0,
+      reset() {},
+      reset_special_keys() {},
+      restart() {},
+    },
     io: {
       restart() {
         order.push('io');
@@ -81,9 +90,16 @@ function createProfile({
     rom: { async init() {}, restart() {} },
     traps: { activate() {} },
     cpu,
-    viewport: { renderScreen() {}, pause() {}, terminate() {} },
+    viewport: {
+      renderScreen() {},
+      pause() {},
+      terminate() {},
+      setAspectRatio: vi.fn(),
+      setAutoScale: vi.fn(),
+    },
     screen: { restart() {}, change_color_mode() {}, change_palette() {} },
     ticker,
+    tape,
     storage: {},
     ui,
   });
@@ -96,6 +112,13 @@ function step(ticker) {
   const frame = ticker.frames.shift();
   frame();
   return frame;
+}
+
+function displayButton() {
+  return Object.assign(new EventTarget(), {
+    textContent: '',
+    setAttribute() {},
+  });
 }
 
 describe('ComputerProfile main loop', () => {
@@ -326,6 +349,67 @@ describe('ComputerProfile screenshot button (P3.28)', () => {
     screenshot_button.click();
 
     expect(profile.shoot).toHaveBeenCalledOnce();
+  });
+});
+
+describe('ComputerProfile display shortcuts (P3.29)', () => {
+  it('routes Ctrl+A and Ctrl+F through the toolbar controls', async () => {
+    const aspect_ratio_button = displayButton();
+    const auto_scale_button = displayButton();
+    const ui = new UiBinding({
+      aspect_ratio_button,
+      auto_scale_button,
+      aspect_ratio: '4:3',
+      auto_scale: false,
+    });
+    const keyboard = new Keyboard();
+    const { profile, ticker } = createProfile({ ui, keyboard });
+
+    await profile.initAsync();
+    profile.run();
+
+    keyboard.press('KeyA', false, Keyboard.IS_CTRL);
+    ticker.time = 10;
+    step(ticker);
+
+    expect(profile.viewport.setAspectRatio).toHaveBeenCalledWith('1:1');
+    expect(aspect_ratio_button.textContent).toBe('16:9');
+
+    keyboard.press('KeyF', false, Keyboard.IS_CTRL);
+    ticker.time = 20;
+    step(ticker);
+
+    expect(profile.viewport.setAutoScale).toHaveBeenCalledWith(true);
+    expect(auto_scale_button.textContent).toBe('2×');
+  });
+});
+
+describe('ComputerProfile toolbar shortcuts (P3.30)', () => {
+  it('routes Ctrl+L to LOAD and Ctrl+H to HELP', async () => {
+    const help_button = { click: vi.fn() };
+    const ui = new UiBinding({ help_button });
+    const keyboard = new Keyboard();
+    const tape = { load: vi.fn().mockResolvedValue(new DataView(new ArrayBuffer(10))) };
+    const settings = { tape: { is_connected: true }, dnd: { is_connected: false } };
+    const { profile, ticker } = createProfile({ ui, keyboard, tape, settings });
+
+    const loadData = vi.spyOn(profile, 'load').mockResolvedValue(true);
+
+    await profile.initAsync();
+    profile.run();
+
+    keyboard.press('KeyL', false, Keyboard.IS_CTRL);
+    ticker.time = 10;
+    step(ticker);
+
+    expect(tape.load).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(loadData).toHaveBeenCalledOnce());
+
+    keyboard.press('KeyH', false, Keyboard.IS_CTRL);
+    ticker.time = 20;
+    step(ticker);
+
+    expect(help_button.click).toHaveBeenCalledOnce();
   });
 });
 

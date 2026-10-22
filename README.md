@@ -65,12 +65,17 @@ Keyboard shortcuts (the same list is available in the in-app **HELP** dialog):
 | --- | --- |
 | `Ctrl` + `P` | Pause |
 | `Ctrl` + `R` | Reset |
+| `Ctrl` + `L` | Load a tape or dump |
+| `Ctrl` + `H` | Show help and keyboard shortcuts |
+| `Ctrl` + `A` | Switch the aspect ratio |
+| `Ctrl` + `F` | Toggle fit to window |
 | `Ctrl` + `G` | Turn grayscale mode on / off |
 | `Ctrl` + `S` | Take a screenshot |
 | `Ctrl` + `+` | Increment palette |
 | `Ctrl` + `-` | Decrement palette |
 
-The **SNAP** toolbar button takes a screenshot, the same as `Ctrl` + `S`.
+The toolbar tooltips name the matching shortcut: **LOAD** (`Ctrl` + `L`), **HELP** (`Ctrl` + `H`),
+**SNAP** (`Ctrl` + `S`), the aspect button (`Ctrl` + `A`) and the fit button (`Ctrl` + `F`).
 
 The PC-01 keyboard has several keys that a modern keyboard does not. They are mapped to `Alt`
 combinations:

@@ -1745,3 +1745,25 @@ other controls, `UiBinding` gains `onScreenshot()`, and `ComputerProfile` wires 
 the button therefore shares the suspend/save/resume path of the shortcut and the same "tape is
 not connected" message.
 
+#### P3.29 The display controls had no keyboard shortcuts — ✅ done
+
+The Aspect and Fit controls were reachable only through the toolbar. `Ctrl`+`A` now advances to the
+next aspect-ratio preset and `Ctrl`+`F` toggles the window-fitted view, matching a click on the
+corresponding button. `Keyboard` maps them to new `IS_ASPECT` / `IS_AUTO_SCALE` bits,
+`ComputerProfile.run()` dispatches them, and `UiBinding.toggleAspectRatio()` /
+`toggleAutoScale()` keep the button labels and `aria-pressed` in sync. Both combinations are listed
+in the HELP dialog and README. `KeyboardBinding` already calls `preventDefault()` on every key, so
+the browser's Select All and Find do not fire.
+
+#### P3.30 The LOAD and HELP buttons had no shortcuts, and the tooltips hid the existing ones — ✅ done
+
+LOAD and HELP were reachable only by clicking. `Ctrl`+`L` now opens the same file picker as LOAD and
+`Ctrl`+`H` the same help dialog as HELP. `Keyboard` maps them to new `IS_LOAD` / `IS_HELP` bits,
+`ComputerProfile.run()` dispatches them to `UiBinding.openLoad()` / `openHelp()`, and the LOAD
+button now uses the same `openLoad()` path. `openHelp()` clicks the existing help button, so
+`Emulator` keeps ownership of the dialog instead of the profile reaching for the DOM.
+
+Both combinations are listed in the HELP dialog and README. All five toolbar tooltips now include
+their shortcut - LOAD (`Ctrl+L`), HELP (`Ctrl+H`), SNAP (`Ctrl+S`), Aspect (`Ctrl+A`) and Fit
+(`Ctrl+F`) - and the dynamically updated Aspect/Fit titles keep them after a label change.
+

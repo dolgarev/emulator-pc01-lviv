@@ -133,8 +133,12 @@ export class Keyboard {
   IS_PAUSE = 0x02;
   IS_RESET = 0x04;
   IS_SHOOT = 0x08;
+  IS_ASPECT = 0x10;
+  IS_AUTO_SCALE = 0x20;
   IS_DEC_PALETTE = 0x40;
   IS_INC_PALETTE = 0x80;
+  IS_LOAD = 0x100;
+  IS_HELP = 0x200;
 
   constructor() {
     this.key_states = {
@@ -222,6 +226,26 @@ export class Keyboard {
         // ctrl + S - screenshot
         case 'KeyS':
           this.special_keys = this.IS_SHOOT;
+          break;
+
+        // ctrl + L - load a tape or dump
+        case 'KeyL':
+          this.special_keys = this.IS_LOAD;
+          break;
+
+        // ctrl + H - show help
+        case 'KeyH':
+          this.special_keys = this.IS_HELP;
+          break;
+
+        // ctrl + A - next aspect ratio
+        case 'KeyA':
+          this.special_keys = this.IS_ASPECT;
+          break;
+
+        // ctrl + F - toggle fit to window
+        case 'KeyF':
+          this.special_keys = this.IS_AUTO_SCALE;
           break;
 
         // ctrl + R - reset

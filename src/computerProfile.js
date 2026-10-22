@@ -191,6 +191,22 @@ export class ComputerProfile {
             self.shoot();
             break;
 
+          case keyboard.IS_LOAD:
+            self.openLoad();
+            break;
+
+          case keyboard.IS_HELP:
+            self.openHelp();
+            break;
+
+          case keyboard.IS_ASPECT:
+            self.toggleAspectRatio();
+            break;
+
+          case keyboard.IS_AUTO_SCALE:
+            self.toggleAutoScale();
+            break;
+
           case keyboard.IS_RESET:
             self.reset();
             break;
@@ -306,6 +322,47 @@ export class ComputerProfile {
     this.beeper.restart();
 
     this.detach_file();
+  }
+
+  /**
+   * Opens the LOAD file picker from the keyboard (P3.30), through the same
+   * handler as the toolbar button.
+   */
+  openLoad() {
+    if (this.ui instanceof UiBinding) {
+      this.ui.openLoad();
+    }
+  }
+
+  /**
+   * Opens the help dialog from the keyboard (P3.30). The dialog belongs to the
+   * shell, so the UI binding clicks its button instead of reaching for the DOM.
+   */
+  openHelp() {
+    if (this.ui instanceof UiBinding) {
+      this.ui.openHelp();
+    }
+  }
+
+  /**
+   * Switches the display to the next aspect-ratio preset (P3.29). The UI owns
+   * the current preset and the button label, so the shortcut shares the
+   * toolbar button path instead of keeping a second copy of the state.
+   */
+  toggleAspectRatio() {
+    if (this.ui instanceof UiBinding) {
+      this.ui.toggleAspectRatio();
+    }
+  }
+
+  /**
+   * Toggles the window-fitted view from the keyboard (P3.29), through the same
+   * path as the toolbar button.
+   */
+  toggleAutoScale() {
+    if (this.ui instanceof UiBinding) {
+      this.ui.toggleAutoScale();
+    }
   }
 
   shoot() {

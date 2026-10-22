@@ -38,7 +38,7 @@ describe('UiBinding', () => {
     binding.onAspectRatio((value) => seen.push(value));
 
     expect(button.textContent).toBe('1:1');
-    expect(button.getAttribute('title')).toBe('Switch to the 1:1 aspect ratio');
+    expect(button.getAttribute('title')).toBe('Switch to the 1:1 aspect ratio (Ctrl+A)');
 
     button.click();
 
@@ -70,6 +70,22 @@ describe('UiBinding', () => {
     binding.terminate();
   });
 
+  it('shares the LOAD and HELP button paths with the keyboard shortcuts (P3.30)', () => {
+    const load_button = new FakeButton();
+    const help_button = new FakeButton();
+    const binding = new UiBinding({ load_button, help_button });
+
+    const seen = [];
+    binding.onLoad(() => seen.push('load'));
+    help_button.addEventListener('click', () => seen.push('help'));
+
+    load_button.click();
+    binding.openHelp();
+
+    expect(seen).toEqual(['load', 'help']);
+    binding.terminate();
+  });
+
   it('toggles auto-scale on click and names the next mode on the button', () => {
     const button = new FakeButton();
     const binding = new UiBinding({ auto_scale_button: button, auto_scale: false });
@@ -79,12 +95,14 @@ describe('UiBinding', () => {
 
     expect(button.textContent).toBe('FIT');
     expect(button.getAttribute('aria-pressed')).toBe('false');
+    expect(button.getAttribute('title')).toBe('Fit to window (Ctrl+F)');
 
     button.click();
 
     expect(seen).toEqual([true]);
     expect(button.textContent).toBe('2×');
     expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(button.getAttribute('title')).toBe('Switch to the fixed 2× view (Ctrl+F)');
 
     button.click();
 
