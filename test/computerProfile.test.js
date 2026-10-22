@@ -45,10 +45,13 @@ function createProfile({
   };
   const beeper = {
     plays: 0,
+    restarts: 0,
     play() {
       this.plays += 1;
     },
-    restart() {},
+    restart() {
+      this.restarts += 1;
+    },
   };
 
   const profile = new ComputerProfile({
@@ -131,6 +134,20 @@ describe('ComputerProfile main loop', () => {
     expect(beeper.plays).toBe(3);
   });
 
+  it('does not render an extra audio frame when suspended', () => {
+    const { profile, ticker, beeper } = createProfile({ frame_duration: 10 });
+
+    profile.run();
+    ticker.time = 10;
+    step(ticker);
+    expect(beeper.plays).toBe(1);
+
+    profile.suspend();
+
+    expect(beeper.plays).toBe(1); // no buffer outside an emulated frame
+    expect(beeper.restarts).toBe(1); // the partial frame and its queued audio are dropped
+  });
+
   it('caps the backlog after a long stall', () => {
     const { profile, ticker, cpu } = createProfile({ frame_duration: 10, frame_cycles: 1000 });
 
@@ -195,7 +212,10 @@ describe('ComputerProfile main loop', () => {
   });
 
   it('keeps a single loop when the machine resumes from inside a frame', () => {
-    const { profile, ticker, cpu } = createProfile({ frame_duration: 10, frame_cycles: 1000 });
+    const { profile, ticker, cpu, beeper } = createProfile({
+      frame_duration: 10,
+      frame_cycles: 1000,
+    });
 
     // Loading an attached tape file resumes the machine from the trap, i.e. from
     // inside the frame that is executing.
@@ -218,6 +238,8 @@ describe('ComputerProfile main loop', () => {
 
     expect(resumed).toBe(true);
     expect(profile.is_suspended).toBe(false);
+    // suspend() dropped the partial audio; the interrupted frame must not add a held one.
+    expect(beeper.plays).toBe(0);
     // The frame that was interrupted must not schedule a second loop.
     expect(ticker.frames).toHaveLength(1);
 

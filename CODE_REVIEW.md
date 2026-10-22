@@ -1610,3 +1610,19 @@ and shows the same line in the notification bar through a small `notify()` helpe
 **Tests.** `test/computerProfile.test.js`: a profile without a tape reports the reason and does not
 suspend the machine or touch the viewport; a second case calls the same path with no notification
 bar and does not throw.
+
+#### P3.23 `suspend()` renders an extra audio frame — ✅ done
+
+`ComputerProfile.suspend()` called `beeper.play()` outside the emulated frame loop. A pause,
+screenshot or file load therefore queued a full frame of PCM although no new CPU frame had run;
+its tail was filled with the held level, which shifted the audio timeline by a frame and produced
+an audible tail. When the suspension came from a BLOAD/CLOAD trap, the interrupted frame could
+then call `play()` again after `resume()` had started a new loop.
+
+**Fix.** `suspend()` calls `beeper.restart()` instead: the partial frame and the audio already
+queued for it are dropped, and no PCM is generated outside the frame loop. `run()` now checks the
+loop token (and `is_suspended`) after `cpu.run()` and skips `beeper.play()` for a frame that a trap
+has suspended or replaced with a new loop. A normal frame still emits exactly one buffer.
+
+**Tests.** `test/computerProfile.test.js`: suspending after a frame keeps `plays` unchanged and
+calls `restart()`; a frame that resumes the machine from inside `cpu.run()` emits no buffer.

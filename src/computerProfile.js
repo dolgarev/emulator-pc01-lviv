@@ -229,6 +229,12 @@ export class ComputerProfile {
           cpu.run(f_cycles);
           accumulator -= f_duration;
 
+          // A trap can suspend the machine and resume it from inside cpu.run(). The
+          // interrupted frame no longer owns the loop, and suspend() has already dropped
+          // its partial audio, so emitting a buffer here would add a held frame
+          // (CODE_REVIEW.md P3.23).
+          if (self.is_suspended || self.loop_token !== loop) break;
+
           // One buffer of audio per emulated frame. The animation frame rate (60 Hz
           // on a typical display) is not the frame rate of the emulated machine
           // (48.83 Hz, or 50 Hz with the `50hz` frame); the sound has to follow the
@@ -271,7 +277,11 @@ export class ComputerProfile {
     // Redraw the screen so changes made before the suspension are visible,
     // because the pending requestAnimationFrame will be cancelled.
     this.viewport.renderScreen(this.screen);
-    this.beeper.play();
+
+    // There is no emulated frame to hand to the sink: play() would emit a full buffer of
+    // mostly held level and shift the audio timeline by one frame (CODE_REVIEW.md P3.23).
+    // Drop the partial frame together with the audio already queued for it instead.
+    this.beeper.restart();
 
     this.ticker.cancelAnimationFrame(this.animation_frame);
     this.animation_frame = void 0;
