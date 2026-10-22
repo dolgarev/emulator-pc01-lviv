@@ -290,7 +290,14 @@ export class ComputerProfile {
   }
 
   shoot() {
-    if (!this.hasTape()) return;
+    if (!this.hasTape()) {
+      // Without a tape drive there is nowhere to save the screenshot; Ctrl+S used to look
+      // broken because this returned silently (CODE_REVIEW.md P3.22).
+      const message = 'Screenshot not saved: the tape is not connected.';
+      console.warn(`COMPUTER_PROFILE: ${message}`);
+      this.notify(message);
+      return;
+    }
 
     this.suspend();
 
@@ -408,12 +415,20 @@ export class ComputerProfile {
    */
   invalid_file(reason) {
     console.error(`PROFILE: Invalid file structure (${reason})`);
-    try {
-      Notify.show('Invalid file structure.');
-    } catch {
-      // No notification bar in a headless session: the console line above is enough.
-    }
+    this.notify('Invalid file structure.');
     return false;
+  }
+
+  /**
+   * Shows a message in the notification bar when one exists. Headless tools that drive the
+   * profile have no bar, so `Notify` is optional.
+   */
+  notify(message) {
+    try {
+      Notify.show(message);
+    } catch {
+      // No notification bar in a headless session: the caller logs to the console.
+    }
   }
 
   get_snapshot() {

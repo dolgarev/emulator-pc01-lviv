@@ -1574,3 +1574,19 @@ selector still calls `Computer.restart(profile)` and overrides the name for the 
 **Tests.** `test/config.test.js` (a machine name works as a settings preset and reaches `Config`;
 a typo is rejected) and `test/computer.test.js` (the builder receives `pc01_lvov_80_fixed` for the
 `standard_fixed` preset, `pc01_lvov_80` for the plain name and for the default settings).
+
+#### P3.22 Ctrl+S without a tape drive fails silently — ✅ done
+
+`ComputerProfile.shoot()` opened with `if (!this.hasTape()) return;`, so a profile built without a
+`Tape` (headless scripts, custom builders, and a profile that has already terminated) consumed
+Ctrl+S without a screenshot, a message or a console line. Note that `settings.tape.is_connected`
+only controls the load button in `initAsync()`; `buildStandard()` always creates the tape, so the
+missing-drive path is a profile constructed without one rather than a configuration flag.
+
+**Fix.** `shoot()` now logs `COMPUTER_PROFILE: Screenshot not saved: the tape is not connected.`
+and shows the same line in the notification bar through a small `notify()` helper. The helper keeps
+`Notify` optional for headless sessions and is reused by `invalid_file()`.
+
+**Tests.** `test/computerProfile.test.js`: a profile without a tape reports the reason and does not
+suspend the machine or touch the viewport; a second case calls the same path with no notification
+bar and does not throw.

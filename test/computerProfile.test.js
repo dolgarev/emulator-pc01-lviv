@@ -425,3 +425,46 @@ describe('ComputerProfile.shoot and the screenshot type (P3.19)', () => {
     expect(saved[0]).toMatch(/\.png$/);
   });
 });
+
+describe('ComputerProfile.shoot without a tape (P3.22)', () => {
+  function profileWithoutTape() {
+    return Object.assign(Object.create(ComputerProfile.prototype), {
+      config: { screen: { screenshot_type: 'image/png' } },
+      hasTape: () => false,
+      suspend: vi.fn(),
+      viewport: { takeScreenshoot: vi.fn() },
+    });
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('reports why the screenshot was not saved', () => {
+    const profile = profileWithoutTape();
+    const messages = [];
+    const original = Notify.show;
+    Notify.show = (message) => messages.push(message);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    try {
+      profile.shoot();
+    } finally {
+      Notify.show = original;
+    }
+
+    expect(messages).toEqual(['Screenshot not saved: the tape is not connected.']);
+    expect(warn).toHaveBeenCalledWith(
+      'COMPUTER_PROFILE: Screenshot not saved: the tape is not connected.'
+    );
+    expect(profile.viewport.takeScreenshoot).not.toHaveBeenCalled();
+    expect(profile.suspend).not.toHaveBeenCalled();
+  });
+
+  it('does not throw when there is no notification bar', () => {
+    const profile = profileWithoutTape();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    expect(() => profile.shoot()).not.toThrow();
+  });
+});
