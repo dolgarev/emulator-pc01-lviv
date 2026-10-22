@@ -36,6 +36,68 @@ describe('Keyboard', () => {
     expect(keyboard.key_states[0xd0][0]).toBe(0x08);
   });
 
+  it('releases the bit that the keydown set when Alt is released first', () => {
+    const { keyboard } = createCore();
+
+    keyboard.press('Digit1', true, Keyboard.IS_ALT); // Alt+1 -> F1
+    keyboard.press('Digit1', false, 0); // Alt is already released
+
+    expect(keyboard.key_states[0xd2][1]).toBe(0x00);
+  });
+
+  it('releases an Alt-only key after Alt is released', () => {
+    const { keyboard } = createCore();
+
+    keyboard.press('KeyC', true, Keyboard.IS_ALT); // Alt+C -> СТР
+    keyboard.press('KeyC', false, 0);
+
+    expect(keyboard.key_states[0xd0][4]).toBe(0x00);
+  });
+
+  it('releases the bit that the keydown set when Ctrl is held for the keyup', () => {
+    const { keyboard } = createCore();
+
+    keyboard.press('KeyA', true, 0);
+    keyboard.press('KeyA', false, Keyboard.IS_CTRL);
+
+    expect(keyboard.key_states[0xd0][6]).toBe(0x00);
+  });
+
+  it('releases the bit it set when the Shift modifier changes', () => {
+    const { keyboard } = createCore();
+
+    keyboard.press('ShiftLeft', true, 0); // НР
+    keyboard.press('ShiftLeft', false, Keyboard.IS_ALT); // would clear ВР instead
+
+    expect(keyboard.key_states[0xd0][7]).toBe(0x00);
+    expect(keyboard.key_states[0xd0][3]).toBe(0x00);
+
+    keyboard.press('ShiftLeft', true, Keyboard.IS_ALT); // ВР
+    keyboard.press('ShiftLeft', false, 0);
+
+    expect(keyboard.key_states[0xd0][3]).toBe(0x00);
+  });
+
+  it('keeps the first position when auto-repeat arrives after a modifier change', () => {
+    const { keyboard } = createCore();
+
+    keyboard.press('Digit1', true, Keyboard.IS_ALT); // F1
+    keyboard.press('Digit1', true, 0, true); // repeat after Alt was released
+    keyboard.press('Digit1', false, 0);
+
+    expect(keyboard.key_states[0xd2][1]).toBe(0x00);
+  });
+
+  it('still fires the ctrl shortcuts on keyup', () => {
+    const { keyboard } = createCore();
+
+    keyboard.press('KeyP', true, Keyboard.IS_CTRL);
+    keyboard.press('KeyP', false, Keyboard.IS_CTRL);
+
+    expect(keyboard.key_states[0xd0][6] & 0x08).toBe(0x00); // P was never set
+    expect(keyboard.special_keys).toBe(keyboard.IS_PAUSE);
+  });
+
   it('maps keys onto both matrix ports', () => {
     const { keyboard } = createCore();
 

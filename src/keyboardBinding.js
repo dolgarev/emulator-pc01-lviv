@@ -19,7 +19,7 @@ export class KeyboardBinding {
     target.addEventListener(
       'keydown',
       (evt) => {
-        this.keyboard.press(evt.code, true, modifiers(evt));
+        this.keyboard.press(evt.code, true, modifiers(evt), evt.repeat);
 
         evt.preventDefault();
         evt.stopPropagation();

@@ -142,6 +142,11 @@ export class Keyboard {
       0xd2: new Uint8Array(4),
     };
 
+    // The matrix position that each held key code actually set. Modifiers can change or be
+    // released before the keyup, so the release must not recompute the position from the
+    // current modifiers (CODE_REVIEW.md P2.22).
+    this.key_positions = new Map();
+
     this.special_keys = 0;
 
     this.reset();
@@ -152,6 +157,7 @@ export class Keyboard {
       state.fill(0);
     }
 
+    this.key_positions.clear();
     this.reset_special_keys();
   }
 
@@ -164,20 +170,49 @@ export class Keyboard {
   }
 
   // `code` is a `KeyboardEvent.code`; `modifier` is a bit mask of
-  // Keyboard.IS_ALT / IS_CTRL / IS_SHIFT.
-  press(code, is_pressed, modifier) {
-    const key = MATRIX[modifier & Keyboard.IS_ALT ? (ALT_MAP[code] ?? code) : code];
+  // Keyboard.IS_ALT / IS_CTRL / Keyboard.IS_SHIFT. `is_repeat` is the
+  // `KeyboardEvent.repeat` flag: a repeat must not replace the position that the original
+  // keydown set, because a modifier may have been released in between.
+  press(code, is_pressed, modifier, is_repeat = false) {
     const is_ctrl = modifier & Keyboard.IS_CTRL;
 
-    if (key && !is_ctrl) {
-      const [port, column, row_mask] = key;
+    if (is_pressed) {
+      if (is_repeat && this.key_positions.has(code)) return;
 
-      if (is_pressed) {
-        this.key_states[port][column] |= row_mask;
-      } else {
+      // A fresh keydown for a code that is still tracked means its keyup was lost (for
+      // example, the window lost focus). Drop the stale bit before applying the new one.
+      const previous = this.key_positions.get(code);
+
+      if (previous) {
+        const [port, column, row_mask] = previous;
         this.key_states[port][column] &= ~row_mask;
+        this.key_positions.delete(code);
       }
-    } else if (!is_pressed && is_ctrl) {
+
+      const key = MATRIX[modifier & Keyboard.IS_ALT ? (ALT_MAP[code] ?? code) : code];
+
+      if (key && !is_ctrl) {
+        const [port, column, row_mask] = key;
+        this.key_states[port][column] |= row_mask;
+        this.key_positions.set(code, key);
+      }
+
+      return;
+    }
+
+    // Release the position that this code set on keydown, not the one the current modifiers
+    // would produce. Alt or Ctrl can be pressed or released while the key is held.
+    const position = this.key_positions.get(code);
+
+    if (position) {
+      const [port, column, row_mask] = position;
+      this.key_states[port][column] &= ~row_mask;
+      this.key_positions.delete(code);
+    }
+
+    // The Ctrl shortcuts fire on keyup. Handle them separately so they do not block the
+    // release of an ordinary key that happens to also be a shortcut letter.
+    if (is_ctrl) {
       switch (code) {
         // ctrl + P - pause
         case 'KeyP':

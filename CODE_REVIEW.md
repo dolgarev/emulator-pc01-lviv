@@ -1076,6 +1076,26 @@ Verified in headless Chrome: the selector offers both models, the serial machine
 each switch rebuilds the emulator and paints the new machine, switching back works, and the console
 stays clean.
 
+#### P2.22 Keys stick when a modifier changes before keyup — ✅ done
+
+`Keyboard.press()` resolved a matrix position from the modifiers of the current event. A keydown
+with Alt set the PC-01 key (Alt+1 → F1), but releasing Alt before the physical key made the keyup
+resolve `Digit1` and leave F1 set. The reverse order left a normal key set when Ctrl was pressed
+before the release, and releasing `ShiftLeft` with Alt cleared `ВР` instead of the `НР` that was
+actually pressed. The matrix saw the key as held until `reset()`/`resume()`.
+
+**Fix.** `Keyboard` now remembers the matrix position that each held `KeyboardEvent.code` actually
+set (`key_positions`) and clears exactly that position on keyup, regardless of the current Alt/Ctrl
+state. Ctrl shortcuts are handled after the release, so they no longer block clearing an ordinary
+key. Auto-repeat (`KeyboardEvent.repeat`, forwarded by `KeyboardBinding`) keeps the original
+position when a modifier changed while the key is held; a fresh keydown for a code that is still
+tracked drops the stale bit, so a lost keyup cannot wedge the key. `reset()` clears the tracked
+positions together with the matrix.
+
+**Tests.** `test/keyboard.test.js` covers Alt released before the key, an Alt-only key, Ctrl held
+for the keyup, both ShiftLeft/Alt orders, a repeat after Alt is released, and Ctrl shortcuts still
+firing. `test/keyboardBinding.test.js` checks that the binding forwards the repeat flag.
+
 ### P3 — Polish, features and rendering ideas
 
 #### P3.1 `keyboard.js`: deprecated `evt.keyCode` + manually unrolled loops — ✅ done

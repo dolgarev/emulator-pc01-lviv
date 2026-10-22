@@ -4,7 +4,14 @@ import { KeyboardBinding } from '../src/keyboardBinding.js';
 
 function key_event(type, code, modifiers = {}) {
   const evt = new Event(type);
-  return Object.assign(evt, { code, shiftKey: false, ctrlKey: false, altKey: false, ...modifiers });
+  return Object.assign(evt, {
+    code,
+    shiftKey: false,
+    ctrlKey: false,
+    altKey: false,
+    repeat: false,
+    ...modifiers,
+  });
 }
 
 describe('KeyboardBinding', () => {
@@ -32,6 +39,20 @@ describe('KeyboardBinding', () => {
 
     target.dispatchEvent(key_event('keyup', 'KeyP', { ctrlKey: true }));
     expect(keyboard.special_keys).toBe(keyboard.IS_PAUSE); // ctrl + P
+
+    binding.terminate();
+  });
+
+  it('forwards the repeat flag without losing the original key position', () => {
+    const keyboard = new Keyboard();
+    const target = new EventTarget();
+    const binding = new KeyboardBinding(keyboard, target);
+
+    target.dispatchEvent(key_event('keydown', 'Digit1', { altKey: true })); // F1
+    target.dispatchEvent(key_event('keydown', 'Digit1', { repeat: true })); // Alt released
+    target.dispatchEvent(key_event('keyup', 'Digit1'));
+
+    expect(keyboard.key_states[0xd2][1]).toBe(0x00);
 
     binding.terminate();
   });
