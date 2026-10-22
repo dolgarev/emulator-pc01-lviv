@@ -177,4 +177,36 @@ describe('Tape traps (BLOAD/CLOAD)', () => {
     expect(cpu.memory_read_word(0xbe8a)).toBe(begin + 3); // BASFL_END
     expect(cpu.memory_read_word(0x0245)).toBe(begin + 3); // BAS_VARS
   });
+
+  // The trap runs inside cpu.run(): before P2.21 a truncated image threw a RangeError out
+  // of the frame loop and left the emulator suspended with no further animation frames.
+  it('BLOAD of a truncated image reports an I/O error instead of throwing', () => {
+    const truncated = new DataView(new Uint8Array(10).buffer);
+    truncated.setUint8(0x09, 0xd0);
+
+    const { cpu } = launchTape(
+      createCore('pc01_lvov_80', { wait_states: true }),
+      booted,
+      truncated,
+      'bload'
+    );
+
+    expect(() => cpu.run(CYCLES)).not.toThrow();
+    expect(cpu.get_state().PC).not.toBe(0); // the ROM returned to BASIC
+  });
+
+  it('CLOAD of a truncated image reports an I/O error instead of throwing', () => {
+    const truncated = new DataView(new Uint8Array(10).buffer);
+    truncated.setUint8(0x09, 0xd3);
+
+    const { cpu } = launchTape(
+      createCore('pc01_lvov_80', { wait_states: true }),
+      booted,
+      truncated,
+      'cload'
+    );
+
+    expect(() => cpu.run(CYCLES)).not.toThrow();
+    expect(cpu.get_state().PC).not.toBe(0);
+  });
 });

@@ -514,6 +514,37 @@ ways, with a `RangeError` for an unknown frame) and `test/beeper.test.js` (983 s
 and 903 at 44100 Hz, the carried budget of 25 frames = 22579 samples alternating 903/904, and the
 whole 960/882 samples of a 20 ms frame).
 
+#### P2.21 Malformed tape and snapshot files crash the emulator — ✅ done
+
+**Symptom:** a `.lvt` whose header says "code file" (`0xD0`) but that is shorter than the
+header the BLOAD trap reads threw `RangeError: Offset is outside the bounds of the DataView`
+from `Storage.bload()`. The trap runs inside `cpu.run()`, so the exception escaped the
+`requestAnimationFrame` callback and no next frame was scheduled: the emulator froze with
+`is_suspended` still `true` and no message on screen. A `.sav` with a valid magic but a short
+body behaved differently but no better: `set_snapshot()` threw from the drop/file-input handler
+as an unhandled rejection, and because the memory image is copied before the CPU/port tail is
+read, a truncated file could overwrite half the machine and then fail.
+
+**Fix:** the minimum image sizes live in `src/utils/fileFormat.js` next to the magic-string
+check (`BLOAD_HEADER_SIZE` 0x16, `CLOAD_HEADER_SIZE` 0x11, `SNAPSHOT_SIZE` 0x1411D,
+`E3_SNAPSHOT_SIZE` 0x142B6). `Storage` checks them **before** the first write: `bload()` and
+`cload()` also reject a body that does not cover the declared address range (or addresses past
+`0xFFFF`) and still keep their `try/catch`, so they return `false`; `set_snapshot()` and
+`set_e3_snapshot()` throw a `RangeError` that names both the actual and the required size.
+`ComputerProfile.load()` now reads the type byte only after a 10-byte length check, catches the
+two snapshot restores and an unknown type, and reports them through `invalid_file()` — a console
+line plus the notification bar when one exists (the headless `scripts/melody-audio.mjs` has
+none). `load_dump()` guards the two restore paths the same way, and both BLOAD/CLOAD traps wrap
+`install()` in `try/catch/finally`: a failure signals an I/O error to the ROM, resumes the
+machine and detaches the file instead of killing the frame loop.
+
+**Covered by** `test/storage.test.js` (truncated LVOV/E3 images rejected before memory is
+touched, 10-byte BLOAD/CLOAD files return `false` without throwing, a body shorter than the
+declared range is rejected), `test/traps.test.js` (BLOAD and CLOAD of a truncated image do not
+throw out of `cpu.run()` and return to BASIC) and `test/computerProfile.test.js` (`load()`
+resolves `false` and notifies for a too-short file, a truncated BLOAD tape, a truncated LVOV
+snapshot and an unknown type). Verified in headless Chrome with `npm run check`.
+
 ### P3 — Polish, features and rendering ideas
 
 #### P3.4 Typing and documentation — ⏳

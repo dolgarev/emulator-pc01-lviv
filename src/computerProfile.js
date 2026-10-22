@@ -2,7 +2,7 @@ import { Tape } from './tape.js';
 import { DnD } from './dnd.js';
 import { KeyboardBinding } from './keyboardBinding.js';
 import { UiBinding } from './uiBinding.js';
-import { validateFileHeader } from './utils/fileFormat.js';
+import { BLOAD_HEADER_SIZE, CLOAD_HEADER_SIZE, validateFileHeader } from './utils/fileFormat.js';
 import { generateScreenshotFilename, getFileExtension } from './utils/screenshot.js';
 import { Dump } from './dump.js';
 import { Notify } from './notify.js';
@@ -342,39 +342,76 @@ export class ComputerProfile {
     return this.tape instanceof Tape;
   }
 
+  /**
+   * Restores a chosen or dropped file. A malformed image is reported instead of being
+   * thrown: the UI calls this from a drop / file-input handler, where an exception would
+   * only become an unhandled rejection and the machine would keep its previous state
+   * without a hint (CODE_REVIEW.md P2.21).
+   *
+   * @returns {Promise<boolean>} true when the file was applied.
+   */
   async load(data) {
     assertInstance(data, DataView, 'PROFILE: Param DATA is not DataView');
 
+    if (data.byteLength < 0x0a) {
+      return this.invalid_file('file is too short for a header');
+    }
+
     switch (data.getUint8(0x09)) {
       case 0x2f:
-        if (validateFileHeader(data.buffer, 'LVOV/DUMP/2.0/H+')) {
-          this.set_snapshot(data);
-        } else {
-          Notify.show('Invalid file structure.');
-          console.log('PROFILE: Invalid file structure');
+        if (!validateFileHeader(data.buffer, 'LVOV/DUMP/2.0/H+')) {
+          return this.invalid_file('invalid LVOV snapshot header');
         }
-        break;
+        try {
+          this.set_snapshot(data);
+        } catch (error) {
+          return this.invalid_file(`LVOV snapshot: ${error.message}`);
+        }
+        return true;
 
       case 0x33:
-        if (validateFileHeader(data.buffer, 'Emulator 3000')) {
-          this.set_e3_snapshot(data);
-        } else {
-          Notify.show('Invalid file structure.');
-          console.log('PROFILE: Invalid file structure');
+        if (!validateFileHeader(data.buffer, 'Emulator 3000')) {
+          return this.invalid_file('invalid Emulator 3000 header');
         }
-        break;
+        try {
+          this.set_e3_snapshot(data);
+        } catch (error) {
+          return this.invalid_file(`Emulator 3000 snapshot: ${error.message}`);
+        }
+        return true;
 
       case 0xd0:
+        if (data.byteLength < BLOAD_HEADER_SIZE) {
+          return this.invalid_file('BLOAD tape is truncated');
+        }
         this.launch_tape(data, 'bload');
-        break;
+        return true;
 
       case 0xd3:
+        if (data.byteLength < CLOAD_HEADER_SIZE) {
+          return this.invalid_file('CLOAD tape is truncated');
+        }
         this.launch_tape(data, 'cload');
-        break;
+        return true;
 
       default:
-        throw new Error('PROFILE: Unknown file type');
+        return this.invalid_file(`unknown file type 0x${data.getUint8(0x09).toString(16)}`);
     }
+  }
+
+  /**
+   * Reports a file that cannot be restored. `Notify` does not exist in the headless
+   * scripts that drive the profile (scripts/melody-audio.mjs), so the bar is optional
+   * while the console line is not.
+   */
+  invalid_file(reason) {
+    console.error(`PROFILE: Invalid file structure (${reason})`);
+    try {
+      Notify.show('Invalid file structure.');
+    } catch {
+      // No notification bar in a headless session: the console line above is enough.
+    }
+    return false;
   }
 
   get_snapshot() {
@@ -394,12 +431,20 @@ export class ComputerProfile {
 
     switch (dump.type) {
       case 'sav':
-        this.set_snapshot(dump.data);
-        break;
+        try {
+          this.set_snapshot(dump.data);
+        } catch (error) {
+          return this.invalid_file(`sav dump: ${error.message}`);
+        }
+        return true;
 
       case 'e3':
-        this.set_e3_snapshot(dump.data);
-        break;
+        try {
+          this.set_e3_snapshot(dump.data);
+        } catch (error) {
+          return this.invalid_file(`e3 dump: ${error.message}`);
+        }
+        return true;
 
       default:
         throw new Error('PROFILE: Unknown DUMP type');

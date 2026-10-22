@@ -124,4 +124,52 @@ describe('Storage', () => {
     expect(state.AF >> 8).toBe(0x12);
     expect(state.PC).toBe(0x1234);
   });
+
+  // A short file used to throw "Offset is outside the bounds of the DataView" from the
+  // middle of the restore, sometimes after half the machine had been overwritten (P2.21).
+  it('set_snapshot() rejects a truncated image before touching the machine', () => {
+    const { storage, memory } = createCore();
+    memory.write(0x1234, 0x5a);
+
+    const short = new DataView(new Uint8Array(0x100).buffer);
+
+    expect(() => storage.set_snapshot(short)).toThrow(/truncated/);
+    expect(memory.read(0x1234)).toBe(0x5a);
+  });
+
+  it('set_e3_snapshot() rejects a truncated image', () => {
+    const { storage } = createCore();
+    const short = new DataView(new Uint8Array(0x240 + 0x100).buffer);
+
+    expect(() => storage.set_e3_snapshot(short)).toThrow(/truncated/);
+  });
+
+  it('bload() rejects a 10-byte file without throwing', () => {
+    const { storage } = createCore();
+    const data = new DataView(new Uint8Array(10).buffer);
+    data.setUint8(0x09, 0xd0);
+
+    expect(() => storage.bload(data)).not.toThrow();
+    expect(storage.bload(data)).toBe(false);
+  });
+
+  it('cload() rejects a file shorter than its header without throwing', () => {
+    const { storage } = createCore();
+    const data = new DataView(new Uint8Array(10).buffer);
+    data.setUint8(0x09, 0xd3);
+
+    expect(() => storage.cload(data)).not.toThrow();
+    expect(storage.cload(data)).toBe(false);
+  });
+
+  it('bload() rejects a body shorter than the declared range', () => {
+    const { storage } = createCore();
+    const data = new DataView(new Uint8Array(0x18).buffer);
+    data.setUint8(0x09, 0xd0);
+    data.setUint16(0x10, 0x8000, true); // begin
+    data.setUint16(0x12, 0x8003, true); // end
+    data.setUint16(0x14, 0x8000, true); // start
+
+    expect(storage.bload(data)).toBe(false);
+  });
 });

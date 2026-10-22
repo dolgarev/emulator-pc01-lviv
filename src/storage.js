@@ -1,4 +1,10 @@
 import { assertInstance } from './utils/assert.js';
+import {
+  BLOAD_HEADER_SIZE,
+  CLOAD_HEADER_SIZE,
+  E3_SNAPSHOT_SIZE,
+  SNAPSHOT_SIZE,
+} from './utils/fileFormat.js';
 import { Memory } from './memory.js';
 import { IO } from './io.js';
 import { I8080 } from './i8080.js';
@@ -17,66 +23,84 @@ export class Storage {
   bload(data) {
     assertInstance(data, DataView, 'STORAGE: Param DATA is not DataView');
 
-    const type = data.getUint8(0x09),
-      offset = this.cpu.memory_read_word(0xbeab),
+    if (data.byteLength < BLOAD_HEADER_SIZE || data.getUint8(0x09) !== 0xd0) {
+      return false;
+    }
+
+    const offset = this.cpu.memory_read_word(0xbeab),
       begin = data.getUint16(0x10, true) + offset,
       end = data.getUint16(0x12, true) + offset,
       start = data.getUint16(0x14, true);
 
-    if (type === 0xd0) {
-      try {
-        this.memory.transfer(0xbe92, 0xbe97, data, 0x0a);
-        this.cpu.memory_write_word(0xbea4, begin);
-        this.cpu.memory_write_word(0xbea6, end);
-        this.cpu.memory_write_word(0xbea9, start);
-        // FILE_TYPE = 0xD0 (code file), as the ROM BLOAD entry does (DD94/DD96).
-        this.cpu.memory_write_byte(0xbe87, 0xd0);
-        // Guard against AUTOSTART set with no run address (AS = 0): the ROM
-        // tail (DD20) unconditionally does PCHL CODFL_RUN when AUTOSTART is
-        // non-zero, which would jump to 0. Clear it so control returns to BASIC.
-        // (AUTOSTART itself is set by the command parser / snapshot; we only
-        // remove it here when it would crash, never force it on.)
-        if (start === 0 && this.cpu.memory_read_byte(0xbea3) !== 0) {
-          this.cpu.memory_write_byte(0xbea3, 0x00);
-        }
-        this.memory.transfer(begin, end, data, 0x16);
-      } catch {
-        return false;
-      }
-      return true;
-    } else {
+    // Reject a body that does not cover the declared address range before the header of
+    // the system variables is written, so a bad file leaves the machine untouched
+    // (CODE_REVIEW.md P2.21).
+    if (begin > end || end > 0xffff) {
       return false;
     }
+    if (data.byteLength < BLOAD_HEADER_SIZE + (end - begin + 1)) {
+      return false;
+    }
+
+    try {
+      this.memory.transfer(0xbe92, 0xbe97, data, 0x0a);
+      this.cpu.memory_write_word(0xbea4, begin);
+      this.cpu.memory_write_word(0xbea6, end);
+      this.cpu.memory_write_word(0xbea9, start);
+      // FILE_TYPE = 0xD0 (code file), as the ROM BLOAD entry does (DD94/DD96).
+      this.cpu.memory_write_byte(0xbe87, 0xd0);
+      // Guard against AUTOSTART set with no run address (AS = 0): the ROM
+      // tail (DD20) unconditionally does PCHL CODFL_RUN when AUTOSTART is
+      // non-zero, which would jump to 0. Clear it so control returns to BASIC.
+      // (AUTOSTART itself is set by the command parser / snapshot; we only
+      // remove it here when it would crash, never force it on.)
+      if (start === 0 && this.cpu.memory_read_byte(0xbea3) !== 0) {
+        this.cpu.memory_write_byte(0xbea3, 0x00);
+      }
+      this.memory.transfer(begin, end, data, BLOAD_HEADER_SIZE);
+    } catch {
+      return false;
+    }
+    return true;
   }
 
   cload(data) {
     assertInstance(data, DataView, 'STORAGE: Param DATA is not DataView');
 
-    const type = data.getUint8(0x09),
-      begin = this.cpu.memory_read_word(0x0243),
-      end = begin + data.byteLength - 0x11;
-
-    if (type === 0xd3) {
-      try {
-        this.memory.transfer(0xbe92, 0xbe97, data, 0x0a);
-        this.cpu.memory_write_word(0x0245, end);
-        // FILE_TYPE = 0xD3 (BASIC file), as the ROM CLOAD entry does (E535/E537).
-        this.cpu.memory_write_byte(0xbe87, 0xd3);
-        // BASFL_ORG / BASFL_END, as the ROM CLOAD entry does (E53D / E543).
-        this.cpu.memory_write_word(0xbe88, begin);
-        this.cpu.memory_write_word(0xbe8a, end);
-        this.memory.transfer(begin, end, data, 0x10);
-      } catch {
-        return false;
-      }
-      return true;
-    } else {
+    if (data.byteLength < CLOAD_HEADER_SIZE || data.getUint8(0x09) !== 0xd3) {
       return false;
     }
+
+    const begin = this.cpu.memory_read_word(0x0243),
+      end = begin + data.byteLength - CLOAD_HEADER_SIZE;
+
+    if (end > 0xffff || end < begin) {
+      return false;
+    }
+
+    try {
+      this.memory.transfer(0xbe92, 0xbe97, data, 0x0a);
+      this.cpu.memory_write_word(0x0245, end);
+      // FILE_TYPE = 0xD3 (BASIC file), as the ROM CLOAD entry does (E535/E537).
+      this.cpu.memory_write_byte(0xbe87, 0xd3);
+      // BASFL_ORG / BASFL_END, as the ROM CLOAD entry does (E53D / E543).
+      this.cpu.memory_write_word(0xbe88, begin);
+      this.cpu.memory_write_word(0xbe8a, end);
+      this.memory.transfer(begin, end, data, 0x10);
+    } catch {
+      return false;
+    }
+    return true;
   }
 
   set_e3_snapshot(data) {
     assertInstance(data, DataView, 'PROFILE: Param DATA is not DataView');
+
+    if (data.byteLength < E3_SNAPSHOT_SIZE) {
+      throw new RangeError(
+        `STORAGE: Emulator 3000 snapshot is truncated (${data.byteLength} of ${E3_SNAPSHOT_SIZE} bytes)`
+      );
+    }
 
     let offset = 0x240;
 
@@ -119,6 +143,12 @@ export class Storage {
 
   set_snapshot(data) {
     assertInstance(data, DataView, 'PROFILE: Param DATA is not DataView');
+
+    if (data.byteLength < SNAPSHOT_SIZE) {
+      throw new RangeError(
+        `STORAGE: Snapshot is truncated (${data.byteLength} of ${SNAPSHOT_SIZE} bytes)`
+      );
+    }
 
     let offset = 0x11;
 

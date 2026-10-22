@@ -12,14 +12,23 @@ const TRAP_PROFILES = {
         }.bind(this);
 
         const install = function () {
-          if (this.bload(this.get_file())) {
-            this.cpu.gosub(0xe48a);
-            this.cpu.jump(0xdd61);
-            this.resume();
-          } else {
+          try {
+            if (this.bload(this.get_file())) {
+              this.cpu.gosub(0xe48a);
+              this.cpu.jump(0xdd61);
+              this.resume();
+            } else {
+              signalIoError();
+            }
+          } catch (error) {
+            // The trap runs inside cpu.run(), so an exception here would kill the frame
+            // loop. The machine is suspended at this point: report an I/O error to the ROM
+            // and let it return to BASIC instead (CODE_REVIEW.md P2.21).
+            console.error('TRAPS: Failed to install the BLOAD image:', error);
             signalIoError();
+          } finally {
+            this.detach_file();
           }
-          this.detach_file();
         }.bind(this);
 
         this.suspend();
@@ -52,14 +61,22 @@ const TRAP_PROFILES = {
         }.bind(this);
 
         const install = function () {
-          if (this.cload(this.get_file())) {
-            this.cpu.gosub(0xe48a);
-            this.cpu.jump(0xe26d);
-            this.resume();
-          } else {
+          try {
+            if (this.cload(this.get_file())) {
+              this.cpu.gosub(0xe48a);
+              this.cpu.jump(0xe26d);
+              this.resume();
+            } else {
+              signalIoError();
+            }
+          } catch (error) {
+            // See the BLOAD trap above: a malformed image must not escape into cpu.run()
+            // while the machine is suspended (CODE_REVIEW.md P2.21).
+            console.error('TRAPS: Failed to install the CLOAD image:', error);
             signalIoError();
+          } finally {
+            this.detach_file();
           }
-          this.detach_file();
         }.bind(this);
 
         this.suspend();

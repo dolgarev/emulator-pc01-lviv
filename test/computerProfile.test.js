@@ -1,6 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { ComputerProfile } from '../src/computerProfile.js';
 import { UiBinding } from '../src/uiBinding.js';
+import { Notify } from '../src/notify.js';
+import { createCore } from './helpers.js';
 
 // Minimal ticker double: time is driven manually and animation frames are
 // queued instead of executed.
@@ -259,5 +261,72 @@ describe('ComputerProfile machine selector (P2.16)', () => {
     machine_select.dispatchEvent(new Event('change'));
 
     expect(machines).toEqual(['pc01_lvov_80_fixed']);
+  });
+});
+
+describe('ComputerProfile.load of a malformed file (P2.21)', () => {
+  // `load()` is the path a dropped/selected file takes: it must report the problem and
+  // resolve `false`, never reject into the drop handler.
+  const quiet = () => vi.spyOn(console, 'error').mockImplementation(() => {});
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  async function loadWithNotify(data) {
+    const { storage } = createCore();
+    const profile = new ComputerProfile({ config: {}, storage });
+    const messages = [];
+    const original = Notify.show;
+    Notify.show = (message) => messages.push(message);
+
+    try {
+      const result = await profile.load(data);
+      return { result, messages };
+    } finally {
+      Notify.show = original;
+    }
+  }
+
+  it('reports a file too short for a header', async () => {
+    quiet();
+
+    const { result, messages } = await loadWithNotify(new DataView(new Uint8Array(9).buffer));
+
+    expect(result).toBe(false);
+    expect(messages).toEqual(['Invalid file structure.']);
+  });
+
+  it('reports a truncated BLOAD tape before booting BASIC', async () => {
+    quiet();
+
+    const data = new DataView(new Uint8Array(10).buffer);
+    data.setUint8(0x09, 0xd0);
+
+    const { result, messages } = await loadWithNotify(data);
+
+    expect(result).toBe(false);
+    expect(messages).toEqual(['Invalid file structure.']);
+  });
+
+  it('reports a truncated LVOV snapshot after a valid header', async () => {
+    quiet();
+
+    // A real header (byte 0x09 is the '/' that selects the LVOV case) and no body.
+    const header = new TextEncoder().encode('LVOV/DUMP/2.0/H+\0');
+    const { result, messages } = await loadWithNotify(new DataView(header.buffer));
+
+    expect(header).toHaveLength(0x11);
+    expect(result).toBe(false);
+    expect(messages).toEqual(['Invalid file structure.']);
+  });
+
+  it('reports an unknown file type', async () => {
+    quiet();
+
+    const { result, messages } = await loadWithNotify(new DataView(new Uint8Array(0x20).buffer));
+
+    expect(result).toBe(false);
+    expect(messages).toEqual(['Invalid file structure.']);
   });
 });
