@@ -42,18 +42,23 @@
                         <option value="pc01_lvov_80_fixed">ПК-01 с доработками</option>
                     </select>
                 </label>
-                <label class="control">
-                    Aspect
-                    <select id="aspect_ratio_select">
-                        <option value="4:3" selected>4:3 (CRT)</option>
-                        <option value="1:1">1:1</option>
-                        <option value="16:9">16:9</option>
-                    </select>
-                </label>
-                <label class="control">
-                    <input type="checkbox" id="auto_scale_checkbox" />
-                    Fit window
-                </label>
+                <button
+                    type="button"
+                    class="css3button"
+                    id="aspect_ratio_button"
+                    title="Switch to the 1:1 aspect ratio"
+                >
+                    1:1
+                </button>
+                <button
+                    type="button"
+                    class="css3button"
+                    id="auto_scale_button"
+                    aria-pressed="false"
+                    title="Fit to window"
+                >
+                    FIT
+                </button>
             </div>
         </div>
 

@@ -16,6 +16,9 @@ const ASPECT_RATIOS = {
   '16:9': 16 / 9,
 };
 
+// The order in which the toolbar button cycles the presets (P3.8.3).
+export const ASPECT_RATIO_PRESETS = ['4:3', '1:1', '16:9'];
+
 const IMAGE_RENDERING = 'crisp-edges'; // -webkit-optimize-contrast | pixelated | crisp-edges
 const IMAGE_SMOOTHING_ENABLED = false;
 

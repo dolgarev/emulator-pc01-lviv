@@ -572,15 +572,18 @@ menus and static screens.
 1. **Dirty rectangle tracking** — see P3.7.
 2. **WebGL rendering** — upload `ImageData` to a WebGL texture, render via a palette shader, add
    CRT/scanline filters. Gain: 10–100× performance and retro effects.
-3. **Dynamic aspect ratio** — ✅ done: UI selector for 1:1, 4:3 (CRT), 16:9 via
-   `Viewport.setAspectRatio(value)` and `screen.aspect_ratio`.
+3. **Dynamic aspect ratio** — ✅ done: a toolbar button cycles 4:3 (CRT), 1:1 and 16:9 via
+   `Viewport.setAspectRatio(value)` and `screen.aspect_ratio`, naming the ratio a click switches
+   to.
 4. **Scaling interpolation** — choose nearest-neighbor (pixel art), bilinear (smoothed) or a CRT
    filter via CSS `image-rendering` or WebGL shaders.
 5. **HiDPI/Retina support** — scale the canvas by `window.devicePixelRatio`.
 6. **Color corrections and filters** — brightness/contrast, color temperature, CRT effect
    (scanlines, bloom), monochrome monitor mode.
 7. **Adaptive scaling to window size** — ✅ done: `fitScale()` picks the largest integer scale that
-   fits the container, driven by a `ResizeObserver` (`screen.auto_scale`, "Fit window" checkbox).
+   fits the container, driven by a `ResizeObserver` (`screen.auto_scale`). A toolbar button
+   (like LOAD/HELP) switches between the fixed view and the fitted one, naming the mode a click
+   switches to: "FIT" ↔ "2×".
 8. **Fullscreen mode** — Fullscreen API with a toggle button, automatic scaling, ESC to exit.
 9. **Screenshots with metadata** — date/time, loaded program name, current settings; PNG/JPEG/WebP.
 10. **Animations and transitions** — smooth palette/color-mode changes and loading effects.

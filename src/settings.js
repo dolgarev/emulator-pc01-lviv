@@ -23,11 +23,15 @@ const DEFAULT_SETTINGS = {
     machine_select: {
       id: 'machine_select',
     },
-    aspect_ratio_select: {
-      id: 'aspect_ratio_select',
+    // Cycles the display aspect ratio (P3.8.3); its label shows the ratio a
+    // click switches to.
+    aspect_ratio_button: {
+      id: 'aspect_ratio_button',
     },
-    auto_scale_checkbox: {
-      id: 'auto_scale_checkbox',
+    // Toggles the adaptive "fit to window" mode (P3.8.7); its label shows the
+    // mode a click switches to.
+    auto_scale_button: {
+      id: 'auto_scale_button',
     },
   },
   notify: {

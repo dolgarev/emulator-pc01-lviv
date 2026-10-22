@@ -40,19 +40,19 @@ export class DomResolver {
         )
       : undefined;
 
-    this.aspect_ratio_select = settings.controls.aspect_ratio_select
+    this.aspect_ratio_button = settings.controls.aspect_ratio_button
       ? DomResolver.resolve(
-          settings.controls.aspect_ratio_select.id,
-          HTMLSelectElement,
-          'ASPECT_RATIO_SELECT'
+          settings.controls.aspect_ratio_button.id,
+          HTMLButtonElement,
+          'ASPECT_RATIO_BUTTON'
         )
       : undefined;
 
-    this.auto_scale_checkbox = settings.controls.auto_scale_checkbox
+    this.auto_scale_button = settings.controls.auto_scale_button
       ? DomResolver.resolve(
-          settings.controls.auto_scale_checkbox.id,
-          HTMLInputElement,
-          'AUTO_SCALE_CHECKBOX'
+          settings.controls.auto_scale_button.id,
+          HTMLButtonElement,
+          'AUTO_SCALE_BUTTON'
         )
       : undefined;
   }
