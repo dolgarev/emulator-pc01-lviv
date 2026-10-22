@@ -201,7 +201,7 @@ any MCP client with `command: node`, `args: ["<repo>/scripts/mcp-server.mjs"]`. 
 
 ## Credits
 
-- Emulator author: Oleg Dolgarev
+- Emulator author: Oleg Dolgaryov
 - i8080 core based on [Alexander Demin's i8080-js](https://github.com/begoon/i8080-js) Intel 8080
   model. Thanks to Viacheslav Slavinsky, Dmitry Tselikov, Ian Bartholomew, and Frank Cringle.
 - "Aerocobra" game — Andrey Chistyakov.
@@ -215,7 +215,7 @@ any MCP client with `command: node`, `args: ["<repo>/scripts/mcp-server.mjs"]`. 
 
 ## License
 
-Copyright (C) 2014 Oleg Dolgarev <o.dolgarev@gmail.com>
+Copyright (C) 2014–2026 Oleg Dolgaryov <o.dolgarev@gmail.com>
 
 GNU General Public License v3.0 **or later** (`GPL-3.0-or-later`) — see [`LICENSE`](LICENSE).
 This program is distributed in the hope that it will be useful, but **without any warranty**; without
