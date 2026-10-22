@@ -13,7 +13,7 @@
 //   } } }
 //
 // Environment (all optional):
-//   EMU_PROFILE        Config profile name            (default "pc01_lvov_80")
+//   EMU_PROFILE        Config profile name            (default "standard")
 //   EMU_WAIT_STATES=1  video/RAM contention (P2.11)  (default off)
 //   EMU_FRAME          50hz | 48.83hz                (default 50hz)
 
@@ -24,7 +24,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { createCore } from '../src/core.js';
 
-const core = createCore(process.env.EMU_PROFILE || 'pc01_lvov_80', {
+const core = createCore(process.env.EMU_PROFILE || 'standard', {
   wait_states: process.env.EMU_WAIT_STATES === '1',
   frame: process.env.EMU_FRAME || '50hz',
 });

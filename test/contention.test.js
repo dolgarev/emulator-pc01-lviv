@@ -10,7 +10,7 @@ import { Keyboard } from '../src/keyboard.js';
 import { createCore, load, boot } from './helpers.js';
 
 const createParts = () => {
-  const config = new Config(new Settings('default'), 'pc01_lvov_80');
+  const config = new Config(new Settings('default'), 'standard');
   const clock = new Clock();
   const contention = new Contention(clock);
   const beeper = new Beeper(config, clock);
@@ -61,7 +61,7 @@ describe('Contention (video/RAM wait states)', () => {
   });
 
   it('does not stall on the ROM ports, nor on the dummy OUT (P2.17, P2.19)', () => {
-    const core = createCore('pc01_lvov_80', { wait_states: true });
+    const core = createCore('standard', { wait_states: true });
 
     core.io.restart(); // RESET: the ROM answers for every address
 
@@ -79,7 +79,7 @@ describe('Contention (video/RAM wait states)', () => {
   });
 
   it('stalls the CPU on an I/O cycle below 0xC0 (P2.19)', () => {
-    const core = createCore('pc01_lvov_80', { wait_states: true });
+    const core = createCore('standard', { wait_states: true });
     // OUT 0x80: the decoder answers with no device there, and the arbiter cannot release
     // the cycle either. The HALT behind it must never be reached.
     load(core.memory, [0xd3, 0x80, 0x76], 0x0000);
@@ -96,7 +96,7 @@ describe('Contention (video/RAM wait states)', () => {
   });
 
   it('releases the stalled CPU on RESET (P2.19)', () => {
-    const core = createCore('pc01_lvov_80', { wait_states: true });
+    const core = createCore('standard', { wait_states: true });
 
     core.io.output(0x80, 0x00);
     expect(core.contention.is_stalled).toBe(true);
@@ -152,7 +152,7 @@ describe('Contention (video/RAM wait states)', () => {
     const program = [0x06, 0x00, 0x05, 0xc2, 0x01, 0x00];
 
     const run = (wait_states) => {
-      const core = createCore('pc01_lvov_80', { wait_states });
+      const core = createCore('standard', { wait_states });
       load(core.memory, program, 0x0000);
       core.cpu.jump(0x0000);
       core.cpu.clock.startFrame();
@@ -171,7 +171,7 @@ describe('Contention (video/RAM wait states)', () => {
     expect(plain).toBeGreaterThan(0);
     expect(contended).toBeGreaterThan(0);
 
-    const core = createCore('pc01_lvov_80', { wait_states: true });
+    const core = createCore('standard', { wait_states: true });
     load(core.memory, program, 0x0000);
     core.cpu.jump(0x0000);
 
@@ -185,7 +185,7 @@ describe('Contention (video/RAM wait states)', () => {
     core.cpu.run(core.config.cpu.frame_cycles);
     const withContention = instructions;
 
-    const plain_core = createCore('pc01_lvov_80', { wait_states: false });
+    const plain_core = createCore('standard', { wait_states: false });
     load(plain_core.memory, program, 0x0000);
     plain_core.cpu.jump(0x0000);
 

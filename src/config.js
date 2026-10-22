@@ -16,97 +16,80 @@ const FRAMES = {
   '48.83hz': { cycles: 45056, duration: 20.48 },
 };
 
+// The base machine: the serial ПК-01 "Львов". The other profiles are deltas on it:
+// `standard_fixed` only stops hiding RAM bank 0, `standard_extended` adds the PK-02 board.
+function standardProfile(emu_settings) {
+  return {
+    computer: {
+      model: 'ПК-01 "Львов"',
+      description: 'Серийная модель',
+      profile: 'standard',
+    },
+    beeper: {
+      ignore_control_bit: false,
+      allow_sound: emu_settings.beeper.allow_sound,
+      allow_highpass_filter: emu_settings.beeper.allow_highpass_filter,
+    },
+    cpu: {
+      model: 'i8080',
+      allow_interrupts: false,
+    },
+    io: {
+      // The PK-02 board hangs its port 0xF0 latch (video modes, extended RAM banks) on
+      // the X1 connector; the serial machine has nothing there (P2.13, P2.14). The port
+      // decoding itself is the same in every profile.
+      extended_port_latch: false,
+    },
+    memory: {
+      map: 80,
+      hide_0_mem_bank: true,
+    },
+    rom: {
+      image: 1990,
+    },
+    screen: {
+      resolution: 'default',
+      allow_color_mode: true,
+      aspect_ratio: emu_settings.screen.aspect_ratio,
+      auto_scale: emu_settings.screen.auto_scale,
+      screenshot_type: emu_settings.screen.screenshot_type,
+    },
+    traps: {
+      profile: 'default',
+    },
+  };
+}
+
 export class Config {
   constructor(emu_settings, profile) {
     assertInstance(emu_settings, Settings, 'CONFIG: Invalid emulator settings');
 
+    const profile_name = profile || emu_settings.computer.profile;
     let settings;
-    switch (profile || emu_settings.computer.profile) {
+
+    switch (profile_name) {
       case 'default':
       case 'standard':
-      case 'pc01_lvov':
-      case 'pc01_lvov_80':
-        settings = {
-          computer: {
-            model: 'ПК-01 "Львов"',
-            description: 'Серийная модель',
-            profile: 'pc01_lvov_80',
-          },
-          beeper: {
-            ignore_control_bit: false,
-            allow_sound: emu_settings.beeper.allow_sound,
-            allow_highpass_filter: emu_settings.beeper.allow_highpass_filter,
-          },
-          cpu: {
-            model: 'i8080',
-            allow_interrupts: false,
-          },
-          io: {
-            // The PK-02 board hangs its port 0xF0 latch (video modes, extended RAM
-            // banks) on the X1 connector; the serial machine has nothing there
-            // (P2.13, P2.14). The port decoding itself is the same in every profile.
-            extended_port_latch: false,
-          },
-          memory: {
-            map: 80,
-            hide_0_mem_bank: true,
-          },
-          rom: {
-            image: 1990,
-          },
-          screen: {
-            resolution: 'default',
-            allow_color_mode: true,
-            aspect_ratio: emu_settings.screen.aspect_ratio,
-            auto_scale: emu_settings.screen.auto_scale,
-            screenshot_type: emu_settings.screen.screenshot_type,
-          },
-          traps: {
-            profile: 'default',
-          },
-        };
+        settings = standardProfile(emu_settings);
         break;
 
-      case 'pc01_lvov_fixed':
-      case 'pc01_lvov_80_fixed':
-        settings = {
-          computer: {
-            model: 'ПК-01 "Львов"',
-            description: 'Серийная модель с некоторыми доработками',
-            profile: 'pc01_lvov_80_fixed',
-          },
-          beeper: {
-            ignore_control_bit: true,
-            allow_sound: emu_settings.beeper.allow_sound,
-            allow_highpass_filter: emu_settings.beeper.allow_highpass_filter,
-          },
-          cpu: {
-            model: 'i8080',
-            allow_interrupts: false,
-          },
-          io: {
-            // "Серийная модель с некоторыми доработками": this machine carries the
-            // PK-02 board, so the port 0xF0 latch exists here (P2.13, P2.14).
-            extended_port_latch: true,
-          },
-          memory: {
-            map: 80,
-            hide_0_mem_bank: false,
-          },
-          rom: {
-            image: 1990,
-          },
-          screen: {
-            resolution: 'default',
-            allow_color_mode: true,
-            aspect_ratio: emu_settings.screen.aspect_ratio,
-            auto_scale: emu_settings.screen.auto_scale,
-            screenshot_type: emu_settings.screen.screenshot_type,
-          },
-          traps: {
-            profile: 'default',
-          },
-        };
+      case 'standard_fixed':
+        // The serial machine with RAM bank 0 reachable: the only difference (P2.23).
+        settings = standardProfile(emu_settings);
+        settings.computer.profile = 'standard_fixed';
+        settings.memory.hide_0_mem_bank = false;
+        break;
+
+      case 'standard_extended':
+        // "Серийная модель с некоторыми доработками": this machine carries the PK-02
+        // board, so the port 0xF0 latch and the beeper control bit exist here (P2.13,
+        // P2.14).
+        settings = standardProfile(emu_settings);
+        settings.computer.description = 'Серийная модель с некоторыми доработками';
+        settings.computer.profile = 'standard_extended';
+        settings.beeper.ignore_control_bit = true;
+        settings.io.extended_port_latch = true;
+        settings.memory.hide_0_mem_bank = false;
         break;
 
       default:

@@ -5,10 +5,10 @@ import { Config } from '../src/config.js';
 describe('Config', () => {
   it('gives the machine the 20 ms frame the versions before P2.20 used by default', () => {
     const settings = new Settings('default');
-    const config = new Config(settings, 'pc01_lvov_80');
+    const config = new Config(settings, 'standard');
 
     expect(config.computer.model).toBe('ПК-01 "Львов"');
-    expect(config.computer.profile).toBe('pc01_lvov_80');
+    expect(config.computer.profile).toBe('standard');
     expect(config.cpu.clock_speed).toBe(2200000);
     expect(config.cpu.frame_cycles).toBe(44800);
 
@@ -23,7 +23,7 @@ describe('Config', () => {
     const settings = new Settings('default');
     settings.cpu.frame = '48.83hz';
 
-    const config = new Config(settings, 'pc01_lvov_80');
+    const config = new Config(settings, 'standard');
 
     // The faithful frame is not the default (P2.20): it is this setting that picks it, and
     // `Config` lays its numbers over the profile with `set_frame()`.
@@ -34,11 +34,11 @@ describe('Config', () => {
     expect(config.cpu.effective_clock_speed).toBe(2200000);
 
     settings.cpu.frame = 'nope';
-    expect(() => new Config(settings, 'pc01_lvov_80')).toThrow(RangeError);
+    expect(() => new Config(settings, 'standard')).toThrow(RangeError);
   });
 
   it('switches the video frame while the machine runs (P2.20)', () => {
-    const config = new Config(new Settings('default'), 'pc01_lvov_80');
+    const config = new Config(new Settings('default'), 'standard');
 
     expect(config.cpu.frame).toBe('50hz');
     expect(config.cpu.frame_cycles).toBe(44800);
@@ -61,7 +61,7 @@ describe('Config', () => {
   });
 
   it('runs 2.4 % fast in the frame of the versions before P2.20 (P2.20)', () => {
-    const config = new Config(new Settings('default'), 'pc01_lvov_80');
+    const config = new Config(new Settings('default'), 'standard');
 
     // 1.0 * 44800 cycles in the 20 ms frame -> 2.24 MHz, i.e. 2.4 % above the documented
     // clock. The faithful frame (45056 cycles in 20.48 ms) lands exactly on 2.2 MHz, but it
@@ -74,7 +74,7 @@ describe('Config', () => {
     const settings = new Settings('default');
     settings.cpu.speed_factor = 0.5;
 
-    const config = new Config(settings, 'pc01_lvov_80');
+    const config = new Config(settings, 'standard');
 
     expect(config.cpu.frame_duration).toBe(20); // the frame rate does not follow it
     expect(config.cpu.frame_work_cycles).toBe(22400);
@@ -85,14 +85,14 @@ describe('Config', () => {
     const settings = new Settings('default');
     settings.cpu.speed_factor = 0;
 
-    expect(() => new Config(settings, 'pc01_lvov_80')).toThrow(RangeError);
+    expect(() => new Config(settings, 'standard')).toThrow(RangeError);
   });
 
   it('runs 4x faster when turbo mode is enabled', () => {
     const settings = new Settings('default');
     settings.computer.allow_turbo_mode = true;
 
-    const config = new Config(settings, 'pc01_lvov_80');
+    const config = new Config(settings, 'standard');
 
     // Turbo multiplies the speed factor by 4: 4 * 1.0 * 44800 = 179200 cycles per frame
     // -> 8.96 MHz. The frame rate does not follow the speed factor.
@@ -102,7 +102,7 @@ describe('Config', () => {
   });
 
   it('keeps the raw square wave by default', () => {
-    const config = new Config(new Settings('default'), 'pc01_lvov_80');
+    const config = new Config(new Settings('default'), 'standard');
 
     expect(config.beeper.speaker_model).toBe('flat');
   });
@@ -111,45 +111,67 @@ describe('Config', () => {
     const settings = new Settings('default');
 
     settings.beeper.speaker_model = 'piezo';
-    expect(new Config(settings, 'pc01_lvov_80').beeper.speaker_model).toBe('piezo');
+    expect(new Config(settings, 'standard').beeper.speaker_model).toBe('piezo');
 
     settings.beeper.speaker_model = 'bass-reflex';
-    expect(() => new Config(settings, 'pc01_lvov_80')).toThrow(RangeError);
+    expect(() => new Config(settings, 'standard')).toThrow(RangeError);
   });
 
   it('exposes the memory map and ROM image', () => {
-    const config = new Config(new Settings('default'), 'pc01_lvov_80');
+    const config = new Config(new Settings('default'), 'standard');
 
     expect(config.memory.map).toBe(80);
     expect(config.rom.image).toBe(1990);
   });
 
   it('gives the port 0xF0 latch only to the machine with the upgrades (P2.14)', () => {
-    expect(new Config(new Settings('default'), 'pc01_lvov_80').io.extended_port_latch).toBe(false);
-    expect(new Config(new Settings('default'), 'pc01_lvov_80_fixed').io.extended_port_latch).toBe(
+    expect(new Config(new Settings('default'), 'standard').io.extended_port_latch).toBe(false);
+    expect(new Config(new Settings('default'), 'standard_fixed').io.extended_port_latch).toBe(
+      false
+    );
+    expect(new Config(new Settings('default'), 'standard_extended').io.extended_port_latch).toBe(
       true
     );
   });
 
-  it('applies the fixed-model profile differences', () => {
-    const config = new Config(new Settings('default'), 'pc01_lvov_80_fixed');
+  it('gives standard_fixed only the visible bank 0 (P2.23)', () => {
+    const standard = new Config(new Settings('default'), 'standard');
+    const fixed = new Config(new Settings('default'), 'standard_fixed');
 
+    expect(fixed.computer.profile).toBe('standard_fixed');
+    expect(fixed.memory.hide_0_mem_bank).toBe(false);
+    expect(fixed.beeper.ignore_control_bit).toBe(standard.beeper.ignore_control_bit);
+    expect(fixed.io.extended_port_latch).toBe(standard.io.extended_port_latch);
+    expect(fixed.memory.map).toBe(standard.memory.map);
+    expect(fixed.rom.image).toBe(standard.rom.image);
+  });
+
+  it('adds the PK-02 upgrades only to standard_extended (P2.23)', () => {
+    const config = new Config(new Settings('default'), 'standard_extended');
+
+    expect(config.computer.profile).toBe('standard_extended');
     expect(config.memory.hide_0_mem_bank).toBe(false);
     expect(config.beeper.ignore_control_bit).toBe(true);
+    expect(config.io.extended_port_latch).toBe(true);
   });
 
   it('rejects an unknown profile', () => {
-    expect(() => new Config(new Settings('default'), 'unknown-profile')).toThrow();
+    expect(() => new Config(new Settings('default'), 'unknown-profile')).toThrow(/Unknown model/);
+    // The pre-P2.23 machine names are gone: exactly three profiles remain.
+    expect(() => new Config(new Settings('default'), 'pc01_lvov_80')).toThrow(/Unknown model/);
+    expect(() => new Config(new Settings('default'), 'pc01_lvov_80_fixed')).toThrow(
+      /Unknown model/
+    );
   });
 
   it('accepts a machine profile name as a settings preset (P3.21)', () => {
-    const settings = new Settings('pc01_lvov_80_fixed');
+    const settings = new Settings('standard_extended');
 
-    expect(settings.computer.profile).toBe('pc01_lvov_80_fixed');
-    expect(new Config(settings).computer.profile).toBe('pc01_lvov_80_fixed');
+    expect(settings.computer.profile).toBe('standard_extended');
+    expect(new Config(settings).computer.profile).toBe('standard_extended');
   });
 
   it('rejects a typo in a machine profile name instead of using the default model', () => {
-    expect(() => new Config(new Settings('pc01_lvov_81'))).toThrow(/Unknown model/);
+    expect(() => new Config(new Settings('standard_typo'))).toThrow(/Unknown model/);
   });
 });

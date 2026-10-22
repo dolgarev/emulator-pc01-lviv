@@ -117,23 +117,16 @@ export class Settings {
       case 'default':
       case 'standard':
         predefined_settings.computer = {
-          profile: 'pc01_lvov_80',
+          profile: 'standard',
           // Turbo mode multiplies the CPU speed factor by 4; off by default so the
           // emulator keeps the speed of the real PC-01.
           allow_turbo_mode: false,
         };
         break;
 
-      case 'standard_fixed':
-        predefined_settings.computer = {
-          profile: 'pc01_lvov_80_fixed',
-          allow_turbo_mode: false,
-        };
-        break;
-
       default:
         // Any other name is a machine profile (`Config` validates it): keep the defaults
-        // and pass the name through, so `new Emulator('pc01_lvov_80_fixed')` starts that
+        // and pass the name through, so `new Emulator('standard_extended')` starts that
         // machine instead of falling back to the default one, while a typo fails loudly
         // in Config instead of silently selecting the wrong model (CODE_REVIEW.md P3.21).
         predefined_settings.computer = {

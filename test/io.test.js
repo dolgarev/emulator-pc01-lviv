@@ -8,7 +8,7 @@ import { Keyboard } from '../src/keyboard.js';
 
 // C0-C3 are the main PPI: port B (0xC1, PB7 = speaker control) and port C (0xC2,
 // PC0 = speaker level). The profile picks whether PB7 is honoured.
-function createIO(profile = 'pc01_lvov_80') {
+function createIO(profile = 'standard') {
   const config = new Config(new Settings('default'), profile);
   const beeper = new Beeper(config, new Clock(), { play() {}, reset() {} });
 
@@ -47,7 +47,7 @@ describe('IO speaker output', () => {
   });
 
   it('ignores PB7 in the fixed profile', () => {
-    const { io, levels } = createIO('pc01_lvov_80_fixed');
+    const { io, levels } = createIO('standard_extended');
 
     io.output(0xc2, 0xfe); // PC0 = 0 -> low
     io.output(0xc1, 0x0f); // PB7 = 0 must not change the level here
@@ -82,7 +82,7 @@ describe('IO reset state', () => {
 // selected" case (code review P2.14).
 describe('IO port decoding', () => {
   it('selects the blocks from A5/A4, enables them with A7/A6 and ignores A2/A3', () => {
-    const { io } = createIO('pc01_lvov_80_fixed');
+    const { io } = createIO('standard_extended');
 
     const table = [
       // The main PPI and the keyboard PPI decode A1/A0.
@@ -162,7 +162,7 @@ describe('IO port decoding', () => {
   });
 
   it('writes the port 0xF0 latch of the machine with the PK-02 board', () => {
-    const { io } = createIO('pc01_lvov_80_fixed');
+    const { io } = createIO('standard_extended');
     const bits = io.HIGH_RESOLUTION_BIT | io.BLANK_SCREEN_BIT;
 
     io.output(0xd0, 0x01); // keyboard column select

@@ -7,7 +7,7 @@
 // snapshot, run N cycles, read/write memory and ports, press keys, draw a frame.
 //
 //   import { createCore } from './src/core.js';
-//   const core = createCore('pc01_lvov_80', { wait_states: true, frame: '48.83hz' });
+//   const core = createCore('standard', { wait_states: true, frame: '48.83hz' });
 //   core.storage.set_snapshot(new DataView(snapshotBytes));
 //   core.io.keyboard.press('Enter', true);
 //   core.cpu.run(2_500_000);
@@ -34,7 +34,7 @@ import { Screen } from './screen.js';
 /**
  * Builds a headless emulator core and returns the wired components.
  *
- * @param {string} profile - `Config` profile name (default `pc01_lvov_80`).
+ * @param {string} profile - `Config` profile name (default `standard`).
  * @param {{ wait_states?: boolean, frame?: '50hz'|'48.83hz' }} options
  *   Timing knobs, independent of each other. `wait_states` switches on the video/RAM
  *   contention (P2.11); `frame` names the video frame in `Config`'s `FRAMES` table —
@@ -44,7 +44,7 @@ import { Screen } from './screen.js';
  *   beeper: object, keyboard: object, io: object, memory: object, traps: object,
  *   cpu: object, storage: object, screen: object }}
  */
-export function createCore(profile = 'pc01_lvov_80', { wait_states = false, frame = '50hz' } = {}) {
+export function createCore(profile = 'standard', { wait_states = false, frame = '50hz' } = {}) {
   const settings = new Settings('default');
   const config = new Config(settings, profile);
   config.set_frame(frame);

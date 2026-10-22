@@ -32,6 +32,6 @@ Notes:
 - `mcp-server.mjs` speaks JSON-RPC on stdin/stdout and must be launched by an MCP client, not
   from a shell (a shell launch would just sit there waiting for protocol messages). Configure
   the client with `command: node`, `args: ["<repo>/scripts/mcp-server.mjs"]`. Optional
-  environment: `EMU_PROFILE` (default `pc01_lvov_80`), `EMU_WAIT_STATES=1` (video/RAM
+  environment: `EMU_PROFILE` (default `standard`), `EMU_WAIT_STATES=1` (video/RAM
   contention, P2.11), `EMU_FRAME=50hz|48.83hz` (video frame, P2.20). Together
   `EMU_WAIT_STATES=1 EMU_FRAME=48.83hz` gives the hardware-faithful machine.

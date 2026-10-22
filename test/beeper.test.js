@@ -12,7 +12,7 @@ function createBeeper({ speed_factor = 0.6, sample_rate = undefined, frame = '48
   settings.cpu.speed_factor = speed_factor;
   settings.cpu.frame = frame;
 
-  const config = new Config(settings, 'pc01_lvov_80');
+  const config = new Config(settings, 'standard');
   const clock = new Clock();
   const buffers = [];
   const sink = {

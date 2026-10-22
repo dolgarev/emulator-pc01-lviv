@@ -5,14 +5,14 @@ export class Dump {
       description: '',
       type: 'sav',
       is_hidden: false,
-      profile: 'pc01_lvov_80',
+      profile: 'standard',
     },
     mtrack: {
       name: 'Moon Tracker',
       description: '',
       type: 'sav',
       is_hidden: false,
-      profile: 'pc01_lvov_80',
+      profile: 'standard',
     },
   };
 

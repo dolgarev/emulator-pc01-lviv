@@ -82,7 +82,7 @@ class FakeTicker {
   }
 }
 
-const core = createCore('pc01_lvov_80', { wait_states: WAIT_STATES });
+const core = createCore('standard', { wait_states: WAIT_STATES });
 const { config, beeper, keyboard, io, memory, traps, cpu, storage, screen } = core;
 const ticker = new FakeTicker();
 

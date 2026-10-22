@@ -1099,6 +1099,30 @@ positions together with the matrix.
 for the keyup, both ShiftLeft/Alt orders, a repeat after Alt is released, and Ctrl shortcuts still
 firing. `test/keyboardBinding.test.js` checks that the binding forwards the repeat flag.
 
+#### P2.23 Three emulation profiles: `standard`, `standard_fixed`, `standard_extended` — ✅ done
+
+The profile table described hardware variants by model (`pc01_lvov_80`, `pc01_lvov_80_fixed`)
+while the `Settings` presets already used `standard`/`standard_fixed`, and the "fixed" machine was
+actually the upgraded one, so its name said nothing about what it changed.
+
+**Fix.** `Config` accepts exactly three profile names (plus `default` as an alias of `standard`),
+with `standard` as the default:
+
+- `standard` — the serial machine: no port `0xF0` latch, RAM bank 0 hidden.
+- `standard_fixed` — the same machine with RAM bank 0 reachable
+  (`memory.hide_0_mem_bank = false`); no other difference from `standard`.
+- `standard_extended` — the former `pc01_lvov_fixed` configuration: the PK-02 board
+  (`io.extended_port_latch`), the beeper control bit (`beeper.ignore_control_bit`) and RAM bank 0
+  reachable (P2.13, P2.14).
+
+`standardProfile()` builds the base machine and the other two profiles only override their deltas.
+The old model names now fail with `Unknown model`. The Machine selector (whose labels are English:
+PC-01 Lviv / PC-01 Lviv fixed / PC-01 with upgrades), the bundled dumps, the `createCore()`
+default, the scripts and the README use the new names.
+
+**Tests.** `test/config.test.js` checks the `standard_fixed` delta (only `hide_0_mem_bank`), the
+`standard_extended` upgrades, the settings presets and that the old model names are rejected.
+
 ### P3 — Polish, features and rendering ideas
 
 #### P3.1 `keyboard.js`: deprecated `evt.keyCode` + manually unrolled loops — ✅ done

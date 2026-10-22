@@ -113,8 +113,10 @@ Bundled software:
 
 The **Machine** selector chooses the computer to emulate:
 
-- **ПК-01 «Львов»** (`pc01_lvov_80`) — the serial machine, the default.
-- **ПК-01 с доработками** (`pc01_lvov_80_fixed`) — the same machine with the PK-02 add-on board,
+- **PC-01 Lviv** (`standard`) — the serial machine, the default.
+- **PC-01 Lviv fixed** (`standard_fixed`) — the same machine with RAM bank 0 reachable; the only
+  difference from `standard`.
+- **PC-01 with upgrades** (`standard_extended`) — the serial machine with the PK-02 add-on board,
   whose latch on port `0xF0` carries the 512×256 video mode, the screen blanking and the extended
   RAM banks (see [P2.13](CODE_REVIEW.md) and [P2.14](CODE_REVIEW.md)).
 
@@ -168,7 +170,7 @@ scripts and external dev tooling drive it. The public entry point is
 import { createCore } from './src/core.js';
 
 // the hardware-faithful machine: video/RAM contention (P2.11) + the 48.83 Hz frame (P2.20)
-const core = createCore('pc01_lvov_80', { wait_states: true, frame: '48.83hz' });
+const core = createCore('standard', { wait_states: true, frame: '48.83hz' });
 core.storage.set_snapshot(new DataView(snapshotBytes));
 core.io.keyboard.press('Enter', true);
 core.cpu.run(2_500_000);

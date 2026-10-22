@@ -82,21 +82,21 @@ describe('UiBinding', () => {
   });
 
   it('forwards machine changes to the handler (P2.16)', () => {
-    const machine_select = new FakeControl({ value: 'pc01_lvov_80' });
+    const machine_select = new FakeControl({ value: 'standard' });
     const binding = new UiBinding({ machine_select });
 
     const seen = [];
     binding.onMachine((machine) => seen.push(machine));
 
-    machine_select.value = 'pc01_lvov_80_fixed';
+    machine_select.value = 'standard_extended';
     machine_select.dispatchEvent(new Event('change'));
 
-    expect(seen).toEqual(['pc01_lvov_80_fixed']);
+    expect(seen).toEqual(['standard_extended']);
     binding.terminate();
   });
 
   it('syncs the controls to the configured initial values', () => {
-    const machine_select = new FakeControl({ value: 'pc01_lvov_80_fixed' });
+    const machine_select = new FakeControl({ value: 'standard_extended' });
     const aspect_ratio_button = new FakeButton();
     const auto_scale_button = new FakeButton();
 
@@ -104,12 +104,12 @@ describe('UiBinding', () => {
       machine_select,
       aspect_ratio_button,
       auto_scale_button,
-      machine: 'pc01_lvov_80',
+      machine: 'standard',
       aspect_ratio: '1:1',
       auto_scale: true,
     });
 
-    expect(machine_select.value).toBe('pc01_lvov_80');
+    expect(machine_select.value).toBe('standard');
     expect(aspect_ratio_button.textContent).toBe('16:9');
     expect(auto_scale_button.textContent).toBe('2×');
     expect(auto_scale_button.getAttribute('aria-pressed')).toBe('true');

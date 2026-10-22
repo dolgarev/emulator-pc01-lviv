@@ -122,7 +122,7 @@ try {
       settings.beeper.speaker_model = model;
       settings.beeper.allow_highpass_filter = false;
 
-      const config = new Config(settings, 'pc01_lvov_80');
+      const config = new Config(settings, 'standard');
       const context = new OfflineAudioContext(1, RATE / 5, RATE);
       const sink = new AudioSink(config, context);
       const chain = model === 'piezo' ? sink.createChain() : undefined;

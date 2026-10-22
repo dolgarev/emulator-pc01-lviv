@@ -26,21 +26,21 @@ describe('Computer machine selection (P3.21)', () => {
 
     await computer.init();
 
-    expect(computer.profile_name).toBe('pc01_lvov_80_fixed');
-    expect(createStandard).toHaveBeenCalledWith(
-      expect.any(Settings),
-      'pc01_lvov_80_fixed',
-      undefined
-    );
+    expect(computer.profile_name).toBe('standard_fixed');
+    expect(createStandard).toHaveBeenCalledWith(expect.any(Settings), 'standard_fixed', undefined);
   });
 
   it('accepts a plain machine profile name', async () => {
     const createStandard = stubBuilder();
-    const computer = new Computer(new Settings('pc01_lvov_80'), undefined);
+    const computer = new Computer(new Settings('standard_extended'), undefined);
 
     await computer.init();
 
-    expect(createStandard).toHaveBeenCalledWith(expect.any(Settings), 'pc01_lvov_80', undefined);
+    expect(createStandard).toHaveBeenCalledWith(
+      expect.any(Settings),
+      'standard_extended',
+      undefined
+    );
   });
 
   it('keeps the serial machine as the default', async () => {
@@ -49,6 +49,6 @@ describe('Computer machine selection (P3.21)', () => {
 
     await computer.init();
 
-    expect(createStandard).toHaveBeenCalledWith(expect.any(Settings), 'pc01_lvov_80', undefined);
+    expect(createStandard).toHaveBeenCalledWith(expect.any(Settings), 'standard', undefined);
   });
 });

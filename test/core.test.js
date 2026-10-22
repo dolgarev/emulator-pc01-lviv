@@ -31,13 +31,13 @@ describe('src/core.js public headless API', () => {
   });
 
   it('turns the video/RAM contention on with wait_states', () => {
-    const core = createCore('pc01_lvov_80', { wait_states: true });
+    const core = createCore('standard', { wait_states: true });
     expect(core.contention).toBeInstanceOf(Contention);
     expect(core.config.cpu.frame).toBe('50hz');
   });
 
   it('combines contention with the 48.83 Hz frame (hardware-faithful machine)', () => {
-    const core = createCore('pc01_lvov_80', { wait_states: true, frame: '48.83hz' });
+    const core = createCore('standard', { wait_states: true, frame: '48.83hz' });
     expect(core.contention).toBeInstanceOf(Contention);
     expect(core.config.cpu.frame).toBe('48.83hz');
     expect(core.config.cpu.frame_cycles).toBe(45056);
@@ -45,7 +45,7 @@ describe('src/core.js public headless API', () => {
   });
 
   it('accepts an explicit frame without contention', () => {
-    const core = createCore('pc01_lvov_80', { frame: '48.83hz' });
+    const core = createCore('standard', { frame: '48.83hz' });
     expect(core.contention).toBeNull();
     expect(core.config.cpu.frame).toBe('48.83hz');
     expect(core.config.cpu.effective_clock_speed).toBe(2200000);

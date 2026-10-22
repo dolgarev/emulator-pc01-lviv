@@ -220,7 +220,7 @@ describe('Screen high resolution and blanking (P2.13)', () => {
   });
 
   it('is driven by OUT 0F0H on the machine that has the latch (P2.14)', () => {
-    const { screen, io } = createCore('pc01_lvov_80_fixed');
+    const { screen, io } = createCore('standard_extended');
 
     io.output(io.EXTENDED_MODE_PORT, io.HIGH_RESOLUTION_BIT);
 

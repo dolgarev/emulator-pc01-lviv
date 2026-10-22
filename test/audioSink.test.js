@@ -69,7 +69,7 @@ function createSink({ highpass = false, speaker_model = 'flat', sample_rate = 44
   settings.beeper.speaker_model = speaker_model;
 
   const context = createContext({ sample_rate });
-  const sink = new AudioSink(new Config(settings, 'pc01_lvov_80'), context);
+  const sink = new AudioSink(new Config(settings, 'standard'), context);
 
   return { sink, context };
 }
@@ -216,7 +216,7 @@ describe('AudioSink', () => {
 
   it('does nothing without a context at all', () => {
     const settings = new Settings('default');
-    const sink = new AudioSink(new Config(settings, 'pc01_lvov_80'));
+    const sink = new AudioSink(new Config(settings, 'standard'));
 
     expect(sink.allow_sound).toBe(false);
     expect(sink.sample_rate).toBeUndefined();

@@ -4,7 +4,7 @@
     "description": "",
     "type": "sav",
     "is_hidden": false,
-    "profile": "pc01_lvov_80",
+    "profile": "standard",
     "file": "dump-aerco1.bin"
   },
   "mtrack": {
@@ -12,7 +12,7 @@
     "description": "",
     "type": "sav",
     "is_hidden": false,
-    "profile": "pc01_lvov_80",
+    "profile": "standard",
     "file": "dump-mtrack.bin"
   }
 }

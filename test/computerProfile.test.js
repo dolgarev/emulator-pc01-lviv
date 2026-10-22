@@ -312,7 +312,7 @@ describe('ComputerProfile main loop', () => {
 
 describe('ComputerProfile machine selector (P2.16)', () => {
   it('hands the machine chosen in the UI to the owner of the profile', async () => {
-    const machine_select = Object.assign(new EventTarget(), { value: 'pc01_lvov_80' });
+    const machine_select = Object.assign(new EventTarget(), { value: 'standard' });
     const ui = new UiBinding({ machine_select });
     const { profile } = createProfile({ ui });
 
@@ -321,10 +321,10 @@ describe('ComputerProfile machine selector (P2.16)', () => {
 
     await profile.initAsync();
 
-    machine_select.value = 'pc01_lvov_80_fixed';
+    machine_select.value = 'standard_extended';
     machine_select.dispatchEvent(new Event('change'));
 
-    expect(machines).toEqual(['pc01_lvov_80_fixed']);
+    expect(machines).toEqual(['standard_extended']);
   });
 });
 

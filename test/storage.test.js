@@ -58,7 +58,7 @@ describe('Storage', () => {
   });
 
   it('does not stall the machine when a snapshot is loaded (P2.19)', () => {
-    const { storage, contention } = createCore('pc01_lvov_80', { wait_states: true });
+    const { storage, contention } = createCore('standard', { wait_states: true });
 
     const snapshot = Uint8Array.from(storage.get_snapshot());
 
@@ -72,7 +72,7 @@ describe('Storage', () => {
   // banks, and Storage used to replay the ports through IO.input()/IO.output(), i.e.
   // through the address decoding (P2.14).
   it('round-trips the port 0xF0 latch of the machine with the upgrades', () => {
-    const { storage, io } = createCore('pc01_lvov_80_fixed');
+    const { storage, io } = createCore('standard_extended');
 
     io.output(io.EXTENDED_MODE_PORT, io.HIGH_RESOLUTION_BIT | io.BLANK_SCREEN_BIT);
 

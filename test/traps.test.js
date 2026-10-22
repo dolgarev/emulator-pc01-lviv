@@ -42,7 +42,7 @@ function cloadLvt(body) {
  * disconnected so the snapshot round-trip is mapping-consistent.
  */
 function bootCore() {
-  const core = createCore('pc01_lvov_80', { wait_states: true });
+  const core = createCore('standard', { wait_states: true });
   const { cpu, memory, io } = core;
   const rom = readFileSync(new URL('rom-1990.bin', DATA_DIR));
   const romPage = memory.get_rom_page();
@@ -98,7 +98,7 @@ describe('Tape traps (BLOAD/CLOAD)', () => {
   });
 
   it('restores the booted RAM pages losslessly', () => {
-    const core = createCore('pc01_lvov_80', { wait_states: true });
+    const core = createCore('standard', { wait_states: true });
     core.storage.set_snapshot(new DataView(booted.buffer));
 
     core.memory.pages.forEach((page, i) => {
@@ -109,7 +109,7 @@ describe('Tape traps (BLOAD/CLOAD)', () => {
   it('BLOAD copies the file, sets system variables and autostarts', () => {
     const body = [0x76, 0x00, 0x00, 0x00]; // HLT at the run address
     const { cpu, memory } = launchTape(
-      createCore('pc01_lvov_80', { wait_states: true }),
+      createCore('standard', { wait_states: true }),
       booted,
       bloadLvt({ begin: 0x8000, end: 0x8003, start: 0x8000, body }),
       'bload'
@@ -130,7 +130,7 @@ describe('Tape traps (BLOAD/CLOAD)', () => {
 
   it('BLOAD without a run address (AS=0) returns to BASIC instead of jumping to 0', () => {
     const { cpu, memory } = launchTape(
-      createCore('pc01_lvov_80', { wait_states: true }),
+      createCore('standard', { wait_states: true }),
       booted,
       bloadLvt({ begin: 0x8000, end: 0x8003, start: 0, body: [0x76, 0x00, 0x00, 0x00] }),
       'bload'
@@ -146,7 +146,7 @@ describe('Tape traps (BLOAD/CLOAD)', () => {
 
   it('CLOAD sets FILE_TYPE and the BASIC file variables', () => {
     const { cpu, memory } = launchTape(
-      createCore('pc01_lvov_80', { wait_states: true }),
+      createCore('standard', { wait_states: true }),
       booted,
       cloadLvt([0x0a, 0x10, 0x20, 0x30]),
       'cload'
@@ -161,7 +161,7 @@ describe('Tape traps (BLOAD/CLOAD)', () => {
   });
 
   it('cload() copies the program body directly', () => {
-    const { cpu, memory, storage } = createCore('pc01_lvov_80', { wait_states: true });
+    const { cpu, memory, storage } = createCore('standard', { wait_states: true });
 
     const begin = 0x6000;
     const body = [0x0a, 0x10, 0x20, 0x30];
@@ -185,7 +185,7 @@ describe('Tape traps (BLOAD/CLOAD)', () => {
     truncated.setUint8(0x09, 0xd0);
 
     const { cpu } = launchTape(
-      createCore('pc01_lvov_80', { wait_states: true }),
+      createCore('standard', { wait_states: true }),
       booted,
       truncated,
       'bload'
@@ -200,7 +200,7 @@ describe('Tape traps (BLOAD/CLOAD)', () => {
     truncated.setUint8(0x09, 0xd3);
 
     const { cpu } = launchTape(
-      createCore('pc01_lvov_80', { wait_states: true }),
+      createCore('standard', { wait_states: true }),
       booted,
       truncated,
       'cload'
