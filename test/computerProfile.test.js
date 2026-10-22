@@ -35,13 +35,17 @@ function createProfile({
   ui,
 } = {}) {
   const ticker = new FakeTicker();
+  // The order in which the components are restarted by ComputerProfile.reset() (P3.25).
+  const order = [];
   const cpu = {
     cycles: 0,
     run(cycles) {
       this.cycles += cycles;
     },
     idle() {},
-    restart() {},
+    restart() {
+      order.push('cpu');
+    },
   };
   const beeper = {
     plays: 0,
@@ -52,6 +56,7 @@ function createProfile({
     },
     restart() {
       this.restarts += 1;
+      order.push('beeper');
     },
     discard_frame() {
       this.discards += 1;
@@ -67,9 +72,13 @@ function createProfile({
     },
     beeper,
     keyboard: { special_keys: 0, reset() {}, reset_special_keys() {}, restart() {} },
-    io: {},
-    memory: {},
-    rom: { async init() {} },
+    io: {
+      restart() {
+        order.push('io');
+      },
+    },
+    memory: { restart() {} },
+    rom: { async init() {}, restart() {} },
     traps: { activate() {} },
     cpu,
     viewport: { renderScreen() {}, pause() {}, terminate() {} },
@@ -79,7 +88,7 @@ function createProfile({
     ui,
   });
 
-  return { profile, ticker, cpu, beeper };
+  return { profile, ticker, cpu, beeper, order };
 }
 
 // Runs the pending animation frame and returns the next queued one.
@@ -166,6 +175,19 @@ describe('ComputerProfile main loop', () => {
 
     profile.terminate();
     expect(beeper.restarts).toBe(1); // the machine is gone, so its audio must not play on
+  });
+
+  it('restarts the beeper after the clock and the ports (P3.25)', () => {
+    const { profile, beeper, order } = createProfile();
+
+    profile.reset();
+
+    // io.restart() publishes the level the RESET ports hold and cpu.restart() puts the
+    // shared Clock back at zero, so the beeper has to start over after both - restarted
+    // first, it recorded a segment at the offset of the run that was ending and the next
+    // segment came out negative.
+    expect(order).toEqual(['io', 'cpu', 'beeper']);
+    expect(beeper.restarts).toBe(1);
   });
 
   it('caps the backlog after a long stall', () => {
@@ -398,11 +420,14 @@ describe('ComputerProfile snapshot restore and the beeper (P3.18)', () => {
     profile.set_snapshot(snapshot);
 
     expect(core.beeper.prev_change_offset).toBe(0);
-    expect(core.beeper.prev_beeper_state).toBe(0);
+    // The RESET ports of the restored machine leave the emitter line high, so the beeper
+    // takes that level instead of assuming low (CODE_REVIEW.md P3.25).
+    expect(core.beeper.prev_beeper_state).toBe(core.io.beeper_level);
+    expect(core.beeper.prev_beeper_state).toBe(1);
 
     // Before the fix the clock was back at 0 while the beeper still remembered 900, so the
     // first segment was -900 CPU cycles and its PCM length came out negative.
-    core.beeper.process(1);
+    core.beeper.process(0);
     expect(core.beeper.sound_buffer[0]).toBe(0);
   });
 
@@ -415,7 +440,8 @@ describe('ComputerProfile snapshot restore and the beeper (P3.18)', () => {
     profile.set_e3_snapshot(new DataView(new Uint8Array(0x20000).buffer));
 
     expect(core.beeper.prev_change_offset).toBe(0);
-    expect(core.beeper.prev_beeper_state).toBe(0);
+    // In step with the level the restored ports hold, whatever that level is (P3.25).
+    expect(core.beeper.prev_beeper_state).toBe(core.io.beeper_level);
   });
 });
 

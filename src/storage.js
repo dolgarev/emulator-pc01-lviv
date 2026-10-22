@@ -126,6 +126,12 @@ export class Storage {
     // The i8255A CWR is write-only.
     //this.io.ports[0xD3] = data.getUint8(offset + 0x56);
 
+    // The ports above are written raw (an .e3 image has no decoded replay), so the level of
+    // the emitter line has to be published before the beeper starts over: otherwise it would
+    // keep the level of the RESET ports and swallow the first change of the restored machine
+    // (CODE_REVIEW.md P3.25).
+    this.io.updateSound();
+
     this.cpu.restart();
     // See set_snapshot(): the shared Clock is back at zero, so the beeper has to follow.
     this.io.beeper.restart();
@@ -179,9 +185,9 @@ export class Storage {
     }
 
     this.cpu.restart();
-    // The CPU restart resets the shared Clock. The beeper must not keep the frame offsets
-    // and the wave level of the previous machine, or its next segment comes out negative
-    // (CODE_REVIEW.md P3.18).
+    // The CPU restart resets the shared Clock, so the beeper starts over after it and
+    // measures its segments from the new frame boundary; it takes the level the replayed
+    // ports hold, which IO has just published (CODE_REVIEW.md P3.18, P3.25).
     this.io.beeper.restart();
     this.cpu.set_state({
       B: data.getUint8(offset + 0x00),

@@ -43,6 +43,12 @@ export class Beeper {
     this.MAX_SEGMENTS = Math.ceil(config.cpu.frame_work_cycles_max / MIN_CYCLES_PER_CHANGE) + 2;
     this.sound_buffer = new Float32Array(this.MAX_SEGMENTS);
 
+    // The level the emitter line holds and the level the wave is being emitted at. They are
+    // equal at every restart boundary and only separate while a frame is collected: IO
+    // reports the first through process(), play() advances the second (P3.25).
+    this.wave_level = 0;
+    this.prev_beeper_state = 0;
+
     this.init();
   }
 
@@ -50,12 +56,25 @@ export class Beeper {
     this.restart();
   }
 
+  /**
+   * Starts a new run of the machine: the segments and the sample carries are cleared, and
+   * the audio queued for the old run is dropped.
+   *
+   * The level is kept. RESET, a snapshot restore or a new machine does not move the emitter
+   * line - it follows the ports - and IO publishes what they hold through process().
+   * Assuming 0 here left the tracked level out of step with the ports, so the first change
+   * after the restart was swallowed and the run ending at it was emitted at the wrong level
+   * (CODE_REVIEW.md P3.25). The wave level follows the line, so the wave continues the run
+   * it stops in instead of restarting at low.
+   *
+   * A caller must let IO publish the level first: io.restart() and a snapshot replay both
+   * end in updateSound(). This is why ComputerProfile.reset() restarts the beeper last.
+   */
   restart() {
     this.discard_frame();
     this.sample_carry = 0;
     this.frame_sample_carry = 0;
-    this.wave_level = 0;
-    this.prev_beeper_state = 0;
+    this.wave_level = this.prev_beeper_state;
     this.overflow_warned = false;
 
     // Audio queued for the previous run must not be played on top of the new one.

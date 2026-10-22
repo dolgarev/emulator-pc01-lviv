@@ -189,9 +189,53 @@ describe('Beeper', () => {
     // The audio already queued stands for emulated time that has happened: it is not cut.
     expect(beeper.sink.resets).toBe(resets);
 
-    // A new run still drops what the previous one queued.
+    // A new run still drops what the previous one queued, and still keeps the level.
     beeper.restart();
     expect(beeper.sink.resets).toBe(resets + 1);
+    expect(beeper.prev_beeper_state).toBe(1);
+    expect(beeper.wave_level).toBe(1);
+  });
+
+  it('keeps the level the ports hold across a restart (P3.25)', () => {
+    const target = createBeeper({ sample_rate: 48000, frame: '50hz' });
+    const { beeper, clock, config } = target;
+    const frame = config.cpu.frame_work_cycles;
+    const amplitude = beeper.VOLUME / 2;
+    const quarter = Math.round(frame / 4);
+
+    // The machine runs with the emitter line high and ends its frame there.
+    clock.startFrame();
+    clock.addCycles(Math.round(frame / 2));
+    beeper.process(1);
+    clock.addCycles(frame - Math.round(frame / 2));
+    beeper.play();
+
+    // RESET, a snapshot restore or a new machine does not move the line: the level and the
+    // wave keep it, so the wave continues the run it stops in.
+    beeper.restart();
+
+    expect(beeper.prev_beeper_state).toBe(1);
+    expect(beeper.wave_level).toBe(1);
+
+    clock.startFrame();
+    clock.addCycles(quarter);
+    beeper.process(0);
+
+    // The first change after the restart is measured from the new frame boundary, not from
+    // the offset of the run that ended before the restart (which came out negative).
+    expect(beeper.sound_buffer[0]).toBe(quarter);
+
+    clock.addCycles(frame - quarter);
+    beeper.play();
+
+    // ... and the run before it is emitted at the level the line actually has - not at low,
+    // which is what assuming 0 gave (it swallowed this change and inverted the run).
+    const data = target.buffers.at(-1).data;
+    const split = Math.round(data.length / 4);
+
+    expect(data[0]).toBeCloseTo(amplitude, 6);
+    expect(data[split - 2]).toBeCloseTo(amplitude, 6);
+    expect(data[split + 2]).toBeCloseTo(-amplitude, 6);
   });
 
   it('measures the run length from the frame boundary, not from the last change', () => {

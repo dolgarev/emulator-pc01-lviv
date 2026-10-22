@@ -290,13 +290,17 @@ export class ComputerProfile {
   }
 
   reset() {
-    this.beeper.restart();
     this.keyboard.restart();
     this.io.restart();
     this.memory.restart();
     this.cpu.restart();
     this.screen.restart();
     this.rom.restart();
+    // The beeper starts over last: IO has just published the level the RESET ports hold and
+    // the shared Clock is back at zero, so it takes that level and measures its segments
+    // from the new frame boundary - restarting it first recorded a segment at the old
+    // offset and the next one came out negative (CODE_REVIEW.md P3.25).
+    this.beeper.restart();
 
     this.detach_file();
   }

@@ -103,6 +103,47 @@ describe('Storage', () => {
     expect(io.ports[io.PALETTE_PORT]).toBe(0x8f);
   });
 
+  // A restore is a restart of the run, and the ports keep the level the emitter line had:
+  // the beeper must take it instead of assuming low, or its first change was swallowed and
+  // the run before it was emitted at the wrong level (P3.25).
+  it('restores the emitter level a snapshot carries (P3.25)', () => {
+    const { storage, io, beeper } = createCore();
+
+    // PB7 = 1 selects the PC0 mode and PC0 = 1 drives the line high.
+    io.write_port(io.PALETTE_PORT, 0x8f);
+    io.write_port(io.MEDIA_PORT, 0x01);
+    expect(io.beeper_level).toBe(1);
+
+    const snapshot = new DataView(Uint8Array.from(storage.get_snapshot()).buffer);
+
+    // Scramble the live machine: the line goes low.
+    io.write_port(io.MEDIA_PORT, 0x00);
+    expect(io.beeper_level).toBe(0);
+
+    storage.set_snapshot(snapshot);
+
+    expect(io.beeper_level).toBe(1);
+    expect(beeper.prev_beeper_state).toBe(1); // the beeper follows the replayed ports
+    expect(beeper.wave_level).toBe(1); // ... and continues the run at that level
+    expect(beeper.prev_change_offset).toBe(0); // measured from the new frame boundary
+  });
+
+  it('set_e3_snapshot() publishes the level of the restored ports (P3.25)', () => {
+    const { storage, io, beeper } = createCore();
+    const data = new DataView(new Uint8Array(0x20000).buffer);
+
+    // Header + low RAM + ROM + the 0x29 gap + VRAM: the ports follow this absolute offset.
+    const ports = 0x240 + 0xc000 + 0x4000 + 0x29 + 0x4000;
+    data.setUint8(ports + 0x26, 0x80); // PPI1 port B: PB7 high ...
+    data.setUint8(ports + 0x2a, 0x00); // ... and PC0 low: the emitter line is low
+
+    storage.set_e3_snapshot(data);
+
+    expect(io.beeper_level).toBe(0);
+    expect(beeper.prev_beeper_state).toBe(0);
+    expect(beeper.wave_level).toBe(0);
+  });
+
   it('bload()/cload() reject files with the wrong type byte', () => {
     const { storage } = createCore();
     const data = new DataView(new Uint8Array(0x20).buffer);
