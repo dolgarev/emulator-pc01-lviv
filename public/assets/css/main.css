@@ -19,6 +19,14 @@ body {
     -webkit-justify-content: space-around;
 }
 
+.main_container > .row_machine {
+    display: -webkit-flex;
+    display: flex;
+    padding-bottom: 8px;
+    -webkit-align-self: center;
+    align-self: center;
+}
+
 .main_container > .row_2 {
     display: -webkit-flex;
     padding-top: 2%;
@@ -99,6 +107,8 @@ body {
 
     margin: 0 8px 0 8px;
     padding: 8px 20px;
+    min-width: 84px;
+    box-sizing: border-box;
     background: -webkit-gradient(
             linear, left top, left bottom,
             from(#0551eb),

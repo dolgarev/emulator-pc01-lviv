@@ -1066,8 +1066,8 @@ profile; the `pc01_lvov_80_fixed` machine was only reachable by constructing the
 With the port `0xF0` latch being a property of the upgraded machine (P2.13, P2.14), the 512×256 mode,
 the screen blanking and the extended RAM banks were unreachable in the shipped build.
 
-**Fix:** the page now has a **Machine** selector (`<select id="machine_select">` in `.row_2` of
-`index.html`) whose options carry the profile names. `Settings.controls.machine_select` and
+**Fix:** the page now has a **Machine** selector (`<select id="machine_select">` in
+`.row_machine` above the screen in `index.html`) whose options carry the profile names. `Settings.controls.machine_select` and
 `DomResolver` resolve it like the other controls, `UiBinding` gains an `onMachine()` handler, and
 `ComputerProfile.onMachine()` passes the choice on to the owner of the profile — the machine is not a
 property of the running one, switching rebuilds the whole emulator. `Computer.select_machine()`
@@ -1727,4 +1727,11 @@ from it and it is written both as the `RIFF` size (`36 + data_size`) and as the 
 **Tested by hand** (the measurement tools have no unit tests): `scripts/melody-audio.mjs --app
 docs/soft/almazy_lviv.lvt --seconds 12` now yields a 12.02 s, 576800-frame, 48 kHz mono 16-bit file
 that `wave` reads back - the same 12.02 s the tool prints for the wall time.
+
+#### P3.27 The toolbar buttons lacked tooltips and a uniform width — ✅ done
+
+LOAD and HELP were labelled only with short words. All four mode buttons now carry a `title`:
+"Load a tape or dump file", "Show help and keyboard shortcuts", and the mode names of the Aspect
+and Fit buttons (P3.8.3, P3.8.7). The buttons also share `min-width: 84px` with
+`box-sizing: border-box`, so their widths no longer jump when the label changes.
 

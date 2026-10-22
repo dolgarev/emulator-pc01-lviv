@@ -29,12 +29,7 @@
             <div class="row_0">
                 <p id="notify" class="notify"><span></span><span class="icon-cancel-circle"></span></p>
             </div>
-            <div class="row_1">
-                <div id="canvas_container"></div>
-            </div>
-            <div class="row_2">
-                <button class="css3button" id="load_button">LOAD</button>
-                <button class="css3button" id="help_button" data-target="help">HELP</button>
+            <div class="row_machine">
                 <label class="control">
                     Machine
                     <select id="machine_select">
@@ -43,6 +38,22 @@
                         <option value="standard_extended">PC-01 with upgrades</option>
                     </select>
                 </label>
+            </div>
+            <div class="row_1">
+                <div id="canvas_container"></div>
+            </div>
+            <div class="row_2">
+                <button class="css3button" id="load_button" title="Load a tape or dump file">
+                    LOAD
+                </button>
+                <button
+                    class="css3button"
+                    id="help_button"
+                    data-target="help"
+                    title="Show help and keyboard shortcuts"
+                >
+                    HELP
+                </button>
                 <button
                     type="button"
                     class="css3button"
