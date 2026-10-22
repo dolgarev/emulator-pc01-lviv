@@ -11,7 +11,11 @@ export class Computer {
     this.dom = dom;
 
     this.profile = undefined;
-    this.profile_name = 'default';
+    // The machine comes from the settings preset (`new Settings('standard_fixed')`) or
+    // from a plain machine name passed to Emulator. It used to be hard-coded to 'default'
+    // here, which silently ignored the preset and always ran the default machine
+    // (CODE_REVIEW.md P3.21).
+    this.profile_name = emu_settings.computer?.profile ?? 'default';
   }
 
   async initAsync() {

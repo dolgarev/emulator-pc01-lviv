@@ -1555,3 +1555,22 @@ inspected; the `ArrayBuffer` form is kept for existing callers. `ComputerProfile
 **Tests.** `test/fileFormat.test.js`: a view at a non-zero offset into a larger buffer with a
 `JUNK` prefix is accepted; a view shifted past the magic is rejected; a `Uint8Array` view and a
 view shorter than the magic behave the same as the `ArrayBuffer` cases.
+
+#### P3.21 `new Emulator(profile)` ignores the machine profile — ✅ done
+
+`Emulator(profile)` handed the name to `Settings`, but `Settings` knew only the `default`,
+`standard` and `standard_fixed` presets and produced no `computer` section for anything else,
+while `Computer` hard-coded `this.profile_name = 'default'`. `new Emulator('standard_fixed')`
+therefore still booted the serial machine, and a plain machine name such as
+`new Emulator('pc01_lvov')` did not even get the `computer.allow_turbo_mode` field that `Config`
+reads, so it failed instead of selecting a machine.
+
+**Fix.** `Settings` treats a name outside its presets as a machine profile and passes it through to
+`Config`, which validates the actual list; a typo now fails with `Unknown model` instead of quietly
+running the default machine. `Computer` takes `profile_name` from `settings.computer.profile`
+rather than hard-coding `'default'`, so the preset reaches `ComputerProfileBuilder`. The UI machine
+selector still calls `Computer.restart(profile)` and overrides the name for the rest of the session.
+
+**Tests.** `test/config.test.js` (a machine name works as a settings preset and reaches `Config`;
+a typo is rejected) and `test/computer.test.js` (the builder receives `pc01_lvov_80_fixed` for the
+`standard_fixed` preset, `pc01_lvov_80` for the plain name and for the default settings).

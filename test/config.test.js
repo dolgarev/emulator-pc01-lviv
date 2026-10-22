@@ -141,4 +141,15 @@ describe('Config', () => {
   it('rejects an unknown profile', () => {
     expect(() => new Config(new Settings('default'), 'unknown-profile')).toThrow();
   });
+
+  it('accepts a machine profile name as a settings preset (P3.21)', () => {
+    const settings = new Settings('pc01_lvov_80_fixed');
+
+    expect(settings.computer.profile).toBe('pc01_lvov_80_fixed');
+    expect(new Config(settings).computer.profile).toBe('pc01_lvov_80_fixed');
+  });
+
+  it('rejects a typo in a machine profile name instead of using the default model', () => {
+    expect(() => new Config(new Settings('pc01_lvov_81'))).toThrow(/Unknown model/);
+  });
 });

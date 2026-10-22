@@ -126,6 +126,17 @@ export class Settings {
           allow_turbo_mode: false,
         };
         break;
+
+      default:
+        // Any other name is a machine profile (`Config` validates it): keep the defaults
+        // and pass the name through, so `new Emulator('pc01_lvov_80_fixed')` starts that
+        // machine instead of falling back to the default one, while a typo fails loudly
+        // in Config instead of silently selecting the wrong model (CODE_REVIEW.md P3.21).
+        predefined_settings.computer = {
+          profile,
+          allow_turbo_mode: false,
+        };
+        break;
     }
 
     // Clone the defaults so that instances never share nested objects: changing
