@@ -1684,3 +1684,20 @@ holds. `test/computerProfile.test.js`: `reset()` restarts IO and the CPU before 
 P3.18 tests now assert the restored level instead of 0. `test/storage.test.js`: a snapshot and an
 `.e3` image that carry a high / low emitter line come back with that level, its wave level and a
 zero offset.
+
+#### P3.26 `melody-audio.mjs` wrote a WAV with an empty `data` chunk — ✅ done
+
+The tool wrote `RIFF`, `WAVEfmt ` and the samples, but never the size of the `data` chunk at
+offset 40, so it stayed 0 while the `RIFF` size at offset 4 was correct. A strict reader therefore
+sees a zero-length file: Python's `wave` module reported 0 frames for a 12-second run, so the
+artifact a human is told to listen to was unreadable while the console metrics - computed in
+memory - were always right. (Found while auditing the sound subsystem; none of the measurements of
+P3.10/P3.11/P2.20 change.)
+
+**Fix.** The size is computed once (`const data_size = wall_samples * 2`), the buffer is allocated
+from it and it is written both as the `RIFF` size (`36 + data_size`) and as the `data` chunk size.
+
+**Tested by hand** (the measurement tools have no unit tests): `scripts/melody-audio.mjs --app
+docs/soft/almazy_lviv.lvt --seconds 12` now yields a 12.02 s, 576800-frame, 48 kHz mono 16-bit file
+that `wave` reads back - the same 12.02 s the tool prints for the wall time.
+

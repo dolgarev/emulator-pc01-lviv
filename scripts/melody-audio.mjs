@@ -260,9 +260,10 @@ console.log(
 );
 
 // The WAV is peak-normalised so that the timbre is compared rather than the loudness.
-const wav = Buffer.alloc(44 + wall_samples * 2);
+const data_size = wall_samples * 2;
+const wav = Buffer.alloc(44 + data_size);
 wav.write('RIFF', 0);
-wav.writeUInt32LE(36 + wall_samples * 2, 4);
+wav.writeUInt32LE(36 + data_size, 4);
 wav.write('WAVEfmt ', 8);
 wav.writeUInt32LE(16, 16);
 wav.writeUInt16LE(1, 20);
@@ -272,6 +273,8 @@ wav.writeUInt32LE(RATE * 2, 28);
 wav.writeUInt16LE(2, 32);
 wav.writeUInt16LE(16, 34);
 wav.write('data', 36);
+// The chunk size must be written too: a zero here makes strict readers see an empty file.
+wav.writeUInt32LE(data_size, 40);
 
 const norm = peak > 0 ? 0.9 / peak : 1;
 for (let i = 0; i < wall_samples; i++) {
