@@ -105,6 +105,9 @@ combinations:
 
 Use the **LOAD** button or drag & drop a file onto the window.
 
+If a running program asks for another tape file, the notification bar tells you to click **LOAD**;
+choose the file there and the program continues from where it stopped.
+
 Supported file extensions:
 
 - `.lvt`, `.lvr`, `.lv0` … `.lv99` — tape / snapshot files

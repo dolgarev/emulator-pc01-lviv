@@ -36,7 +36,9 @@ const TRAP_PROFILES = {
         if (this.exists_attached_file()) {
           install();
         } else if (this.hasTape()) {
-          this.tape.load().then((file) => {
+          // The CPU loop has no user activation, so it cannot open a file picker.
+          // Wait for the LOAD button to supply the file (P2.24).
+          this.request_tape('bload').then((file) => {
             this.attach_file(file);
             install();
           }, signalIoError);
@@ -84,7 +86,8 @@ const TRAP_PROFILES = {
         if (this.exists_attached_file()) {
           install();
         } else if (this.hasTape()) {
-          this.tape.load().then((file) => {
+          // See the BLOAD trap above: wait for a user gesture to open the picker.
+          this.request_tape('cload').then((file) => {
             this.attach_file(file);
             install();
           }, signalIoError);

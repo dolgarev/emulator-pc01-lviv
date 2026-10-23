@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { createCore } from './helpers.js';
+import { Traps } from '../src/traps.js';
 import { BOOT_CYCLES, applyTapeEntry } from '../src/tapeEntry.js';
 
 const DATA_DIR = new URL('../public/data/', import.meta.url);
@@ -208,5 +209,92 @@ describe('Tape traps (BLOAD/CLOAD)', () => {
 
     expect(() => cpu.run(CYCLES)).not.toThrow();
     expect(cpu.get_state().PC).not.toBe(0);
+  });
+});
+
+describe('Tape traps waiting for a user gesture (P2.24)', () => {
+  function makeContext() {
+    let attached_file = null;
+    let resolve_request;
+    let reject_request;
+
+    const cpu = {
+      getNopeOptcode: () => 0x00,
+      getUndefOptcode: () => 0x100,
+      execute: vi.fn(),
+      gosub: vi.fn(),
+      jump: vi.fn(),
+    };
+
+    const ctx = {
+      cpu,
+      suspend: vi.fn(),
+      resume: vi.fn(),
+      hasTape: () => true,
+      exists_attached_file: () => attached_file instanceof DataView,
+      request_tape: vi.fn(
+        () =>
+          new Promise((resolve, reject) => {
+            resolve_request = resolve;
+            reject_request = reject;
+          })
+      ),
+      bload: vi.fn(() => true),
+      cload: vi.fn(() => true),
+      get_file: () => attached_file,
+      attach_file: vi.fn((file) => {
+        attached_file = file;
+      }),
+      detach_file: vi.fn(() => {
+        attached_file = null;
+      }),
+    };
+
+    return {
+      ctx,
+      resolve: (file) => resolve_request(file),
+      reject: (error) => reject_request(error),
+    };
+  }
+
+  it.each([
+    ['bload', 0xdd94, 0xdd61],
+    ['cload', 0xe50b, 0xe26d],
+  ])(
+    '%s waits for LOAD instead of opening the picker from the CPU loop',
+    async (kind, addr, jump) => {
+      const traps = new Traps();
+      const { ctx, resolve } = makeContext();
+      traps.activate('default', ctx);
+
+      expect(traps.handle(addr)).toBe(0x00); // NOPE_OPTCODE: the CPU runs NOPs while suspended
+      expect(ctx.suspend).toHaveBeenCalledOnce();
+      expect(ctx.request_tape).toHaveBeenCalledWith(kind);
+      expect(ctx[kind]).not.toHaveBeenCalled();
+
+      const file = new DataView(new ArrayBuffer(0x16));
+      resolve(file);
+      await Promise.resolve();
+
+      expect(ctx.attach_file).toHaveBeenCalledWith(file);
+      expect(ctx[kind]).toHaveBeenCalledWith(file);
+      expect(ctx.detach_file).toHaveBeenCalledOnce();
+      expect(ctx.resume).toHaveBeenCalledOnce();
+      expect(ctx.cpu.jump).toHaveBeenLastCalledWith(jump);
+    }
+  );
+
+  it('reports an I/O error and resumes when the pending request is cancelled', async () => {
+    const traps = new Traps();
+    const { ctx, reject } = makeContext();
+    traps.activate('default', ctx);
+
+    expect(traps.handle(0xdd94)).toBe(0x00);
+
+    reject(new Error('No file selected'));
+    await Promise.resolve();
+
+    expect(ctx.resume).toHaveBeenCalledOnce();
+    expect(ctx.cpu.jump).toHaveBeenLastCalledWith(0xe4c7);
   });
 });

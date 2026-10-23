@@ -1124,6 +1124,29 @@ default, the scripts and the README use the new names.
 **Tests.** `test/config.test.js` checks the `standard_fixed` delta (only `hide_0_mem_bank`), the
 `standard_extended` upgrades, the settings presets and that the old model names are rejected.
 
+#### P2.24 Internal BLOAD/CLOAD opened a file picker from the CPU loop — ✅ done
+
+**Symptom.** An internal BLOAD/CLOAD that requested a file (the four `PRIZ_2_*.LVT` blocks are an
+example) called `Tape.load()` from the trap handler. A browser only opens a file picker from a user
+gesture, and the CPU loop has none: the picker stayed closed while the trap had already called
+`suspend()`, so `is_suspended` stayed `true` and the machine appeared frozen. The LOAD button could
+not recover either, because its handler began with `if (this.is_suspended) return;`.
+
+**Fix.** `ComputerProfile.request_tape(kind)` now stores a pending request and the traps wait for
+that promise instead of calling the picker; they return `NOPE_OPTCODE` (the CPU runs NOPs while
+suspended). The notification bar asks the user to click LOAD. The LOAD handler services a pending
+request first: `Tape.load()` is called synchronously inside the click so the picker keeps the user
+activation, the selected file resolves the request, and the trap attaches and installs it normally.
+Cancelling or choosing an invalid file rejects the request, so the trap's existing I/O-error path
+reports it to the ROM and resumes instead of leaving the machine suspended. `reset()` and
+`terminate()` clear stale requests. A normal LOAD with no pending trap still takes the old path and
+does not call `load()` for the internal request (which would reboot into `launch_tape`).
+
+**Tests.** `test/traps.test.js` covers both BLOAD and CLOAD pending requests, the absence of a picker
+call from the trap, and cancellation resuming through the I/O-error path;
+`test/computerProfile.test.js` covers LOAD resolving the pending request without calling `load()`
+and cancellation clearing it. `npm test` passes 220 tests.
+
 ### P3 — Polish, features and rendering ideas
 
 #### P3.1 `keyboard.js`: deprecated `evt.keyCode` + manually unrolled loops — ✅ done

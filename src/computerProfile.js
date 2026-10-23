@@ -77,6 +77,7 @@ export class ComputerProfile {
     this.storage = storage;
 
     this.attached_file = void 0;
+    this.pending_tape_request = null;
     this.booted_snapshot = void 0;
 
     // Set by the owner of the profile (Computer) when it can rebuild the machine
@@ -96,6 +97,13 @@ export class ComputerProfile {
 
     if (this.settings.tape.is_connected) {
       this.ui.onLoad(async () => {
+        // A BLOAD/CLOAD trap that needs a file waits here: the picker may only be
+        // opened from a user gesture, not from inside the CPU loop (P2.24).
+        if (this.pending_tape_request) {
+          await this.complete_tape_request(() => this.tape.load());
+          return;
+        }
+
         if (this.is_suspended) return;
 
         this.suspend();
@@ -321,6 +329,7 @@ export class ComputerProfile {
     // offset and the next one came out negative (CODE_REVIEW.md P3.25).
     this.beeper.restart();
 
+    this.pending_tape_request = null;
     this.detach_file();
   }
 
@@ -430,11 +439,65 @@ export class ComputerProfile {
       this[dependency] = null;
     }
 
+    this.pending_tape_request = null;
     this.detach_file();
   }
 
   hasTape() {
     return this.tape instanceof Tape;
+  }
+
+  /**
+   * Registers a file request from a BLOAD/CLOAD trap and suspends the machine.
+   * The browser only opens a file picker from a user gesture, so the trap cannot
+   * call Tape.load() itself; the LOAD button completes the request (P2.24).
+   *
+   * @param {'bload'|'cload'} kind - Trap that requested the file, for the message.
+   * @returns {Promise<DataView>} Resolves with the file chosen by the user.
+   */
+  request_tape(kind) {
+    if (this.pending_tape_request) {
+      throw new Error('PROFILE: A tape request is already pending');
+    }
+
+    if (!this.is_suspended) {
+      this.suspend();
+    }
+
+    const label = kind === 'cload' ? 'CLOAD' : 'BLOAD';
+    this.notify(`${label} is waiting for a file. Click LOAD to select it.`);
+
+    return new Promise((resolve, reject) => {
+      this.pending_tape_request = { kind, resolve, reject };
+    });
+  }
+
+  /**
+   * Completes a pending trap request from the LOAD handler. `read` starts
+   * synchronously inside the click event, so the file picker keeps the user
+   * activation that the trap did not have.
+   *
+   * @param {() => Promise<DataView>} read - Reads the file selected by the user.
+   * @returns {Promise<boolean>} true when a pending request was serviced.
+   */
+  async complete_tape_request(read) {
+    const pending = this.pending_tape_request;
+    if (!pending) return false;
+
+    try {
+      const file = await read();
+      if (this.pending_tape_request === pending) {
+        this.pending_tape_request = null;
+        pending.resolve(file);
+      }
+    } catch (error) {
+      if (this.pending_tape_request === pending) {
+        this.pending_tape_request = null;
+        pending.reject(error);
+      }
+    }
+
+    return true;
   }
 
   /**

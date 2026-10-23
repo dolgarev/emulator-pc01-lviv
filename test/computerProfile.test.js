@@ -413,6 +413,55 @@ describe('ComputerProfile toolbar shortcuts (P3.30)', () => {
   });
 });
 
+describe('ComputerProfile pending tape request (P2.24)', () => {
+  function pendingProfile() {
+    const load_button = Object.assign(new EventTarget(), {
+      click() {
+        this.dispatchEvent(new Event('click'));
+      },
+    });
+    const ui = new UiBinding({ load_button });
+    const file = new DataView(new ArrayBuffer(0x16));
+    const tape = { load: vi.fn().mockResolvedValue(file) };
+    const settings = { tape: { is_connected: true }, dnd: { is_connected: false } };
+    const { profile } = createProfile({ ui, tape, settings });
+
+    return { profile, load_button, tape, file };
+  }
+
+  it('resolves the pending request from LOAD without reloading it as a tape', async () => {
+    const { profile, load_button, tape, file } = pendingProfile();
+    const loadData = vi.spyOn(profile, 'load').mockResolvedValue(true);
+    await profile.initAsync();
+
+    const request = profile.request_tape('bload');
+    expect(profile.is_suspended).toBe(true);
+    expect(profile.pending_tape_request).toMatchObject({ kind: 'bload' });
+
+    load_button.click();
+    // The picker call must start synchronously inside the click: an await before
+    // it would lose the user activation that the trap did not have.
+    expect(tape.load).toHaveBeenCalledOnce();
+
+    await expect(request).resolves.toBe(file);
+    expect(loadData).not.toHaveBeenCalled();
+    expect(profile.pending_tape_request).toBeNull();
+  });
+
+  it('rejects the pending request when the picker is cancelled', async () => {
+    const { profile, load_button, tape } = pendingProfile();
+    tape.load.mockRejectedValue(new Error('No file selected'));
+    await profile.initAsync();
+
+    const request = profile.request_tape('cload');
+    const rejection = expect(request).rejects.toThrow('No file selected');
+    load_button.click();
+
+    await rejection;
+    expect(profile.pending_tape_request).toBeNull();
+  });
+});
+
 describe('ComputerProfile machine selector (P2.16)', () => {
   it('hands the machine chosen in the UI to the owner of the profile', async () => {
     const machine_select = Object.assign(new EventTarget(), { value: 'standard' });
