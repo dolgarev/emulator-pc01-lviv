@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { fitScale, Viewport } from '../src/viewport.js';
 
 describe('fitScale', () => {
@@ -94,7 +94,7 @@ describe('Viewport.takeScreenshoot (P3.19)', () => {
     const { viewport, calls } = fake_viewport();
     const blobs = [];
 
-    viewport.takeScreenshoot((blob) => blobs.push(blob), 'image/jpeg');
+    viewport.takeScreenshoot((blob) => blobs.push(blob), 'image/jpeg', 'canvas');
 
     expect(calls).toEqual(['image/jpeg']);
     expect(blobs[0].type).toBe('image/jpeg');
@@ -103,9 +103,124 @@ describe('Viewport.takeScreenshoot (P3.19)', () => {
   it('defaults to PNG', () => {
     const { viewport, calls } = fake_viewport();
 
-    viewport.takeScreenshoot(() => {});
+    viewport.takeScreenshoot(() => {}, undefined, 'canvas');
 
     expect(calls).toEqual(['image/png']);
+  });
+});
+
+describe('Viewport.display_size (P3.31)', () => {
+  function fake_viewport(overrides = {}) {
+    return Object.assign(Object.create(Viewport.prototype), {
+      ASPECT_RATIO: 4 / 3,
+      CANVAS_WIDTH: 256,
+      CANVAS_HEIGHT: 256,
+      SCALE: 2,
+      auto_scale: false,
+      container: { clientWidth: 0, clientHeight: 0 },
+      ...overrides,
+    });
+  }
+
+  it('stretches the width by the aspect ratio at the fixed scale', () => {
+    // 256×2 with 4:3 → 682.66…×512: non-square pixels, as the CRT showed them.
+    expect(fake_viewport().display_size()).toEqual({
+      width: 256 * 2 * (4 / 3),
+      height: 512,
+    });
+  });
+
+  it('keeps the picture square at the 1:1 ratio', () => {
+    expect(fake_viewport({ ASPECT_RATIO: 1 }).display_size()).toEqual({
+      width: 512,
+      height: 512,
+    });
+  });
+
+  it('follows the fitted scale in auto-scale mode', () => {
+    const viewport = fake_viewport({
+      auto_scale: true,
+      container: { clientWidth: 341, clientHeight: 512 },
+    });
+
+    // fitScale(341, 512, 256, 256, 4/3) = min(⌊341/341.33⌋, ⌊512/256⌋) = 1.
+    expect(viewport.display_size()).toEqual({ width: 256 * (4 / 3), height: 256 });
+  });
+});
+
+describe('Viewport.takeScreenshoot mode (P3.31)', () => {
+  function fake_viewport() {
+    return Object.assign(Object.create(Viewport.prototype), {
+      ASPECT_RATIO: 4 / 3,
+      CANVAS_WIDTH: 256,
+      CANVAS_HEIGHT: 256,
+      SCALE: 1,
+      auto_scale: false,
+      container: { clientWidth: 0, clientHeight: 0 },
+      canvas: { toBlob: vi.fn() },
+    });
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("draws the canvas at the displayed size in the 'screen' mode", () => {
+    const viewport = fake_viewport();
+    const drawn = [];
+    const shot = {
+      width: 0,
+      height: 0,
+      getContext: () => ({
+        imageSmoothingEnabled: true,
+        drawImage(source, dx, dy, dw, dh) {
+          drawn.push({ source, dx, dy, dw, dh });
+        },
+      }),
+      toBlob: vi.fn(),
+    };
+
+    vi.stubGlobal('document', { createElement: () => shot });
+
+    viewport.takeScreenshoot(() => {}, 'image/png', 'screen');
+
+    // 256×1 with 4:3 → 341.33…×256, rounded to the nearest whole pixel.
+    expect(shot.width).toBe(341);
+    expect(shot.height).toBe(256);
+    expect(drawn).toEqual([{ source: viewport.canvas, dx: 0, dy: 0, dw: 341, dh: 256 }]);
+    expect(shot.toBlob).toHaveBeenCalledOnce();
+  });
+
+  it("takes the 'screen' path by default", () => {
+    const viewport = fake_viewport();
+    const drawn = [];
+    const shot = {
+      width: 0,
+      height: 0,
+      getContext: () => ({
+        imageSmoothingEnabled: true,
+        drawImage(source, dx, dy, dw, dh) {
+          drawn.push({ source, dx, dy, dw, dh });
+        },
+      }),
+      toBlob: vi.fn(),
+    };
+
+    vi.stubGlobal('document', { createElement: () => shot });
+
+    viewport.takeScreenshoot(() => {});
+
+    expect(viewport.canvas.toBlob).not.toHaveBeenCalled();
+    expect(drawn).toHaveLength(1);
+    expect(shot.toBlob).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the raw canvas path for the 'canvas' mode", () => {
+    const viewport = fake_viewport();
+
+    viewport.takeScreenshoot(() => {}, 'image/png', 'canvas');
+
+    expect(viewport.canvas.toBlob).toHaveBeenCalledTimes(1);
   });
 });
 

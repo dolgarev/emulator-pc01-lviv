@@ -391,22 +391,27 @@ export class ComputerProfile {
     this.suspend();
 
     const srctype = this.config.screen.screenshot_type ?? 'image/png';
+    const shot_mode = this.config.screen.screenshot_mode ?? 'screen';
 
-    this.viewport.takeScreenshoot(async (blob) => {
-      try {
-        if (blob) {
-          // The requested MIME type can be unsupported: canvas.toBlob() then falls back to
-          // PNG, so the name follows the type the browser actually produced (P3.19).
-          const extension = getFileExtension(blob.type || srctype);
-          const filename = generateScreenshotFilename(extension);
-          await this.tape.save(blob, filename);
-        } else {
-          console.error('COMPUTER_PROFILE: Failed to create blob from canvas.');
+    this.viewport.takeScreenshoot(
+      async (blob) => {
+        try {
+          if (blob) {
+            // The requested MIME type can be unsupported: canvas.toBlob() then falls back to
+            // PNG, so the name follows the type the browser actually produced (P3.19).
+            const extension = getFileExtension(blob.type || srctype);
+            const filename = generateScreenshotFilename(extension);
+            await this.tape.save(blob, filename);
+          } else {
+            console.error('COMPUTER_PROFILE: Failed to create blob from canvas.');
+          }
+        } finally {
+          this.resume();
         }
-      } finally {
-        this.resume();
-      }
-    }, srctype);
+      },
+      srctype,
+      shot_mode
+    );
   }
 
   terminate() {

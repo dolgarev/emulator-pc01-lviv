@@ -89,6 +89,10 @@ const DEFAULT_SETTINGS = {
   screen: {
     allow_color_mode: true,
     screenshot_type: 'image/png',
+    // Screenshot source (P3.31): 'screen' (the default) saves the picture as it
+    // is displayed - with the aspect-ratio stretch (P3.8.3) and the current
+    // scale applied; 'canvas' saves the raw emulated framebuffer.
+    screenshot_mode: 'screen',
     // Display aspect ratio (P3.8.3): a preset name ('1:1', '4:3', '16:9') or a
     // number. The PC-01 framebuffer is 256×256 pixels shown on a CRT with
     // non-square pixels, so '4:3' is the faithful default.

@@ -1790,3 +1790,24 @@ Both combinations are listed in the HELP dialog and README. All five toolbar too
 their shortcut - LOAD (`Ctrl+L`), HELP (`Ctrl+H`), SNAP (`Ctrl+S`), Aspect (`Ctrl+A`) and Fit
 (`Ctrl+F`) - and the dynamically updated Aspect/Fit titles keep them after a label change.
 
+#### P3.31 The screenshot ignored how the picture is displayed — ✅ done
+
+`Viewport.takeScreenshoot()` encoded the raw 256×256 framebuffer. The picture on screen is scaled
+and stretched horizontally to the display aspect ratio (P3.8.3), though, so with the faithful 4:3
+CRT ratio a screenshot came out square while the screen showed non-square pixels; with `auto_scale`
+(P3.8.7) the scale differed as well. The two are now chosen apart via
+`settings.screen.screenshot_mode`:
+
+- `'screen'` (the default) saves the picture as displayed: `Viewport` draws the canvas into an
+  offscreen one of the display size, with smoothing off so the pixel grid matches the screen.
+- `'canvas'` keeps the old raw-framebuffer behaviour.
+
+The display size is the `display_size()` method, split out of `apply_resolution()` into the single
+source of truth for the canvas element and the screenshot; `ComputerProfile.shoot()` passes the
+mode through alongside the MIME type.
+
+**Tests.** `test/viewport.test.js` (`display_size()` at a fixed scale, at 1:1 and in auto-scale
+mode; the `'screen'` mode draws at the rounded display size and is the default, the explicit
+`'canvas'` mode keeps the raw `toBlob` path) and `test/computerProfile.test.js` (the configured
+mode reaches the viewport; a config without the key falls back to `'screen'`).
+

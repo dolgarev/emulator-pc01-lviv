@@ -598,18 +598,24 @@ describe('ComputerProfile snapshot restore and the beeper (P3.18)', () => {
 });
 
 describe('ComputerProfile.shoot and the screenshot type (P3.19)', () => {
-  function createShootingProfile({ configured = 'image/jpeg', produced = 'image/jpeg' } = {}) {
+  function createShootingProfile({
+    configured = 'image/jpeg',
+    produced = 'image/jpeg',
+    mode = 'screen',
+  } = {}) {
     const saved = [];
     let requested;
+    let requested_mode;
 
     const profile = Object.assign(Object.create(ComputerProfile.prototype), {
-      config: { screen: { screenshot_type: configured } },
+      config: { screen: { screenshot_type: configured, screenshot_mode: mode } },
       hasTape: () => true,
       suspend() {},
       resume() {},
       viewport: {
-        takeScreenshoot(callback, type) {
+        takeScreenshoot(callback, type, shot_mode) {
           requested = type;
+          requested_mode = shot_mode;
           callback({ type: produced });
         },
       },
@@ -621,7 +627,7 @@ describe('ComputerProfile.shoot and the screenshot type (P3.19)', () => {
       },
     });
 
-    return { profile, saved, requested: () => requested };
+    return { profile, saved, requested: () => requested, requested_mode: () => requested_mode };
   }
 
   it('passes the configured type to the viewport and names the file after it', async () => {
@@ -643,6 +649,28 @@ describe('ComputerProfile.shoot and the screenshot type (P3.19)', () => {
 
     expect(saved).toHaveLength(1);
     expect(saved[0]).toMatch(/\.png$/);
+  });
+
+  it('passes the configured screenshot mode to the viewport (P3.31)', async () => {
+    const { profile, requested_mode } = createShootingProfile({
+      configured: 'image/webp',
+      mode: 'screen',
+    });
+
+    profile.shoot();
+    await Promise.resolve();
+
+    expect(requested_mode()).toBe('screen');
+  });
+
+  it('falls back to the screen mode when the config carries none (P3.31)', async () => {
+    const { profile, requested_mode } = createShootingProfile();
+    delete profile.config.screen.screenshot_mode;
+
+    profile.shoot();
+    await Promise.resolve();
+
+    expect(requested_mode()).toBe('screen');
   });
 
   it('ignores a screenshot while another operation has suspended the machine', () => {

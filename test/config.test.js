@@ -117,6 +117,20 @@ describe('Config', () => {
     expect(() => new Config(settings, 'standard')).toThrow(RangeError);
   });
 
+  it('passes the screenshot settings through to the machine (P3.31)', () => {
+    // 'screen' is the default screenshot mode (P3.31).
+    expect(new Config(new Settings('default'), 'standard').screen.screenshot_mode).toBe('screen');
+
+    const settings = new Settings('default');
+    settings.screen.screenshot_type = 'image/webp';
+    settings.screen.screenshot_mode = 'canvas';
+
+    const config = new Config(settings, 'standard');
+
+    expect(config.screen.screenshot_type).toBe('image/webp');
+    expect(config.screen.screenshot_mode).toBe('canvas');
+  });
+
   it('exposes the memory map and ROM image', () => {
     const config = new Config(new Settings('default'), 'standard');
 

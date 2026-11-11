@@ -197,10 +197,12 @@ export class Viewport {
   }
 
   /**
-   * Recomputes the CSS size of the canvas. In auto-scale mode the scale comes
-   * from the container size; otherwise the fixed SCALE is used.
+   * CSS size of the canvas as displayed, in CSS pixels: the framebuffer scaled
+   * by the current (fixed or fitted) scale and stretched horizontally to the
+   * display aspect ratio (P3.8.3). One source of truth for sizing the canvas
+   * element and for the 'screen' screenshot mode (P3.31).
    */
-  apply_resolution() {
+  display_size() {
     const dot_aspect = this.dot_aspect_ratio();
     let scale = this.SCALE;
 
@@ -214,14 +216,24 @@ export class Viewport {
       );
     }
 
+    return {
+      width: this.CANVAS_WIDTH * scale * dot_aspect,
+      height: this.CANVAS_HEIGHT * scale,
+    };
+  }
+
+  /**
+   * Recomputes the CSS size of the canvas. In auto-scale mode the scale comes
+   * from the container size; otherwise the fixed SCALE is used.
+   */
+  apply_resolution() {
+    const { width: scaledWidth, height: scaledHeight } = this.display_size();
+
     this.canvas.width = this.CANVAS_WIDTH;
     this.canvas.height = this.CANVAS_HEIGHT;
 
     // The aspect ratio stretches the width only: the framebuffer is displayed
     // with non-square pixels, the way the CRT showed it.
-    const scaledWidth = this.CANVAS_WIDTH * scale * dot_aspect;
-    const scaledHeight = this.CANVAS_HEIGHT * scale;
-
     this.canvas.style.width = `${scaledWidth}px`;
     this.canvas.style.height = `${scaledHeight}px`;
 
@@ -308,7 +320,32 @@ export class Viewport {
     this.set_resolution(width, height);
   }
 
-  takeScreenshoot(cb, type = 'image/png') {
-    this.canvas.toBlob(cb, type);
+  /**
+   * Creates a screenshot Blob of the picture. With mode 'screen' (the default)
+   * the picture as it is displayed is saved: the aspect-ratio stretch (P3.8.3)
+   * and the current scale are applied by drawing the canvas into an offscreen
+   * one of the display size, with smoothing off so the pixel grid matches the
+   * screen. Mode 'canvas' saves the raw emulated framebuffer (P3.31).
+   */
+  takeScreenshoot(cb, type = 'image/png', mode = 'screen') {
+    if (mode !== 'screen') {
+      this.canvas.toBlob(cb, type);
+      return;
+    }
+
+    const { width, height } = this.display_size();
+    const shot = document.createElement('canvas');
+
+    // The display size can be fractional (e.g. 256×2×4/3 = 682.66…px); the
+    // browser paints the extra fraction as a partial pixel column, which an
+    // integer canvas cannot hold, so round to the nearest whole pixel.
+    shot.width = Math.max(1, Math.round(width));
+    shot.height = Math.max(1, Math.round(height));
+
+    const ctx = shot.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(this.canvas, 0, 0, shot.width, shot.height);
+
+    shot.toBlob(cb, type);
   }
 }
