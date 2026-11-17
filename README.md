@@ -20,9 +20,11 @@ The project began in 2014 as the author's first step into the world of Open Sour
 ## Features
 
 - Intel 8080 (КР580ВМ80А) CPU core
-- Adjustable CPU speed: `cpu.speed_factor` in `src/settings.js` — `1.0` is the nominal 2.2 MHz
-  clock, the default `0.6` matches the effective speed of the real machine (the video circuit
-  took cycles on every RAM access, see [P2.11](CODE_REVIEW.md))
+- Video/RAM wait states: `cpu.wait_states` in `src/settings.js` (on by default) makes every RAM
+  access pay the cycles the video circuit took, so code in RAM runs at the effective speed of the
+  real machine while ROM code keeps the nominal 2.2 MHz (see [P2.11](CODE_REVIEW.md)).
+  `cpu.speed_factor` is the crude alternative — one uniform multiplier, `1.0` by default, which
+  also lowers the pitch of every tone
 - Paged memory (maps: 80, 144, 256 KiB) with RAM / ROM / VRAM
 - i8255A programmable peripheral interface (I/O ports, partial address decoding)
 - Video output to `<canvas>` (256×256, color and grayscale modes, switchable palettes), plus the
@@ -55,7 +57,9 @@ Other scripts:
 | --- | --- |
 | `npm run lint` | Lint the sources with ESLint |
 | `npm run format` | Format the sources with Prettier |
+| `npm run format:check` | Check the formatting without writing files (part of the CI job) |
 | `npm test` | Run the unit tests (Vitest, headless) |
+| `npm run check` | Build, serve `dist/` and boot it in headless Chrome (needs Chrome) |
 
 ## Controls
 
@@ -152,22 +156,30 @@ without a restart.
 
 ```
 src/
-  main.js                     entry point
-  core.js                     headless public API (createCore, boot, load)
-  emulator.js                 top-level wiring
-  computer.js                 machine lifecycle
-  computerProfile.js          main loop, snapshots, UI coordination
-  computerProfileBuilder.js   dependency-injection builder
-  clock.js                    shared CPU cycle counter
-  i8080.js                    Intel 8080 CPU core
-  memory.js, io.js            memory paging and I/O ports
-  rom.js, dump.js,            ROM images, bundled dumps,
-  storage.js, traps.js        snapshots and BLOAD/CLOAD hooks
-  screen.js, viewport.js      video output
-  beeper.js, keyboard.js      sound and input
-  tape.js, dnd.js             file loading
-  config.js, settings.js      configuration
-public/data/                  ROM and dump binaries (.bin)
+  main.js                       entry point
+  core.js                       headless public API (createCore, boot, load)
+  emulator.js                   top-level wiring
+  computer.js                   machine lifecycle
+  computerProfile.js            main loop, snapshots, UI coordination
+  computerProfileBuilder.js     dependency-injection builder
+  clock.js                      shared CPU cycle counter
+  contention.js                 video/RAM wait states (P2.11)
+  i8080.js                      Intel 8080 CPU core
+  memory.js, io.js              memory paging and I/O ports
+  rom.js, dump.js               ROM images and bundled dumps
+  storage.js, traps.js,         snapshots, BLOAD/CLOAD traps and the
+  tapeEntry.js                  entry state a trap starts from
+  screen.js, viewport.js        pixel buffer and the canvas view
+  beeper.js, audioSink.js       the 1-bit emitter and the Web Audio output
+  keyboard.js,                  the PC-01 key matrix and its
+  keyboardBinding.js            DOM binding
+  uiBinding.js                  the toolbar controls
+  ticker.js                     frame timer over requestAnimationFrame
+  tape.js, dnd.js               file loading
+  config.js, settings.js        configuration
+  domResolver.js, notify.js     DOM lookup and the notification bar
+  utils/                        assertions, file formats, screenshots
+public/data/                    ROM and dump binaries (.bin)
 ```
 
 ## Automation and AI tools (headless core + MCP)

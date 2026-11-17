@@ -1,7 +1,7 @@
 # Emulator PC-01 Lviv — Review, Roadmap and Backlog
 
 > Date: 2026-09-26
-> Last updated: 2026-10-17
+> Last updated: 2026-11-17
 > Branch: `dev-spa-version`
 > Scope: all modules in `src/`, `index.html`, project documentation
 > This document consolidates the former `CODE_REVIEW.md`, `IMPROVEMENTS.md` and
@@ -78,13 +78,13 @@ Migration option comparison:
 - ✅ Known bugs closed
 - ✅ Game loop rebuilt: a single `requestAnimationFrame` with a fixed timestep, at the real PC-01
   clock speed
-- ✅ DOM-free core + headless test suite (Vitest, 95 tests in 14 files)
+- ✅ DOM-free core + headless test suite (Vitest, `npm test`)
 - ⏳ `ARCHITECTURE.md` and JSDoc types (P3.4)
 - ⏳ Web Worker for the CPU (P2.5)
 
 **Next steps:**
 1. Start Phase 2: add PWA support (P3.6) — the last migration phase
-2. Phase 3 leftovers: `ARCHITECTURE.md` (P3.4), tests for `io.js`
+2. Phase 3 leftovers: `ARCHITECTURE.md` and the JSDoc types (P3.4)
 3. Opportunistically: `i8080.js` modernization (P1.2), Web Worker (P2.5), rendering (P3.7 / P3.8)
 4. Emulation fidelity, from the real-hardware measurements of the forum thread: the frame
    length (P2.20, `settings.cpu.frame` — `50hz` by default, the faithful `48.83hz` through the
@@ -133,23 +133,32 @@ export default defineConfig({
 "dev": "vite",
 "build": "vite build",
 "preview": "vite preview",
-"lint": "eslint src test",
-"format": "prettier --write \"{src,test}/**/*.js\"",
+"lint": "eslint src test scripts",
+"format": "prettier --write \"{src,test}/**/*.js\" \"scripts/**/*.mjs\"",
 "test": "vitest run",
-"test:watch": "vitest"
+"test:watch": "vitest",
+"check": "node scripts/browser-check.mjs",
+"audio:response": "node scripts/audio-response.mjs",
+"audio:melody": "node scripts/melody-audio.mjs",
+"mcp": "node scripts/mcp-server.mjs"
 ```
+
+`format:check` is the same Prettier in `--check` mode over the sources, `scripts/`, the workflow
+file and `package.json`; it is what the CI job runs.
 
 Data layout:
 
 ```
 public/data/
 ├── rom-1990.bin
-├── dump-bload.bin
-├── dump-cload.bin
 ├── dump-aerco1.bin
 ├── dump-mtrack.bin
 └── dumps-manifest.json
 ```
+
+The BLOAD/CLOAD entry state no longer ships as `dump-bload.bin` / `dump-cload.bin`:
+`src/tapeEntry.js` boots BASIC and lays down the stack return path, the registers and `AUTOSTART`
+that the ROM expects at the trap entry (`f510a04`).
 
 ### Phase 2: Add PWA — ⏳ pending
 
@@ -228,16 +237,17 @@ export default defineConfig({
 
 **3.3. Code modernization**
 - ✅ ES modules
-- ⏳ ES6+ classes — 18/19, `i8080.js` remains (P1.2)
+- ⏳ ES6+ classes — `i8080.js` is the last module on `prototype` (P1.2)
 - ✅ `evt.which` → `evt.keyCode` → `evt.code` (P3.1)
 - ✅ `webkitImageSmoothingEnabled` → `imageSmoothingEnabled`
 - ✅ Typos (`standart`, `Unknownn`)
 
 **3.4. Tests — ✅ done, still growing**
-- ✅ Unit tests for I8080, Memory, Storage, Screen, Keyboard, Clock, Config
+- ✅ Unit tests for I8080, Memory, IO, Storage, Screen, Keyboard, Clock, Config
+- ✅ Video/RAM contention, BLOAD/CLOAD traps, the beeper and the audio sink, screenshots
 - ✅ Integration test: emulated frame timing and the real PC-01 clock speed
 - ✅ Snapshot round-trip (`get_snapshot()` ↔ `set_snapshot()`) and `.e3` load
-- ⏳ `io.js` has no test of its own; the 8080 Exerciser ROM remains a possible CPU oracle
+- ⏳ The 8080 Exerciser ROM remains a possible CPU oracle
 
 ---
 
@@ -735,9 +745,9 @@ shorter than it. Covered by `test/fileFormat.test.js`.
 
 #### P1.1 No tests (largest gap) and no `test` script — ✅ fixed
 
-Added Vitest (`npm test` / `npm run test:watch`) and a headless suite, since grown to **109 tests
-across 16 files**. They run without a DOM against the decoupled core, using a shared `test/helpers.js`
-(`createCore()`):
+Added Vitest (`npm test` / `npm run test:watch`) and a headless suite, grown since (the current
+coverage is in section 3.4). They run without a DOM against the decoupled core, using a shared
+`test/helpers.js` (`createCore()`):
 - `i8080` — instruction execution: immediates, register moves, arithmetic flags, `JMP`, `CALL`/`RET`,
   `PUSH`/`POP`, `run()` frame stepping, halt, plus the opcode-fetch/trap contract (P3.5);
 - `Memory` — RAM read/write, ROM write protection, `restart()`, `transfer()` (Array/DataView, bounds,
@@ -1145,7 +1155,7 @@ does not call `load()` for the internal request (which would reboot into `launch
 **Tests.** `test/traps.test.js` covers both BLOAD and CLOAD pending requests, the absence of a picker
 call from the trap, and cancellation resuming through the I/O-error path;
 `test/computerProfile.test.js` covers LOAD resolving the pending request without calling `load()`
-and cancellation clearing it. `npm test` passes 220 tests.
+and cancellation clearing it.
 
 ### P3 — Polish, features and rendering ideas
 
@@ -1499,7 +1509,7 @@ BLOAD trap, animation frames driven by hand, every sink buffer recorded with its
 **Tests.** `test/computerProfile.test.js` gains the regression: a fake CPU resumes the machine from
 inside `cpu.run()`, then exactly one frame must be queued and 11 fixed steps must produce 11 emulated
 frames. Without the token it fails with `expected [ [Function frame], [Function frame] ] to have a
-length of 1 but got 2`. Suite: 90 tests in 13 files.
+length of 1 but got 2`.
 
 **Remaining.** `start(0)` (P3.10) still overlaps for at most one buffer when several emulated frames are
 caught up in a single animation frame after a stall (bounded by `MAX_FRAME_BACKLOG`; measured 20 ms,
