@@ -254,10 +254,14 @@ export class IO {
       const mask = 0x01 << ((w8 & BSR_BIT_MASK) >> BSR_BIT_SHIFT),
         target = decoded - 1;
 
+      // The 8255 changes the bit inside the chip: no bus cycle accompanies it, so the
+      // untimed accessors are used. Going through the CPU-facing input()/output() here
+      // would charge the contention arbiter for phantom I/O cycles - three per OUT
+      // instead of one.
       if (w8 & BSR_SET_BIT) {
-        this.output(target, this.input(target) | mask);
+        this.write_port(target, this.read_port(target) | mask);
       } else {
-        this.output(target, this.input(target) & ~mask);
+        this.write_port(target, this.read_port(target) & ~mask);
       }
     }
 

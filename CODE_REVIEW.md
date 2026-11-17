@@ -1157,6 +1157,23 @@ call from the trap, and cancellation resuming through the I/O-error path;
 `test/computerProfile.test.js` covers LOAD resolving the pending request without calling `load()`
 and cancellation clearing it.
 
+#### P2.25 A BSR control-word write charged three I/O cycles instead of one — ✅ done
+
+`IO.write_port()` emulated the i8255A bit set/reset mode (control word bit 7 == 0) by
+reading and writing the target port C through the CPU-facing `input()`/`output()`
+accessors. The 8255 flips the bit inside the chip, so no bus cycle accompanies it, but
+each of those accessors charges the contention arbiter one I/O cycle (P2.11, P2.19): a
+single `OUT 0xC3` ended up costing three cycles instead of one, quietly slowing programs
+that use BSR and inflating the clock and instruction counts.
+
+**Fix.** The BSR branch now changes the port C latch through the untimed
+`read_port()`/`write_port()` accessors, which update the same value without charging the
+arbiter. The outer `write_port()` still stores the control word and calls `updateSound()`,
+so the speaker keeps following port C.
+
+**Covered by** `test/contention.test.js` (a BSR control-word write charges exactly one
+I/O cycle and still flips the port C bit).
+
 ### P3 — Polish, features and rendering ideas
 
 #### P3.1 `keyboard.js`: deprecated `evt.keyCode` + manually unrolled loops — ✅ done

@@ -60,6 +60,18 @@ describe('Contention (video/RAM wait states)', () => {
     expect(contention.is_stalled).toBe(false);
   });
 
+  it('charges a BSR control-word write as one I/O access, not three', () => {
+    const { contention, io } = createParts();
+
+    io.output(0xc2, 0x00); // known port C state: 1 cycle
+    contention.take(); // clear the pending wait cycles
+
+    io.output(0xc3, 0x0f); // BSR: set bit 7 of port C - still one OUT on the bus
+
+    expect(io.ports[0xc2]).toBe(0x80); // the bit flips
+    expect(contention.take()).toBe(1); // and the whole write cost one I/O cycle
+  });
+
   it('does not stall on the ROM ports, nor on the dummy OUT (P2.17, P2.19)', () => {
     const core = createCore('standard', { wait_states: true });
 
